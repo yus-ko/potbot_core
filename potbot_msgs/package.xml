@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>potbot_msgs</name>
+  <version>0.0.0</version>
+  <description>The potbot_msgs package</description>
+  <maintainer email="ubuntu@todo.todo">ubuntu</maintainer>
+  <license>TODO</license>
+  <build_depend>message_generation</build_depend>
+  <exec_depend>message_runtime</exec_depend>
+  <buildtool_depend>catkin</buildtool_depend>
+</package>

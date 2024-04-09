@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>potbot_lib</name>
+  <version>0.0.0</version>
+  <description>The potbot_lib package</description>
+  <maintainer email="ubuntu@todo.todo">ubuntu</maintainer>
+  <license>TODO</license>
+  <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>potbot_msgs</build_depend>
+</package>
