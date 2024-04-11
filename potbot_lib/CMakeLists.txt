@@ -26,6 +26,7 @@ add_library(${PROJECT_NAME}
   src/PotentialField.cpp
   src/PathPlanner.cpp
   src/UnscentedKalmanFilter.cpp
+  src/PCLClustering.cpp
   src/ScanClustering.cpp
   src/DiffDriveController.cpp
 )
