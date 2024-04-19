@@ -300,5 +300,29 @@ namespace potbot_lib{
                 apply_limit();
             } 
         }
+
+        void DiffDriveController::time_state_control()
+        {
+            // v = 0.1;
+            // double mu_1 = v*cos(yaw);
+            // double mu_2 = (omega/v)*(1/pow(cos(yaw),3));
+            // omega = v*pow(cos(yaw),3)*tan(yaw);
+
+            v = 0.5;
+            double z2 = tan(yaw);
+            double z3 = y;
+            double k1 = 2;
+            double k2 = 1;
+            double mu2 = -k1*z3 - k2*z2;
+            omega = -k1*z3*v - k2*z2*abs(v);
+
+            // double alpha = 1;
+            // v = alpha;
+            // omega = -(8/pow(alpha,2))*z4_ - (12/alpha)*z3_ - 6*z2_;
+            // z4_ = z3_*v;
+            // z3_ = z2_*v;
+            // z2_ = omega/v*v;
+            ROS_INFO("%f",omega);
+        }
     }
 }

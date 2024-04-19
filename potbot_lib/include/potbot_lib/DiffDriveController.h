@@ -19,6 +19,11 @@ namespace potbot_lib{
 
             double deltatime                    = 0.02; //単位時間 [s]
 
+            double z1_ = 2;
+            double z2_ = -0.2;
+            double z3_ = 0.2;
+            double z4_ = 1;
+
             DiffDriveAgent( const double x              = 0.0,
                             const double y              = 0.0,
                             const double yaw            = 0.0,
@@ -103,6 +108,8 @@ namespace potbot_lib{
                 void pid_control();
 
                 void pure_pursuit();
+
+                void time_state_control();
             
         };
     }
