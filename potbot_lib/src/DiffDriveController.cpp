@@ -17,11 +17,23 @@ namespace potbot_lib{
         odom_msg.twist.twist.angular.z  = omega;
     }
 
+    
+
+    void DiffDriveAgent::set_msg(const geometry_msgs::Pose& pose_msg)
+    {
+        x                               = pose_msg.position.x;
+        y                               = pose_msg.position.y;
+        yaw                             = utility::get_Yaw(pose_msg.orientation);
+    }
+
+    void DiffDriveAgent::set_msg(const geometry_msgs::PoseStamped& pose_msg)
+    {
+        set_msg(pose_msg.pose);
+    }
+
     void DiffDriveAgent::set_msg(const nav_msgs::Odometry& odom_msg)
     {
-        x                               = odom_msg.pose.pose.position.x;
-        y                               = odom_msg.pose.pose.position.y;
-        yaw                             = utility::get_Yaw(odom_msg.pose.pose.orientation);
+        set_msg(odom_msg.pose.pose);
         v                               = odom_msg.twist.twist.linear.x;
         omega                           = odom_msg.twist.twist.angular.z;
     }
@@ -75,6 +87,12 @@ namespace potbot_lib{
             gain_p_=p;
             gain_i_=i;
             gain_d_=d;
+        }
+
+        void DiffDriveController::set_time_state_gain(double k1, double k2)
+        {
+            time_state_k1_ = k1;
+            time_state_k2_ = k2;
         }
 
         void DiffDriveController::set_margin(double angle, double distance)
@@ -288,7 +306,7 @@ namespace potbot_lib{
             if(initialize_pose_ && !done_init_pose_alignment_ && abs(init_angle - yaw) > stop_margin_angle_)
             {
                 target_point_.theta = init_angle;
-                pid_control_angle();
+                pid_control();
                 apply_limit();
             }
             else if (target_path_index_ < target_path_size)
@@ -303,26 +321,20 @@ namespace potbot_lib{
 
         void DiffDriveController::time_state_control()
         {
-            // v = 0.1;
-            // double mu_1 = v*cos(yaw);
-            // double mu_2 = (omega/v)*(1/pow(cos(yaw),3));
-            // omega = v*pow(cos(yaw),3)*tan(yaw);
-
-            v = 0.5;
-            double z2 = tan(yaw);
-            double z3 = y;
-            double k1 = 2;
-            double k2 = 1;
-            double mu2 = -k1*z3 - k2*z2;
-            omega = -k1*z3*v - k2*z2*abs(v);
-
-            // double alpha = 1;
-            // v = alpha;
-            // omega = -(8/pow(alpha,2))*z4_ - (12/alpha)*z3_ - 6*z2_;
-            // z4_ = z3_*v;
-            // z3_ = z2_*v;
-            // z2_ = omega/v*v;
-            ROS_INFO("%f",omega);
+            v = 0;
+            omega = 0;
+            if (abs(y) > stop_margin_distance_ || abs(yaw) > stop_margin_angle_)
+            {
+                v = max_linear_velocity_;
+                double theta = yaw;
+                if (theta == M_PI_2) theta -= 0.01;
+                else if(theta == -M_PI_2) theta += 0.01;
+                double z2 = tan(theta);
+                double z3 = y;
+                double mu2 = -time_state_k1_*z3 - time_state_k2_*z2;
+                // omega = mu2*v*pow(cos(theta),3);
+                omega = -time_state_k1_*z3*v - time_state_k2_*z2*abs(v);
+            }
         }
     }
 }

@@ -19,11 +19,6 @@ namespace potbot_lib{
 
             double deltatime                    = 0.02; //単位時間 [s]
 
-            double z1_ = 2;
-            double z2_ = -0.2;
-            double z3_ = 0.2;
-            double z4_ = 1;
-
             DiffDriveAgent( const double x              = 0.0,
                             const double y              = 0.0,
                             const double yaw            = 0.0,
@@ -38,6 +33,8 @@ namespace potbot_lib{
                             deltatime(deltatime){};
 
             void to_msg(nav_msgs::Odometry& odom_msg);
+            void set_msg(const geometry_msgs::Pose& pose_msg);
+            void set_msg(const geometry_msgs::PoseStamped& pose_msg);
             void set_msg(const nav_msgs::Odometry& odom_msg);
             void update();
 
@@ -64,6 +61,9 @@ namespace potbot_lib{
                 double gain_p_ = 1.0;
                 double gain_i_ = 0.5;
                 double gain_d_ = 0.001;
+
+                double time_state_k1_ = 2.0;
+                double time_state_k2_ = 1.0;
 
                 double stop_margin_angle_ = 0.1;
                 double stop_margin_distance_ = 0.03;
@@ -92,6 +92,7 @@ namespace potbot_lib{
                 void set_target(double x, double y, double yaw);
                 void set_target(const geometry_msgs::Pose& pose_msg);
                 void set_gain(double p, double i, double d);
+                void set_time_state_gain(double k1, double k2);
                 void set_margin(double angle, double distance);
                 void set_limit(double linear, double angular);
                 void set_distance_to_lookahead_point(double distance);

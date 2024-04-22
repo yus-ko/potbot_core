@@ -211,6 +211,14 @@ namespace potbot_lib{
             return point_out;
         }
 
+        geometry_msgs::PoseStamped get_tf(const tf2_ros::Buffer &buffer, const nav_msgs::Odometry& pose_in, const std::string target_frame_id)
+        {
+            geometry_msgs::PoseStamped ps;
+            ps.header = pose_in.header;
+            ps.pose = pose_in.pose.pose;
+            return get_tf(buffer, ps, target_frame_id);
+        }
+
         void get_tf(const tf2_ros::Buffer &buffer,const potbot_msgs::Obstacle& obstacle_in,const std::string target_frame_id, potbot_msgs::Obstacle& obstacle_out)
         {
             obstacle_out = obstacle_in;

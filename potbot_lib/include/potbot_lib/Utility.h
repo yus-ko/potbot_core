@@ -71,6 +71,7 @@ namespace potbot_lib{
 
         geometry_msgs::PoseStamped get_tf(const tf2_ros::Buffer &buffer, const geometry_msgs::PoseStamped& pose_in, const std::string target_frame_id);
         geometry_msgs::PointStamped get_tf(const tf2_ros::Buffer &buffer, const geometry_msgs::PointStamped& point_in, const std::string target_frame_id);
+        geometry_msgs::PoseStamped get_tf(const tf2_ros::Buffer &buffer, const nav_msgs::Odometry& pose_in, const std::string target_frame_id);
         void get_tf(const tf2_ros::Buffer &buffer, const potbot_msgs::Obstacle& obstacle_in, const std::string target_frame_id, potbot_msgs::Obstacle& obstacle_out);
         void get_tf(const tf2_ros::Buffer &buffer, const potbot_msgs::ObstacleArray& obscales_in, const std::string target_frame_id, potbot_msgs::ObstacleArray& obscales_out);
         void get_tf(const tf2_ros::Buffer &buffer, const nav_msgs::Path& path_in, const std::string target_frame_id, nav_msgs::Path& path_out);
