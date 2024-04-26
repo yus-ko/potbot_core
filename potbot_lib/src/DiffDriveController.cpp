@@ -305,12 +305,15 @@ namespace potbot_lib{
 
             if(initialize_pose_ && !done_init_pose_alignment_ && abs(init_angle - yaw) > stop_margin_angle_)
             {
+                ROS_DEBUG("inipos: %d, done: %d, angle: %f, margin: %d", initialize_pose_, done_init_pose_alignment_, abs(init_angle - yaw), stop_margin_angle_);
                 target_point_.theta = init_angle;
-                pid_control();
+                // pid_control();
+                pid_control_angle();
                 apply_limit();
             }
             else if (target_path_index_ < target_path_size)
             {   
+                ROS_DEBUG("line follow");
                 done_init_pose_alignment_ = true;
                 double alpha = get_angle(*lookahead_) - yaw;
                 v = max_linear_velocity_;
