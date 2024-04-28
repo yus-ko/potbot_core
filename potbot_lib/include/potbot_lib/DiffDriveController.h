@@ -48,6 +48,9 @@ namespace potbot_lib{
         const int PROCESS_ROTATE_DECLINATION = 1;
         const int PROCESS_STRAIGHT = 2;
         const int PROCESS_ROTATE_ANGLE = 3;
+        const int RETURN_TO_TARGET_PATH = 4;
+        const int FOLLOWING_PATH = 5;
+        const int TIME_STATE_CONTROL = 6;
 
         class DiffDriveController : public DiffDriveAgent{
             protected:
@@ -81,9 +84,11 @@ namespace potbot_lib{
                 double error_declination_pre_ = nan("");
 
                 int process_ = PROCESS_STOP;
+                int line_following_process_ = PROCESS_STOP;
                 
                 bool done_init_pose_alignment_ = false;
                 bool initialize_pose_ = true;
+                bool set_init_pose_ = false;
 
             public:
                 DiffDriveController(){};
@@ -99,7 +104,10 @@ namespace potbot_lib{
                 void set_target_path(const nav_msgs::Path& path_msg);
                 void set_initialize_pose(bool ini);
 
+                int get_current_process();
+                int get_current_line_following_process();
                 void get_lookahead(visualization_msgs::Marker& marker_msg);
+                double get_target_path_init_angle();
 
                 void apply_limit();
 
@@ -115,6 +123,5 @@ namespace potbot_lib{
         };
     }
 }
-
 
 #endif	// _H_DIFFDRIVECONTROLLER_
