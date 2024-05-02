@@ -119,6 +119,7 @@ namespace potbot_lib{
                 void pure_pursuit();
 
                 void time_state_control();
+                void p166_41();
             
         };
     }

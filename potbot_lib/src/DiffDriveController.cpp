@@ -376,5 +376,23 @@ namespace potbot_lib{
                 line_following_process_ = PROCESS_STOP;
             }
         }
+
+        void DiffDriveController::p166_41()
+        {
+            v = 0;
+            omega = 0;
+            if (abs(y) > stop_margin_distance_ || abs(yaw) > stop_margin_angle_)
+            {
+                line_following_process_ = TIME_STATE_CONTROL;   //TIME_STATE_CONTROL 変更
+                double ky = 1;
+                double kth = 1;
+                v = max_linear_velocity_;
+                omega = -ky*y -kth*yaw;
+            }
+            else
+            {
+                line_following_process_ = PROCESS_STOP;
+            }
+        }
     }
 }
