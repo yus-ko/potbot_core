@@ -73,7 +73,7 @@ namespace potbot_lib{
                     path_length <= max_path_length)
             {
                 //経路補間に時間がかかってしまうため制御点(path.size())の数に上限を設ける
-                if (path.size() > 400) break;
+                if (path.size() > 100) break;
                 double J_min = J_min_pre;
                 
                 std::vector<size_t> search_indexes;
@@ -336,12 +336,11 @@ namespace potbot_lib{
                 if (y > y_max) y_max = y;
             }
 
-
             double n = path_control.size();
 
             int bezier_idx = 0;
             double inc = 1.0/double(n*10);
-            double interpolate_distance_threshold = sqrt(pow(path_control[0][0] - path_control[1][0],2) + pow(path_control[0][1] - path_control[1][1],2))/10.0;
+            double interpolate_distance_threshold = sqrt(pow(path_control[0][0] - path_control[1][0],2) + pow(path_control[0][1] - path_control[1][1],2));
             for (double t = 0.0; t <= 1.0; t += inc)
             {
                 double x = 0;
