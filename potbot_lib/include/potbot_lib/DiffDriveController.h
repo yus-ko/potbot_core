@@ -117,7 +117,8 @@ namespace potbot_lib{
                 void pid_control();
 
                 void pure_pursuit();
-
+                void normalized_pure_pursuit();
+                
                 void time_state_control();
                 void p166_41();
             

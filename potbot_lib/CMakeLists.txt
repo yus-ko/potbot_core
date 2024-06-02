@@ -11,7 +11,7 @@ catkin_package(
   INCLUDE_DIRS include
   LIBRARIES ${PROJECT_NAME}
   # CATKIN_DEPENDS
-  # DEPENDS eigen opencv
+  DEPENDS eigen #opencv
 )
 
 include_directories(
@@ -29,6 +29,7 @@ add_library(${PROJECT_NAME}
   src/PCLClustering.cpp
   src/ScanClustering.cpp
   src/DiffDriveController.cpp
+  src/DWAController.cpp
 )
 
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})

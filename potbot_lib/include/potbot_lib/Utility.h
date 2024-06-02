@@ -2,6 +2,7 @@
 #define _H_UTILITY_
 
 #include <random>
+#include <Eigen/Dense>
 #include <potbot_msgs/ObstacleArray.h>
 #include <ros/ros.h>
 // #include <ros/package.h>
@@ -88,6 +89,12 @@ namespace potbot_lib{
         int get_PathIndex(const nav_msgs::Path& path, const nav_msgs::Odometry& position);
 
         void associate_obstacle(potbot_msgs::ObstacleArray& obstacle_input, const potbot_msgs::ObstacleArray& obstacle_compare, const tf2_ros::Buffer &buffer);
+
+        void find_closest_vector(const std::vector<Eigen::Vector2d>& vectors, const Eigen::Vector2d& target, Eigen::Vector2d& closest);
+
+        int get_index(const std::vector<Eigen::Vector2d>& vec, const Eigen::Vector2d& value);
+
+        void to_msg(const std::vector<Eigen::Vector2d>& vectors, nav_msgs::Path& msg);
 
         typedef struct {
             bool running                = false;

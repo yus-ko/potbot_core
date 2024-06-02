@@ -532,6 +532,43 @@ namespace potbot_lib{
             }
         }
 
+        void find_closest_vector(const std::vector<Eigen::Vector2d>& vectors, const Eigen::Vector2d& target, Eigen::Vector2d& closest)
+        {
+            double minDistance = std::numeric_limits<double>::max();
+
+            for (const auto& vec : vectors) {
+                double distance = (vec - target).norm();
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    closest = vec;
+                }
+            }
+        }
+
+        int get_index(const std::vector<Eigen::Vector2d>& vec, const Eigen::Vector2d& value)
+        {
+            auto it = std::find(vec.begin(), vec.end(), value);
+            if (it != vec.end()) {
+                return std::distance(vec.begin(), it);
+            } else {
+                return -1; // Return -1 if the element is not found
+            }
+        }
+
+        void to_msg(const std::vector<Eigen::Vector2d>& vectors, nav_msgs::Path& msg)
+        {
+            msg.poses.clear();
+            msg.header.frame_id = "map";
+
+            for (const auto& p:vectors)
+            {
+                geometry_msgs::PoseStamped pose;
+                pose.header = msg.header;
+                pose.pose = utility::get_Pose(p(0),p(1),0,0,0,0);
+                msg.poses.push_back(pose);
+            }
+        }
+
     }
 
 }

@@ -272,6 +272,7 @@ namespace potbot_lib{
             }
 
             apply_limit();
+            ROS_INFO("pid: v:%f omega:%f", v, omega);
         }
         
         void DiffDriveController::pure_pursuit()
@@ -351,7 +352,53 @@ namespace potbot_lib{
                 v = max_linear_velocity_;
                 omega = 2.0*v*sin(alpha)/l_d;
                 apply_limit();
-            } 
+            }
+        }
+
+        void DiffDriveController::normalized_pure_pursuit()
+        {
+            v=0;
+            omega=0;
+
+            if (target_path_.empty()) return;
+
+            if (get_distance(target_path_.back()) <= distance_to_lookahead_point_)
+            {
+                line_following_process_ = PROCESS_STOP;
+                return;
+            }
+
+            size_t target_path_size = target_path_.size();
+
+            Point* sub_goal = &target_path_.front();
+            double l_d;
+            while(true)
+            {
+                sub_goal = &target_path_[target_path_index_];
+                l_d = get_distance(*sub_goal);
+                if (l_d <= distance_to_lookahead_point_)
+                {
+                    target_path_index_++;
+                    if (target_path_index_ > target_path_size-1)
+                    {
+                        target_path_index_ = target_path_size-1;
+                        return;
+                    }
+                }
+                else
+                {
+                    lookahead_ = sub_goal;
+                    break;
+                }
+            }
+
+            ROS_INFO("index: %d, size: %d", target_path_index_, target_path_size);
+
+            double alpha = get_angle(*lookahead_) - yaw;
+            v = max_linear_velocity_/(abs(alpha)+1.0);
+            double nv = v/max_linear_velocity_;
+            omega = 2.0*nv*sin(alpha)/l_d;
+            apply_limit();
         }
 
         void DiffDriveController::time_state_control()
