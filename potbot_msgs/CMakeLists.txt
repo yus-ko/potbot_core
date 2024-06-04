@@ -11,15 +11,6 @@ find_package(catkin REQUIRED COMPONENTS
   message_generation
 )
 
-generate_dynamic_reconfigure_options(
-  cfg/Controller.cfg
-  cfg/Clustering.cfg
-  cfg/Localization.cfg
-  cfg/Localmap.cfg
-  cfg/PathPlanning.cfg
-  cfg/ClusteringParam.cfg
-)
-
 add_action_files(
   FILES
   Navigation.action
