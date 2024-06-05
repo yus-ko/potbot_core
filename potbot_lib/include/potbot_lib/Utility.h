@@ -2,7 +2,7 @@
 #define _H_UTILITY_
 
 #include <random>
-#include <Eigen/Dense>
+#include <eigen3/Eigen/Dense>
 #include <potbot_msgs/ObstacleArray.h>
 #include <ros/ros.h>
 // #include <ros/package.h>
