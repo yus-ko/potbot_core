@@ -68,7 +68,12 @@ namespace potbot_lib{
 
             __sort_repulsion_edges();
 
+            double theta_pre = init_robot_pose;
+            double x_pre     = path.back()[0];
+            double y_pre     = path.back()[1];
+
             bool solving_local_minimum = false;
+            bool change_weight = false;
             while ((*field_values)[pf_idx_min].states[Potential::GridInfo::IS_AROUND_GOAL] == false && 
                     path_length <= max_path_length)
             {
@@ -90,90 +95,107 @@ namespace potbot_lib{
                         double PotentialValue   = (*field_values)[idx].value;
                         double x                = (*field_values)[idx].x;
                         double y                = (*field_values)[idx].y;
-
-                        static double theta_pre = init_robot_pose;
-                        static double x_pre     = path.back()[0];
-                        static double y_pre     = path.back()[1];
                         
-                        double posediff         = abs(atan2(y-y_pre,x-x_pre) - theta_pre);
+                        double theta = atan2(y-y_pre,x-x_pre);
+                        double posediff         = abs(theta - theta_pre);
 
-                        double wu               = 1;
+                        double wu               = 1.0;
                         double w_theta          = 0;
+                        if (change_weight == true)
+                        {
+                            wu                  = 0.0;
+                            w_theta             = 1.0;
+                        }
                         double J                = wu*PotentialValue + w_theta*posediff;
 
                         if (J < J_min) 
                         {
                             solving_local_minimum       = false;
-                            x_pre                       = x;
-                            y_pre                       = y;
                             J_min                       = J;
                             pf_idx_min                  = idx;
                         }
                     }
-                }
-                else
-                {
-                    // for (auto idx : search_indexes)
-                    // {
-                    //     //現在のJ_minを下回るまで斥力場のエッジを進んでいく処理に変更する
-
-                    //     bool is_edge        = (*field_values)[idx].states[Potential::GridInfo::IS_REPULSION_FIELD_EDGE];
-                    //     bool is_planned     = (*field_values)[idx].states[Potential::GridInfo::IS_PLANNED_PATH];
-                    //     if (is_edge && !is_planned)
-                    //     {
-                    //         pf_idx_min                  = idx;
-                    //         double PotentialValue       = (*field_values)[idx].value;
-                    //         if (PotentialValue < J_min) 
-                    //         {
-                    //             solving_local_minimum   = false;
-                    //         }
-                    //         break;
-                    //     }
-                    //     else if (idx == *search_indexes.end())
-                    //     {
-                    //         return;
-                    //     }
-                    // }
-
-                    std::vector<Potential::FieldGrid> edges_clockwise, edges_counterclockwise;
-                    __get_repulsion_edges(edges_clockwise, edges_counterclockwise, center_row, center_col);
-
-                    // double distance_to_goal_clockwise = std::numeric_limits<double>::infinity();
-                    size_t path_length_clockwise;
-                    for (path_length_clockwise = 0;path_length_clockwise < edges_clockwise.size()/2; path_length_clockwise++)
+                    if (solving_local_minimum == true)
                     {
-                        if (__get_smaller_potential_index(edges_clockwise[path_length_clockwise].index, J_min) != edges_clockwise[path_length_clockwise].index)
-                        {
-                            break;
-                        }
-                    }
-
-                    size_t path_length_counterclockwise;
-                    for (path_length_counterclockwise = 0;path_length_counterclockwise < edges_counterclockwise.size()/2; path_length_counterclockwise++)
-                    {
-                        if (__get_smaller_potential_index(edges_counterclockwise[path_length_counterclockwise].index, J_min) != edges_counterclockwise[path_length_counterclockwise].index)
-                        {
-                            break;
-                        }
-                    }
-                    
-                    if(path_length_clockwise < path_length_counterclockwise)
-                    {
-                        for (size_t i = 0; i < path_length_clockwise; i++)
-                        {
-                            path.push_back({edges_clockwise[i].x, edges_clockwise[i].y});
-                            (*field_values)[edges_clockwise[i].index].states[Potential::GridInfo::IS_PLANNED_PATH] = true;
-                        }
-                        pf_idx_min = edges_clockwise[path_length_clockwise].index;
+                        // change_weight = true;
+                        // continue;
                     }
                     else
                     {
-                        for (size_t i = 0; i < path_length_counterclockwise; i++)
+                        // change_weight = false;
+                    }
+                    
+                }
+                else
+                {
+                    if (false)
+                    {
+                        
+                        // for (auto idx : search_indexes)
+                        // {
+                        //     //現在のJ_minを下回るまで斥力場のエッジを進んでいく処理に変更する
+
+                        //     bool is_edge        = (*field_values)[idx].states[Potential::GridInfo::IS_REPULSION_FIELD_EDGE];
+                        //     bool is_planned     = (*field_values)[idx].states[Potential::GridInfo::IS_PLANNED_PATH];
+                        //     if (is_edge && !is_planned)
+                        //     {
+                        //         pf_idx_min                  = idx;
+                        //         double PotentialValue       = (*field_values)[idx].value;
+                        //         if (PotentialValue < J_min) 
+                        //         {
+                        //             solving_local_minimum   = false;
+                        //         }
+                        //         break;
+                        //     }
+                        //     else if (idx == *search_indexes.end())
+                        //     {
+                        //         return;
+                        //     }
+                        // }
+                    }
+
+                    if (true)
+                    {
+                        std::vector<Potential::FieldGrid> edges_clockwise, edges_counterclockwise;
+                        __get_repulsion_edges(edges_clockwise, edges_counterclockwise, center_row, center_col);
+
+                        // double distance_to_goal_clockwise = std::numeric_limits<double>::infinity();
+                        size_t path_length_clockwise;
+                        for (path_length_clockwise = 0;path_length_clockwise < edges_clockwise.size()/2; path_length_clockwise++)
                         {
-                            path.push_back({edges_counterclockwise[i].x, edges_counterclockwise[i].y});
-                            (*field_values)[edges_counterclockwise[i].index].states[Potential::GridInfo::IS_PLANNED_PATH] = true;
+                            if (__get_smaller_potential_index(edges_clockwise[path_length_clockwise].index, J_min) != edges_clockwise[path_length_clockwise].index)
+                            {
+                                break;
+                            }
                         }
-                        pf_idx_min = edges_counterclockwise[path_length_counterclockwise].index;
+
+                        size_t path_length_counterclockwise;
+                        for (path_length_counterclockwise = 0;path_length_counterclockwise < edges_counterclockwise.size()/2; path_length_counterclockwise++)
+                        {
+                            if (__get_smaller_potential_index(edges_counterclockwise[path_length_counterclockwise].index, J_min) != edges_counterclockwise[path_length_counterclockwise].index)
+                            {
+                                break;
+                            }
+                        }
+                        
+                        if(path_length_clockwise < path_length_counterclockwise)
+                        {
+                            for (size_t i = 0; i < path_length_clockwise; i++)
+                            {
+                                path.push_back({edges_clockwise[i].x, edges_clockwise[i].y});
+                                (*field_values)[edges_clockwise[i].index].states[Potential::GridInfo::IS_PLANNED_PATH] = true;
+                            }
+                            pf_idx_min = edges_clockwise[path_length_clockwise].index;
+                        }
+                        else
+                        {
+                            for (size_t i = 0; i < path_length_counterclockwise; i++)
+                            {
+                                path.push_back({edges_counterclockwise[i].x, edges_counterclockwise[i].y});
+                                (*field_values)[edges_counterclockwise[i].index].states[Potential::GridInfo::IS_PLANNED_PATH] = true;
+                            }
+                            pf_idx_min = edges_counterclockwise[path_length_counterclockwise].index;
+                        }
                     }
 
                     solving_local_minimum   = false;
@@ -185,7 +207,9 @@ namespace potbot_lib{
                 center_row  = (*field_values)[pf_idx_min].row;
                 center_col  = (*field_values)[pf_idx_min].col;
                 J_min_pre   = J_min;
-
+                x_pre       = px;
+                y_pre       = py;
+                theta_pre   = atan2(py-path.back()[1],px-path.back()[0]);
                 //経路点が2連続で同じ場所の場合処理を終わらせる
                 if ((std::vector<double>){px, py} == path.end()[-1] && (std::vector<double>){px, py} == path.end()[-2]) break;
 
