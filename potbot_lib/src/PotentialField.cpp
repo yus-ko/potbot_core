@@ -310,6 +310,129 @@ namespace potbot_lib{
         catch(...){}
     }
 
+    void APF::set_obstacle(const Eigen::Vector2d& vec)
+    {
+        set_obstacle(vec(0), vec(1));
+    }
+
+    void APF::set_obstacle(const visualization_msgs::Marker& obs)
+    {
+        // return;
+        double origin_x = obs.pose.position.x;
+        double origin_y = obs.pose.position.y;
+        double origin_th = utility::get_Yaw(obs.pose.orientation);
+        double res = header_.resolution*5;
+
+        Eigen::MatrixXd vertexes;
+        if (obs.type == visualization_msgs::Marker::CUBE)
+        {
+            double width = obs.scale.x;
+            double height = obs.scale.y;
+
+            Eigen::Matrix2d rotation = utility::get_rotate_matrix(origin_th);
+            Eigen::MatrixXd translation(4,2);
+            translation <<  origin_x, origin_y,
+                            origin_x, origin_y,
+                            origin_x, origin_y,
+                            origin_x, origin_y;
+            Eigen::MatrixXd origin_vertexes(4,2);
+            origin_vertexes <<  -width/2,   -height/2,
+                                -width/2,   height/2,
+                                width/2,    height/2,
+                                width/2,    -height/2;
+
+            vertexes = rotation*origin_vertexes.transpose() + translation.transpose();
+            
+        }
+        else if (obs.type == visualization_msgs::Marker::SPHERE)
+        {
+            double width = obs.scale.x;
+            double height = obs.scale.y;
+
+            Eigen::Matrix2d rotation = utility::get_rotate_matrix(origin_th);
+            Eigen::Vector2d translation;
+            translation <<  origin_x, origin_y;
+            Eigen::MatrixXd origin_vertexes(4,2);
+            
+            size_t vertex_num = 2*M_PI/res;
+            vertexes.resize(2,vertex_num);
+            for (size_t i = 0; i < vertex_num; i++)
+            {
+                double t = 2 * M_PI * i / vertex_num;
+                double x = width/2 * cos(t);
+                double y = height/2 * sin(t);
+                Eigen::Vector2d p;
+                p<< x,y;
+                vertexes.col(i) = rotation*p + translation;
+            }
+        }
+
+        for (size_t i = 0; i < vertexes.cols(); i++)
+        {
+            // std::cout<<vertexes.row(i)<<std::endl;
+            set_obstacle(vertexes.col(i));
+        }
+    }
+
+    void APF::set_obstacle(const std::vector<visualization_msgs::Marker>& obs)
+    {
+        for (const auto& o:obs)
+        {
+            set_obstacle(o);
+        }
+    }
+    void APF::set_obstacle(const geometry_msgs::Point& obs)
+    {
+        set_obstacle(obs.x, obs.y);
+    }
+
+    void APF::set_obstacle(const std::vector<geometry_msgs::Point>& obs)
+    {
+        for (const auto& o:obs)
+        {
+            set_obstacle(o);
+        }
+    }
+
+    void APF::set_obstacle(const geometry_msgs::PointStamped& obs)
+    {
+        set_obstacle(obs.point);
+    }
+
+    void APF::set_obstacle(const std::vector<geometry_msgs::PointStamped>& obs)
+    {
+        for (const auto& o:obs)
+        {
+            set_obstacle(o);
+        }
+    }
+
+    void APF::set_obstacle(const geometry_msgs::Pose& obs)
+    {
+        set_obstacle(obs.position);
+    }
+
+    void APF::set_obstacle(const std::vector<geometry_msgs::Pose>& obs)
+    {
+        for (const auto& o:obs)
+        {
+            set_obstacle(o);
+        }
+    }
+
+    void APF::set_obstacle(const geometry_msgs::PoseStamped& obs)
+    {
+        set_obstacle(obs.pose);
+    }
+
+    void APF::set_obstacle(const std::vector<geometry_msgs::PoseStamped>& obs)
+    {
+        for (const auto& o:obs)
+        {
+            set_obstacle(o);
+        }
+    }
+
     void APF::get_attraction_field(Potential::Field& field)
     {
         field = potential_field_;

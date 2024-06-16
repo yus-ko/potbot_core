@@ -555,6 +555,14 @@ namespace potbot_lib{
             }
         }
 
+        Eigen::Matrix2d get_rotate_matrix(double th)
+        {
+            Eigen::Matrix2d R(2,2);
+            R << cos(th), -sin(th),
+                sin(th), cos(th);
+            return R;
+        }
+
         void to_msg(const std::vector<Eigen::Vector2d>& vectors, nav_msgs::Path& msg)
         {
             msg.poses.clear();

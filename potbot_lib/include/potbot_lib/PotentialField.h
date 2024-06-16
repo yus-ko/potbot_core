@@ -7,6 +7,9 @@
 // #include <pcl/point_cloud.h>
 #include <pcl_conversions/pcl_conversions.h>
 // #include <sensor_msgs/PointCloud2.h>
+#include <potbot_lib/Utility.h>
+#include <eigen3/Eigen/Dense>
+#include <visualization_msgs/Marker.h>
 
 namespace potbot_lib{
 
@@ -121,6 +124,18 @@ namespace potbot_lib{
             void set_goal(double x = 0, double y = 0);
             void set_robot(double x = 0, double y = 0);
             void set_obstacle(double x = 0, double y = 0);
+
+            void set_obstacle(const Eigen::Vector2d& vec);
+            void set_obstacle(const visualization_msgs::Marker& obs);
+            void set_obstacle(const std::vector<visualization_msgs::Marker>& obs);
+            void set_obstacle(const geometry_msgs::Point& obs);
+            void set_obstacle(const std::vector<geometry_msgs::Point>& obs);
+            void set_obstacle(const geometry_msgs::PointStamped& obs);
+            void set_obstacle(const std::vector<geometry_msgs::PointStamped>& obs);
+            void set_obstacle(const geometry_msgs::Pose& obs);
+            void set_obstacle(const std::vector<geometry_msgs::Pose>& obs);
+            void set_obstacle(const geometry_msgs::PoseStamped& obs);
+            void set_obstacle(const std::vector<geometry_msgs::PoseStamped>& obs);
 
             void get_attraction_field(Potential::Field& field);
             void get_repulsion_field(Potential::Field& field);

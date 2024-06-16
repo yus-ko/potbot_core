@@ -1,0 +1,5 @@
+<library path="lib/libpotbot_plugin">
+  <class name="potbot_nav/PotbotPlanner" type="potbot_nav::PotbotPlanner" base_class_type="nav_core::BaseGlobalPlanner">
+    <description>This is a add plugin.</description>
+  </class>
+</library>

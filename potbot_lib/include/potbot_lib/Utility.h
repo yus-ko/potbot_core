@@ -94,6 +94,8 @@ namespace potbot_lib{
 
         int get_index(const std::vector<Eigen::Vector2d>& vec, const Eigen::Vector2d& value);
 
+        Eigen::Matrix2d get_rotate_matrix(double th);
+
         void to_msg(const std::vector<Eigen::Vector2d>& vectors, nav_msgs::Path& msg);
 
         typedef struct {

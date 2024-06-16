@@ -2,6 +2,7 @@
 #define _H_PATHPLANNER_
 
 #include <ros/ros.h>
+#include <visualization_msgs/MarkerArray.h>
 #include <nav_msgs/Path.h>
 #include <potbot_lib/Utility.h>
 #include <potbot_lib/PotentialField.h>
@@ -28,6 +29,9 @@ namespace potbot_lib{
                 double apf_origin_y                         = 0.0);
                 ~APFPathPlanner();
                 
+                void get_loop_edges(visualization_msgs::MarkerArray& msg);
+
+                void create_path_with_weight(std::vector<std::vector<double>> &path, double init_robot_pose = 0.0, double max_path_length = 6.0, size_t path_search_range = 1, double path_weight_potential = 0.0, double path_weight_pose = 1.0);
                 void create_path(std::vector<std::vector<double>> &path, double init_robot_pose = 0.0, double max_path_length = 6.0, size_t path_search_range = 1);
                 void bezier(const std::vector<std::vector<double>> &path_control, std::vector<std::vector<double>> &path_interpolated);
                   
