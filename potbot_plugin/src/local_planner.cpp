@@ -432,4 +432,14 @@ namespace potbot_nav {
     // publishPlan(local_plan, l_plan_pub_);
     // return true;
   }
+
+  bool PotbotLocalPlanner::isGoalReached() {
+    if (! isInitialized()) {
+      ROS_ERROR("This planner has not been initialized, please call initialize() before using this planner");
+      return false;
+    }
+    //return flag set in controller
+    return reached_goal_; 
+  }
+
 };

@@ -125,7 +125,7 @@ namespace potbot_nav {
        * @brief  Check if the goal pose has been achieved
        * @return True if achieved, false otherwise
        */
-      bool isGoalReached(){};
+      bool isGoalReached();
 
       bool isInitialized() {
         return initialized_;
