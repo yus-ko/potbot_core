@@ -252,6 +252,18 @@ namespace potbot_nav {
       // dynamic_reconfigure::Server<BaseLocalPlannerConfig>::CallbackType cb = [this](auto& config, auto level){ reconfigureCB(config, level); };
       // dsrv_->setCallback(cb);
 
+      robot_controller_.set_gain(	    1.0,
+                                      0.1,
+                                      0.001);
+
+      robot_controller_.set_margin(	yaw_goal_tolerance_,
+                                    xy_goal_tolerance_);
+
+      robot_controller_.set_limit(	max_vel_x,
+                                    max_vel_th_);
+      
+      robot_controller_.set_distance_to_lookahead_point(0.4);
+
     } else {
       ROS_WARN("This planner has already been initialized, doing nothing");
     }
@@ -279,26 +291,27 @@ namespace potbot_nav {
       ROS_ERROR("This planner has not been initialized, please call initialize() before using this planner");
       return false;
     }
-    ROS_INFO("compute velocity");
-    cmd_vel.linear.x=0.2;
-    return true;
 
-    // std::vector<geometry_msgs::PoseStamped> local_plan;
-    // geometry_msgs::PoseStamped global_pose;
-    // if (!costmap_ros_->getRobotPose(global_pose)) {
-    //   return false;
-    // }
+    // ROS_INFO("compute velocity");
+    // cmd_vel.linear.x=0.2;
+    // return true;
 
-    // std::vector<geometry_msgs::PoseStamped> transformed_plan;
-    // //get the global plan in our frame
-    // if (!transformGlobalPlan(*tf_, global_plan_, global_pose, *costmap_, global_frame_, transformed_plan)) {
-    //   ROS_WARN("Could not transform the global plan to the frame of the controller");
-    //   return false;
-    // }
+    std::vector<geometry_msgs::PoseStamped> local_plan;
+    geometry_msgs::PoseStamped global_pose;
+    if (!costmap_ros_->getRobotPose(global_pose)) {
+      return false;
+    }
 
-    // //now we'll prune the plan based on the position of the robot
-    // if(prune_plan_)
-    //   prunePlan(global_pose, transformed_plan, global_plan_);
+    std::vector<geometry_msgs::PoseStamped> transformed_plan;
+    //get the global plan in our frame
+    if (!transformGlobalPlan(*tf_, global_plan_, global_pose, *costmap_, global_frame_, transformed_plan)) {
+      ROS_WARN("Could not transform the global plan to the frame of the controller");
+      return false;
+    }
+
+    //now we'll prune the plan based on the position of the robot
+    if(prune_plan_)
+      prunePlan(global_pose, transformed_plan, global_plan_);
 
     // geometry_msgs::PoseStamped drive_cmds;
     // drive_cmds.header.frame_id = robot_base_frame_;
@@ -312,9 +325,9 @@ namespace potbot_nav {
     // gettimeofday(&start, NULL);
     // */
 
-    // //if the global plan passed in is empty... we won't do anything
-    // if(transformed_plan.empty())
-    //   return false;
+    //if the global plan passed in is empty... we won't do anything
+    if(transformed_plan.empty())
+      return false;
 
     // const geometry_msgs::PoseStamped& goal_point = transformed_plan.back();
     // //we assume the global goal is the last point in the global plan
@@ -371,13 +384,31 @@ namespace potbot_nav {
     //     }
     //   }
 
-    //   //publish an empty plan because we've reached our goal position
-    //   publishPlan(transformed_plan, g_plan_pub_);
+      // //publish an empty plan because we've reached our goal position
+      // publishPlan(transformed_plan, g_plan_pub_);
     //   publishPlan(local_plan, l_plan_pub_);
 
     //   //we don't actually want to run the controller when we're just rotating to goal
     //   return true;
     // }
+
+    nav_msgs::Path path_msg;
+    path_msg.poses = transformed_plan;
+    robot_controller_.set_target_path(path_msg);
+    robot_controller_.set_msg(global_pose);
+    robot_controller_.deltatime = 1.0/30.0;
+
+    robot_controller_.normalized_pure_pursuit();
+    // robot_controller_.pure_pursuit();
+
+    nav_msgs::Odometry sim_pose;
+    robot_controller_.to_msg(sim_pose);
+    
+    // visualization_msgs::Marker lookahead_msg;
+    // robot_controller_.get_lookahead(lookahead_msg);
+    // lookahead_msg.header = odom_.header;
+
+    cmd_vel = sim_pose.twist.twist;
 
     // tc_->updatePlan(transformed_plan);
 
@@ -428,9 +459,9 @@ namespace potbot_nav {
     // }
 
     // //publish information to the visualizer
-    // publishPlan(transformed_plan, g_plan_pub_);
+    publishPlan(transformed_plan, g_plan_pub_);
     // publishPlan(local_plan, l_plan_pub_);
-    // return true;
+    return true;
   }
 
   bool PotbotLocalPlanner::isGoalReached() {

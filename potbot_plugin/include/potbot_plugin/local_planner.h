@@ -67,10 +67,14 @@
 
 #include <dynamic_reconfigure/server.h>
 #include <base_local_planner/BaseLocalPlannerConfig.h>
-
 #include <base_local_planner/odometry_helper_ros.h>
+#include <base_local_planner/goal_functions.h>
+
+#include <potbot_lib/DiffDriveController.h>
 
 namespace potbot_nav {
+  using namespace base_local_planner;
+
   /**
    * @class PotbotLocalPlanner
    * @brief A ROS wrapper for the trajectory controller that queries the param server to construct a controller
@@ -160,10 +164,11 @@ namespace potbot_nav {
       // base_local_planner::BaseLocalPlannerConfig default_config_;
       bool setup_;
 
-
       bool initialized_;
 
       std::vector<geometry_msgs::Point> footprint_spec_;
+
+      potbot_lib::Controller::DiffDriveController robot_controller_;
   };
 };
 #endif
