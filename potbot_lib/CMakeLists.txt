@@ -12,6 +12,8 @@ catkin_package(
   LIBRARIES ${PROJECT_NAME}
   # CATKIN_DEPENDS
   DEPENDS eigen #opencv
+  CATKIN_DEPENDS
+    costmap_2d
 )
 
 include_directories(

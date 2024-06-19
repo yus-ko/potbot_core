@@ -2,7 +2,7 @@
 #define _H_POTENTIALFIELD_
 
 #include <ros/ros.h>
-
+#include <costmap_2d/costmap_2d.h>
 // #include <pcl/point_types.h>
 // #include <pcl/point_cloud.h>
 #include <pcl_conversions/pcl_conversions.h>
@@ -61,7 +61,8 @@ namespace potbot_lib{
 
             public:
                 Field(size_t rows = 3, size_t cols = 3, double resolution = 1.0, double origin_x = 0.0, double origin_y = 0.0);
-                ~Field();
+                Field(costmap_2d::Costmap2D* costmap);
+                ~Field(){};
 
                 void init_field(size_t rows = 3, size_t cols = 3, double resolution = 1.0, double origin_x = 0.0, double origin_y = 0.0);
 
@@ -113,7 +114,11 @@ namespace potbot_lib{
                 double distance_threshold_repulsion_field   = 0.3,
                 double field_origin_x                       = 0,
                 double field_origin_y                       = 0);
-            ~APF();
+            APF(costmap_2d::Costmap2D* costmap,
+                double weight_attraction_field              = 0.1,
+                double weight_repulsion_field               = 0.1,
+                double distance_threshold_repulsion_field   = 0.3);
+            ~APF(){};
 
             void init_potential_field(size_t rows = 3, size_t cols = 3, double resolution = 1.0, double field_origin_x = 0.0, double field_origin_y = 0.0);
 
@@ -122,9 +127,15 @@ namespace potbot_lib{
             void set_obstacle(size_t index = 0);
 
             void set_goal(double x = 0, double y = 0);
-            void set_robot(double x = 0, double y = 0);
-            void set_obstacle(double x = 0, double y = 0);
+            void set_goal(const geometry_msgs::PoseStamped& goal);
 
+            void set_robot(double x = 0, double y = 0);
+            void set_robot(const geometry_msgs::Pose& robot);
+            void set_robot(const geometry_msgs::PoseStamped& robot);
+            void set_robot(const nav_msgs::Odometry& robot);
+
+            void set_obstacle(double x = 0, double y = 0);
+            
             void set_obstacle(const Eigen::Vector2d& vec);
             void set_obstacle(const visualization_msgs::Marker& obs);
             void set_obstacle(const std::vector<visualization_msgs::Marker>& obs);
@@ -136,6 +147,8 @@ namespace potbot_lib{
             void set_obstacle(const std::vector<geometry_msgs::Pose>& obs);
             void set_obstacle(const geometry_msgs::PoseStamped& obs);
             void set_obstacle(const std::vector<geometry_msgs::PoseStamped>& obs);
+
+            void set_obstacle(costmap_2d::Costmap2D* costmap);
 
             void get_attraction_field(Potential::Field& field);
             void get_repulsion_field(Potential::Field& field);

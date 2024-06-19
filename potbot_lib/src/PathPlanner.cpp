@@ -34,7 +34,9 @@ namespace potbot_lib{
         // void get_search_index_APF(Field& field, std::vector<size_t>, )
         APFPathPlanner::APFPathPlanner(size_t rows, size_t cols, double resolution, double weight_attraction_field, double weight_repulsion_field, double distance_threshold_repulsion_field, double apf_origin_x, double apf_origin_y) : 
         APF::APF(rows, cols, resolution,weight_attraction_field, weight_repulsion_field, distance_threshold_repulsion_field, apf_origin_x, apf_origin_y){}
-        APFPathPlanner::~APFPathPlanner(){}
+
+        APFPathPlanner::APFPathPlanner(costmap_2d::Costmap2D* costmap, double weight_attraction_field, double weight_repulsion_field, double distance_threshold_repulsion_field):
+        APF::APF(costmap, weight_attraction_field, weight_repulsion_field, distance_threshold_repulsion_field){}
 
         void APFPathPlanner::get_loop_edges(visualization_msgs::MarkerArray& msg)
         {
@@ -57,6 +59,24 @@ namespace potbot_lib{
                 }
                 msg.markers.push_back(marker);
             }
+        }
+
+        void APFPathPlanner::path_to_msg(std::vector<std::vector<double>> &path, std::vector<geometry_msgs::PoseStamped> &msg)
+        {
+            msg.clear();
+            for (auto point : path)
+            {
+                geometry_msgs::PoseStamped pose_msg;
+                pose_msg.pose.position.x = point[0];
+                pose_msg.pose.position.y = point[1];
+                pose_msg.pose.orientation = potbot_lib::utility::get_Quat(0,0,0);
+                msg.push_back(pose_msg);
+            }
+        }
+
+        void APFPathPlanner::path_to_msg(std::vector<std::vector<double>> &path, nav_msgs::Path &msg)
+        {
+            path_to_msg(path, msg.poses);
         }
 
         void APFPathPlanner::create_path_with_weight(std::vector<std::vector<double>> &path, double init_robot_pose, double max_path_length, size_t path_search_range, double path_weight_potential, double path_weight_pose)

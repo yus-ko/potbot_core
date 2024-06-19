@@ -70,6 +70,7 @@
 #include <base_local_planner/odometry_helper_ros.h>
 #include <base_local_planner/goal_functions.h>
 
+#include <potbot_lib/PathPlanner.h>
 #include <potbot_lib/DiffDriveController.h>
 
 namespace potbot_nav {
@@ -158,7 +159,7 @@ namespace potbot_nav {
       bool reached_goal_;
       bool latch_xy_goal_tolerance_, xy_tolerance_latch_;
 
-      ros::Publisher g_plan_pub_, l_plan_pub_;
+      ros::Publisher g_plan_pub_, l_plan_pub_, pub_potential_field_;
 
       // dynamic_reconfigure::Server<BaseLocalPlannerConfig> *dsrv_;
       // base_local_planner::BaseLocalPlannerConfig default_config_;
@@ -168,6 +169,7 @@ namespace potbot_nav {
 
       std::vector<geometry_msgs::Point> footprint_spec_;
 
+      potbot_lib::PathPlanner::APFPathPlanner *apf_;
       potbot_lib::Controller::DiffDriveController robot_controller_;
   };
 };

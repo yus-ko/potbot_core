@@ -110,14 +110,14 @@ namespace potbot_lib{
             distance_to_lookahead_point_ = distance;
         }
 
-        void DiffDriveController::set_target_path(const nav_msgs::Path& path_msg)
+        void DiffDriveController::set_target_path(const std::vector<geometry_msgs::PoseStamped>& path_msg)
         {
             done_init_pose_alignment_ = false;
             set_init_pose_ = false;
             target_path_.clear();
             size_t idx = 0;
             target_path_index_ = 0;
-            for (const auto pose : path_msg.poses)
+            for (const auto pose : path_msg)
             {
                 Point p;
                 p.index = idx++;
@@ -127,6 +127,11 @@ namespace potbot_lib{
                 target_path_.push_back(p);
             }
             lookahead_ = &target_path_.front();
+        }
+
+        void DiffDriveController::set_target_path(const nav_msgs::Path& path_msg)
+        {
+            set_target_path(path_msg.poses);
         }
 
         void DiffDriveController::set_initialize_pose(bool ini)

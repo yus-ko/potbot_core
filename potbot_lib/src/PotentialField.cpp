@@ -7,7 +7,13 @@ namespace potbot_lib{
         {
             init_field(rows, cols, resolution, origin_x, origin_y);
         }
-        Field::~Field(){}
+
+        Field::Field(costmap_2d::Costmap2D* costmap)
+        {
+            init_field( costmap->getSizeInCellsY(), costmap->getSizeInCellsX(), 
+                        costmap->getResolution(), 
+                        costmap->getOriginX() + costmap->getSizeInMetersX()/2, costmap->getOriginY() + costmap->getSizeInMetersY()/2);
+        }
 
         void Field::init_field(size_t rows, size_t cols, double resolution, double origin_x, double origin_y)
         {
@@ -257,7 +263,17 @@ namespace potbot_lib{
         distance_threshold_repulsion_field_     = distance_threshold_repulsion_field;
         init_potential_field(rows, cols, resolution, field_origin_x, field_origin_y);
     }
-    APF::~APF(){}
+
+    APF::APF(costmap_2d::Costmap2D* costmap, double weight_attraction_field, double weight_repulsion_field, double distance_threshold_repulsion_field) :
+    Potential::Field::Field(costmap)
+    {
+        weight_attraction_field_                = weight_attraction_field;
+        weight_repulsion_field_                 = weight_repulsion_field;
+        distance_threshold_repulsion_field_     = distance_threshold_repulsion_field;
+        init_potential_field(   costmap->getSizeInCellsY(), costmap->getSizeInCellsX(), 
+                                costmap->getResolution(), 
+                                costmap->getOriginX() + costmap->getSizeInMetersX()/2, costmap->getOriginY() + costmap->getSizeInMetersY()/2);
+    }
 
     void APF::init_potential_field(size_t rows, size_t cols, double resolution, double field_origin_x, double field_origin_y)
     {
@@ -267,6 +283,16 @@ namespace potbot_lib{
     void APF::set_goal(size_t index)
     {
         potential_field_.set_field_info(index, Potential::GridInfo::IS_GOAL, true);
+
+        Potential::FieldGrid val = potential_field_.get_value(index);
+        potential_field_.set_field_info(index, Potential::GridInfo::IS_AROUND_GOAL, true);
+
+        std::vector<size_t> search_indexes;
+        potential_field_.get_square_index(search_indexes, val.row, val.col, 1);
+        for (const auto&  i:search_indexes)
+        {
+            potential_field_.set_field_info(i, Potential::GridInfo::IS_AROUND_GOAL, true);
+        }
     }
 
     void APF::set_robot(size_t index)
@@ -287,7 +313,11 @@ namespace potbot_lib{
             set_goal(potential_field_.get_field_index(x,y));
         }
         catch(...){}
-        
+    }
+
+    void APF::set_goal(const geometry_msgs::PoseStamped& goal)
+    {
+        set_goal(goal.pose.position.x, goal.pose.position.y);
     }
 
     void APF::set_robot(double x, double y)
@@ -298,6 +328,21 @@ namespace potbot_lib{
             set_robot(potential_field_.get_field_index(x,y));
         }
         catch(...){}
+    }
+
+    void APF::set_robot(const geometry_msgs::Pose& robot)
+    {
+        set_robot(robot.position.x, robot.position.y);
+    }
+
+    void APF::set_robot(const geometry_msgs::PoseStamped& robot)
+    {
+        set_robot(robot.pose);
+    }
+
+    void APF::set_robot(const nav_msgs::Odometry& robot)
+    {
+        set_robot(robot.pose.pose);
     }
 
     void APF::set_obstacle(double x, double y)
@@ -433,6 +478,24 @@ namespace potbot_lib{
         }
     }
 
+    void APF::set_obstacle(costmap_2d::Costmap2D* costmap)
+    {
+        unsigned char* costs = costmap->getCharMap();
+        unsigned int map_size = costmap->getSizeInCellsX()*costmap->getSizeInCellsY();
+        for (unsigned int i = 0; i < map_size; i++)
+        {
+            int cost = costs[i];
+            if (cost == 254)
+            {
+                unsigned int xi,yi;
+                costmap->indexToCells(i,xi,yi);
+                double x,y;
+                costmap->mapToWorld(xi,yi,x,y);
+                set_obstacle(x, y);
+            }
+        }
+    }
+
     void APF::get_attraction_field(Potential::Field& field)
     {
         field = potential_field_;
@@ -493,7 +556,7 @@ namespace potbot_lib{
             double attraction_value     = 0.5 * weight_attraction_field * pow(distance_to_goal, 2);
             value.attraction            = attraction_value;
 
-            if (distance_to_goal < 0.3) value.states[Potential::GridInfo::IS_AROUND_GOAL] = true;
+            // if (distance_to_goal < 0.3) value.states[Potential::GridInfo::IS_AROUND_GOAL] = true;
 
 
 

@@ -8,6 +8,7 @@ project(potbot_plugin)
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
+  pcl_ros
   costmap_2d
   dynamic_reconfigure
   geometry_msgs

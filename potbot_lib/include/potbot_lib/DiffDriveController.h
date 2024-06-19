@@ -101,6 +101,7 @@ namespace potbot_lib{
                 void set_margin(double angle, double distance);
                 void set_limit(double linear, double angular);
                 void set_distance_to_lookahead_point(double distance);
+                void set_target_path(const std::vector<geometry_msgs::PoseStamped>& path_msg);
                 void set_target_path(const nav_msgs::Path& path_msg);
                 void set_initialize_pose(bool ini);
 

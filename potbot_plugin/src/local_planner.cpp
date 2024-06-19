@@ -79,7 +79,7 @@ namespace potbot_nav {
       ros::NodeHandle private_nh("~/" + name);
       g_plan_pub_ = private_nh.advertise<nav_msgs::Path>("global_plan", 1);
       l_plan_pub_ = private_nh.advertise<nav_msgs::Path>("local_plan", 1);
-
+      pub_potential_field_ = private_nh.advertise<sensor_msgs::PointCloud2>("field/potential", 1);
 
       tf_ = tf;
       costmap_ros_ = costmap_ros;
@@ -98,7 +98,6 @@ namespace potbot_nav {
 
       //initialize the copy of the costmap the controller will use
       costmap_ = costmap_ros_->getCostmap();
-
 
       global_frame_ = costmap_ros_->getGlobalFrameID();
       robot_base_frame_ = costmap_ros_->getBaseFrameID();
@@ -329,10 +328,10 @@ namespace potbot_nav {
     if(transformed_plan.empty())
       return false;
 
-    // const geometry_msgs::PoseStamped& goal_point = transformed_plan.back();
-    // //we assume the global goal is the last point in the global plan
-    // const double goal_x = goal_point.pose.position.x;
-    // const double goal_y = goal_point.pose.position.y;
+    const geometry_msgs::PoseStamped& goal_point = transformed_plan.back();
+    //we assume the global goal is the last point in the global plan
+    const double goal_x = goal_point.pose.position.x;
+    const double goal_y = goal_point.pose.position.y;
 
     // const double yaw = tf2::getYaw(goal_point.pose.orientation);
 
@@ -392,9 +391,73 @@ namespace potbot_nav {
     //   return true;
     // }
 
-    nav_msgs::Path path_msg;
-    path_msg.poses = transformed_plan;
-    robot_controller_.set_target_path(path_msg);
+    apf_ = new potbot_lib::PathPlanner::APFPathPlanner(costmap_,
+                                0.1,				                    //引力場の重み
+                                0.1,				                    //斥力場の重み
+                                0.4                              //斥力場を作る距離の閾値 [m]
+                                );
+
+    apf_->set_goal(transformed_plan.back());
+    // apf_->set_goal(global_plan_.back());
+
+    apf_->set_robot(global_pose);
+    apf_->set_obstacle(costmap_);
+    
+    apf_->create_potential_field();
+
+    std_msgs::Header header_apf;
+    header_apf.frame_id = global_frame_;
+    header_apf.stamp = ros::Time::now();
+
+    std::vector<std::vector<double>> path_raw, path_interpolated;
+    // double init_yaw = potbot_lib::utility::get_Yaw(g_robot.pose.pose.orientation);
+    // if (isnan(init_yaw)) init_yaw = 0;
+    double init_yaw = tf2::getYaw(global_pose.pose.orientation);
+
+    ROS_INFO("status: create path");
+    apf_->create_path(path_raw, init_yaw, 6.0, 1);
+
+    nav_msgs::Path path_msg_raw;
+    apf_->path_to_msg(path_raw, path_msg_raw);
+    path_msg_raw.header				= header_apf;
+    // pub_path_raw_.publish(path_msg_raw);
+
+    ROS_INFO("status: interpolate");
+    apf_->bezier(path_raw, path_interpolated);
+
+    nav_msgs::Path path_msg_interpolated;
+    apf_->path_to_msg(path_interpolated, path_msg_interpolated);
+    path_msg_interpolated.header	= header_apf;
+
+    // pub_path_.publish(path_msg_interpolated);
+    l_plan_pub_.publish(path_msg_interpolated);
+
+    potbot_lib::Potential::Field attraction_field, repulsion_field, potential_field, filtered_field;
+    // apf_->get_attraction_field(attraction_field);
+    // apf_->get_repulsion_field(repulsion_field);
+    apf_->get_potential_field(potential_field);
+    // potential_field.info_filter(filtered_field, {potbot_lib::Potential::GridInfo::IS_PLANNED_PATH, potbot_lib::Potential::GridInfo::IS_REPULSION_FIELD_EDGE},"and");
+    // potential_field.info_filter(filtered_field, g_potential_field_filter_terms, g_potential_field_filter_mode);
+
+    sensor_msgs::PointCloud2 attraction_field_msg, repulsion_field_msg, potential_field_msg, filtered_field_msg;
+    // attraction_field.to_pcl2(attraction_field_msg);
+    // repulsion_field.to_pcl2(repulsion_field_msg);
+    potential_field.to_pcl2(potential_field_msg);
+    // filtered_field.to_pcl2(filtered_field_msg);
+
+    // attraction_field_msg.header		= header_apf;
+    // repulsion_field_msg.header		= header_apf;
+    potential_field_msg.header		= header_apf;
+    // filtered_field_msg.header		= header_apf;
+
+    // pub_attraction_field_.publish(attraction_field_msg);
+    // pub_repulsion_field_.publish(repulsion_field_msg);
+    pub_potential_field_.publish(potential_field_msg);
+
+    // nav_msgs::Path path_msg;
+    // path_msg.poses = transformed_plan;
+    // robot_controller_.set_target_path(path_msg);
+    robot_controller_.set_target_path(path_msg_interpolated);
     robot_controller_.set_msg(global_pose);
     robot_controller_.deltatime = 1.0/30.0;
 
