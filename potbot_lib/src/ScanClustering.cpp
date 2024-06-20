@@ -222,7 +222,7 @@ namespace potbot_lib{
         for (const auto& clus : clusters_)
         {
             potbot_msgs::Obstacle obstacle;
-
+            obstacle.header = oa.header;
             obstacle.id = clus.id;
             obstacle.is_moving = clus.is_moving;
             obstacle.pose = potbot_lib::utility::get_Pose(clus.x, clus.y, 0,0,0,0);

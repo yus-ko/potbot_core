@@ -6,6 +6,7 @@
 #include <potbot_msgs/ObstacleArray.h>
 #include <ros/ros.h>
 // #include <ros/package.h>
+#include <std_msgs/Float64MultiArray.h>
 #include <std_msgs/ColorRGBA.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <nav_msgs/Path.h>
@@ -14,7 +15,7 @@
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
-// #include <potbot/beego_encoder.h>
+#include <visualization_msgs/MarkerArray.h>
 
 namespace potbot_lib{
 
@@ -97,6 +98,11 @@ namespace potbot_lib{
         Eigen::Matrix2d get_rotate_matrix(double th);
 
         void to_msg(const std::vector<Eigen::Vector2d>& vectors, nav_msgs::Path& msg);
+
+        std_msgs::Float64MultiArray matrix_to_multiarray(const Eigen::MatrixXd& mat);
+        Eigen::MatrixXd multiarray_to_matrix(const std_msgs::Float64MultiArray& multiarray);
+
+        void obstacle_array_to_marker_array(const potbot_msgs::ObstacleArray& obstacle_array, visualization_msgs::MarkerArray& marker_array);
 
         typedef struct {
             bool running                = false;

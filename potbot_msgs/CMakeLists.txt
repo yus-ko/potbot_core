@@ -18,6 +18,7 @@ add_action_files(
 
 add_message_files(
   FILES
+  Matrix.msg
   State.msg
   StateArray.msg
   ObstacleArray.msg

@@ -22,6 +22,10 @@ find_package(catkin REQUIRED COMPONENTS
   potbot_msgs
 )
 
+generate_dynamic_reconfigure_options(
+  cfg/StatePlugin.cfg
+)
+
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES ${PROJECT_NAME}
@@ -45,6 +49,7 @@ include_directories(
 add_library(${PROJECT_NAME}
   src/potbot_plan.cpp
   src/local_planner.cpp
+  src/state_layer.cpp
 )
 add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})

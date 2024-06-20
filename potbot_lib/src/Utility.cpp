@@ -577,6 +577,95 @@ namespace potbot_lib{
             }
         }
 
+        std_msgs::Float64MultiArray matrix_to_multiarray(const Eigen::MatrixXd& mat)
+        {
+            std_msgs::Float64MultiArray multiarray;
+
+            multiarray.data.resize(mat.size());
+            multiarray.layout.data_offset = 0;
+            multiarray.layout.dim.resize(2);
+
+            // multiarray(i,j) = data[data_offset + dim_stride[1]*i + j]
+            
+            multiarray.layout.dim[0].label = "row";
+            multiarray.layout.dim[0].size = mat.rows();
+            multiarray.layout.dim[0].stride = multiarray.layout.dim[0].size;
+
+            multiarray.layout.dim[1].label = "col";
+            multiarray.layout.dim[1].size = mat.cols();
+            multiarray.layout.dim[1].stride = multiarray.layout.dim[1].size;
+
+            for (size_t i = 0; i < mat.rows(); i++)
+            {
+                for (size_t j = 0; j < mat.cols(); j++)
+                {
+                    multiarray.data[multiarray.layout.data_offset + multiarray.layout.dim[1].stride*i + j] = mat(i,j);
+                }
+            }
+
+            return multiarray;
+        }
+
+        Eigen::MatrixXd multiarray_to_matrix(const std_msgs::Float64MultiArray& multiarray)
+        {
+            size_t rows = multiarray.layout.dim[0].size;
+            size_t cols = multiarray.layout.dim[1].size;
+            Eigen::MatrixXd mat(rows, cols);
+            for (size_t i = 0; i < rows; i++)
+            {
+                for (size_t j = 0; j < cols; j++)
+                {
+                    mat(i,j) = multiarray.data[multiarray.layout.data_offset + multiarray.layout.dim[1].stride*i + j];
+                }
+            }
+            return mat;
+        }
+
+        void obstacle_array_to_marker_array(const potbot_msgs::ObstacleArray& obstacle_array, visualization_msgs::MarkerArray& marker_array)
+        {
+            marker_array.markers.clear();
+            for (const auto& obs : obstacle_array.data)
+            {
+                // double v = obs.twist.linear.x;
+                // if (abs(v) > 2.0 || abs(v) < 0.1) continue;
+
+                visualization_msgs::Marker state_marker;
+
+                state_marker.header             = obs.header;
+
+                state_marker.ns                 = "segments/centor";
+                state_marker.id                 = obs.id;
+                state_marker.lifetime           = ros::Duration(1);
+
+                state_marker.type               = visualization_msgs::Marker::ARROW;
+                state_marker.action             = visualization_msgs::Marker::MODIFY;
+
+                state_marker.pose = obs.pose;
+
+                state_marker.scale.x            = 0.05;
+                state_marker.scale.y            = 0.1;
+                state_marker.scale.z            = 0.1;
+                
+                state_marker.color              = potbot_lib::color::get_msg(obs.id);
+                state_marker.color.a            = 0.5;
+
+                geometry_msgs::Point p0, p1;
+                p0.x                            = 0;
+                p0.y                            = 0;
+                p0.z                            = 0;
+                p1.x                            = obs.twist.linear.x;
+                p1.y                            = 0;
+                p1.z                            = 0;
+                state_marker.points.push_back(p0);
+                state_marker.colors.push_back(state_marker.color);
+                state_marker.points.push_back(p1);
+                state_marker.colors.push_back(state_marker.color);
+                
+                marker_array.markers.push_back(state_marker);
+
+            }
+        }
+
     }
 
 }
