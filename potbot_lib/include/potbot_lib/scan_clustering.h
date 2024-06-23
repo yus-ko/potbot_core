@@ -1,7 +1,7 @@
-#ifndef _H_SCANCLUSTERING_
-#define _H_SCANCLUSTERING_
+#ifndef H_SCANCLUSTERING_
+#define H_SCANCLUSTERING_
 
-#include <potbot_lib/Utility.h>
+#include <potbot_lib/utility_ros.h>
 #include <potbot_msgs/ObstacleArray.h>
 #include <ros/ros.h>
 #include <sensor_msgs/LaserScan.h>
@@ -10,7 +10,7 @@
 namespace potbot_lib{
 
     typedef struct {
-        std::vector<Point> points;
+        std::vector<ScanPoint> points;
         int id=0;
         int type=0;
         double x=0;
@@ -29,15 +29,15 @@ namespace potbot_lib{
             ScanClustering();
             ~ScanClustering(){};
             
-            void set_clusters(const sensor_msgs::LaserScan& scan);
-            void set_clusters(const potbot_msgs::ObstacleArray& obstaclearray);
-            void get_clusters(std::vector<Segment>& clusters_arg);
-            void euclidean_clustering();
+            void setClusters(const sensor_msgs::LaserScan& scan);
+            void setClusters(const potbot_msgs::ObstacleArray& obstaclearray);
+            void getClusters(std::vector<Segment>& clusters_arg);
+            void euclideanClustering();
             void segmentation();
-            void to_markerarray(visualization_msgs::MarkerArray& ma);
-            void to_obstaclearray(potbot_msgs::ObstacleArray& oa);
+            void toMarkerarray(visualization_msgs::MarkerArray& ma);
+            void toObstaclearray(potbot_msgs::ObstacleArray& oa);
 
     };
 }
 
-#endif	// _H_SCANCLUSTERING_
+#endif	// H_SCANCLUSTERING_

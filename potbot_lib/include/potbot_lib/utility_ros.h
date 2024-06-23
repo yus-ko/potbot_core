@@ -1,36 +1,45 @@
-#ifndef _H_UTILITY_
-#define _H_UTILITY_
+#ifndef H_POTBOT_LIB_UTILITY_ROS_
+#define H_POTBOT_LIB_UTILITY_ROS_
+
+#include <potbot_lib/utility.h>
+#include <potbot_lib/field.h>
 
 #include <random>
+
 #include <eigen3/Eigen/Dense>
 #include <potbot_msgs/ObstacleArray.h>
 #include <ros/ros.h>
 // #include <ros/package.h>
 #include <std_msgs/Float64MultiArray.h>
 #include <std_msgs/ColorRGBA.h>
+#include <sensor_msgs/PointCloud2.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <nav_msgs/Path.h>
 #include <nav_msgs/Odometry.h>
 #include <nav_msgs/OccupancyGrid.h>
+#include <tf2/utils.h>
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <visualization_msgs/MarkerArray.h>
 
+#include <pcl_conversions/pcl_conversions.h>
+
 namespace potbot_lib{
 
-    const int SUCCESS = 1;
-    const int FAIL = 0;
+    // bool operator==(const Point& p, const geometry_msgs::Point rp) {
+    //     return p.x == rp.x && p.y == rp.y && p.x == rp.x;
+    // }
 
-    // const int MEGAROVER = 0;
-    // const int TURTLEBOT3 = 1;
-    // const int BEEGO = 2;
+    // bool operator==(const Point& p, const geometry_msgs::Quaternion q) {
+    //     double x,y,z;
+    //     utility::get_RPY(q,x,y,z);
+    //     return p.x == x && p.y == y && p.x == x;
+    // }
 
-    const int DEAD_RECKONING = 0;
-    const int PARTICLE_FILTER = 1;
-
-    const int CSV_PATH = 0;
-    const int POTENTIAL_METHOD = 1;
+    // bool operator==(const Pose& pp, const geometry_msgs::Pose rp) {
+    //     return pp.position == rp.position && pp.rotation == rp.orientation;
+    // }
 
     namespace color{
         const int RED           = 0;
@@ -46,20 +55,15 @@ namespace potbot_lib{
         std_msgs::ColorRGBA get_msg(const std::string color_name);
     }
 
-    typedef struct {
-        int index=0;
-        double x=0;
-        double y=0;
-        double r=0;
-        double theta=0;
-    } Point;
-
     namespace utility{
         void get_RPY(const geometry_msgs::Quaternion& orientation, double &roll, double &pitch, double &yaw);
         geometry_msgs::Quaternion get_Quat(const double roll = 0, const double pitch = 0, const double yaw = 0);
+        geometry_msgs::Quaternion get_Quat(const Point& p);
         geometry_msgs::Point get_Point(const double x = 0, const double y = 0, const double z = 0);
+        geometry_msgs::Point get_Point(const Point& p);
         geometry_msgs::Pose get_Pose(const double x = 0, const double y = 0, const double z = 0, const double roll = 0, const double pitch = 0, const double yaw = 0);
         geometry_msgs::Pose get_Pose(const geometry_msgs::Point& p, const double roll = 0, const double pitch = 0, const double yaw = 0);
+        geometry_msgs::Pose get_Pose(const Pose& p);
         double get_Yaw(const geometry_msgs::Quaternion& orientation);
 
         double get_Distance(const geometry_msgs::Point& position1, const geometry_msgs::Point& position2);
@@ -91,18 +95,14 @@ namespace potbot_lib{
 
         void associate_obstacle(potbot_msgs::ObstacleArray& obstacle_input, const potbot_msgs::ObstacleArray& obstacle_compare, const tf2_ros::Buffer &buffer);
 
-        void find_closest_vector(const std::vector<Eigen::Vector2d>& vectors, const Eigen::Vector2d& target, Eigen::Vector2d& closest);
-
-        int get_index(const std::vector<Eigen::Vector2d>& vec, const Eigen::Vector2d& value);
-
-        Eigen::Matrix2d get_rotate_matrix(double th);
-
         void to_msg(const std::vector<Eigen::Vector2d>& vectors, nav_msgs::Path& msg);
 
         std_msgs::Float64MultiArray matrix_to_multiarray(const Eigen::MatrixXd& mat);
         Eigen::MatrixXd multiarray_to_matrix(const std_msgs::Float64MultiArray& multiarray);
 
         void obstacle_array_to_marker_array(const potbot_msgs::ObstacleArray& obstacle_array, visualization_msgs::MarkerArray& marker_array);
+
+        void field_to_pcl2(std::vector<potential::FieldGrid>& field, sensor_msgs::PointCloud2& pcl_msg);
 
         typedef struct {
             bool running                = false;
@@ -125,4 +125,4 @@ namespace potbot_lib{
     }
 }
 
-#endif	// _H_UTILITY_
+#endif	// H_POTBOT_LIB_UTILITY_ROS_

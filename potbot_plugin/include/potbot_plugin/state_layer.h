@@ -35,8 +35,8 @@
  * Author: Eitan Marder-Eppstein
  *         David V. Lu!!
  *********************************************************************/
-#ifndef _POTBOT_NAV_STATE_LAYER_H_
-#define _POTBOT_NAV_STATE_LAYER_H_
+#ifndef POTBOT_NAV_STATE_LAYER_H_
+#define POTBOT_NAV_STATE_LAYER_H_
 
 #include <ros/ros.h>
 #include <costmap_2d/obstacle_layer.h>
@@ -63,8 +63,8 @@
 #include <costmap_2d/ObstaclePluginConfig.h>
 #include <potbot_plugin/StatePluginConfig.h>
 #include <potbot_msgs/StateArray.h>
-#include <potbot_lib/ScanClustering.h>
-#include <potbot_lib/UnscentedKalmanFilter.h>
+#include <potbot_lib/scan_clustering.h>
+#include <potbot_lib/unscented_kalman_filter.h>
 
 using namespace costmap_2d;
 
@@ -135,4 +135,4 @@ namespace potbot_nav
 
 } // namespace potbot_nav
 
-#endif // _POTBOT_NAV_STATE_LAYER_H_
+#endif // POTBOT_NAV_STATE_LAYER_H_

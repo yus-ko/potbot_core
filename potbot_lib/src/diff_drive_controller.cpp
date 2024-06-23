@@ -1,68 +1,17 @@
-#include <potbot_lib/DiffDriveController.h>
+#include <potbot_lib/diff_drive_controller.h>
 
 namespace potbot_lib{
 
-    void DiffDriveAgent::to_msg(nav_msgs::Odometry& odom_msg)
-    {
-        odom_msg.header.stamp           = ros::Time::now();
-        odom_msg.pose.pose.position.x   = x;
-        odom_msg.pose.pose.position.y   = y;
-        odom_msg.pose.pose.position.z   = 0.0;
-        odom_msg.pose.pose.orientation  = utility::get_Quat(0,0,yaw);
-        odom_msg.twist.twist.linear.x   = v;
-        odom_msg.twist.twist.linear.y   = 0.0;
-        odom_msg.twist.twist.linear.z   = 0.0;
-        odom_msg.twist.twist.angular.x  = 0.0;
-        odom_msg.twist.twist.angular.y  = 0.0;
-        odom_msg.twist.twist.angular.z  = omega;
-    }
+    namespace controller{
+        
+        DiffDriveController::DiffDriveController()
+        {
+            initPID();
+        }
 
-    void DiffDriveAgent::set_msg(const geometry_msgs::Pose& pose_msg)
-    {
-        x                               = pose_msg.position.x;
-        y                               = pose_msg.position.y;
-        yaw                             = utility::get_Yaw(pose_msg.orientation);
-    }
-
-    void DiffDriveAgent::set_msg(const geometry_msgs::PoseStamped& pose_msg)
-    {
-        set_msg(pose_msg.pose);
-    }
-
-    void DiffDriveAgent::set_msg(const nav_msgs::Odometry& odom_msg)
-    {
-        set_msg(odom_msg.pose.pose);
-        v                               = odom_msg.twist.twist.linear.x;
-        omega                           = odom_msg.twist.twist.angular.z;
-    }
-
-    void DiffDriveAgent::update()
-    {
-        yaw                             += omega*deltatime;
-        x                               += v*deltatime*cos(yaw);
-        y                               += v*deltatime*sin(yaw);
-    }
-
-    double DiffDriveAgent::get_distance(const Point& p)
-    {
-        return sqrt(pow(x-p.x,2) + pow(y-p.y,2));
-    }
-
-    double DiffDriveAgent::get_angle(const Point& p)
-    {
-        return atan2(p.y - y, p.x - x);
-    }
-
-    namespace Controller{
-
-        void DiffDriveController::set_target(double x,double y,double yaw)
+        void DiffDriveController::initPID()
         {
             process_ = PROCESS_STOP;
-
-            target_point_.x = x;
-            target_point_.y = y;
-            target_point_.theta = yaw;
-
             error_angle_i_ = 0.0;
             error_angle_pre_ = nan("");
 
@@ -73,127 +22,103 @@ namespace potbot_lib{
             error_declination_pre_ = nan("");
         }
 
-        void DiffDriveController::set_target(const geometry_msgs::Pose& pose_msg)
+        void DiffDriveController::setTarget(double x,double y,double yaw)
         {
-            set_target(	pose_msg.position.x,
-						pose_msg.position.y,
-						potbot_lib::utility::get_Yaw(pose_msg.orientation));
+            target_point_.position.x = x;
+            target_point_.position.y = y;
+            target_point_.rotation.z = yaw;
         }
 
-        void DiffDriveController::set_gain(double p,double i,double d)
+        void DiffDriveController::setTarget(Pose target)
         {
-            gain_p_=p;
-            gain_i_=i;
-            gain_d_=d;
+            target_point_ = target;
         }
 
-        void DiffDriveController::set_time_state_gain(double k1, double k2)
-        {
-            time_state_k1_ = k1;
-            time_state_k2_ = k2;
-        }
-
-        void DiffDriveController::set_margin(double angle, double distance)
-        {
-            stop_margin_angle_ = angle;
-            stop_margin_distance_ = distance;
-        }
-
-        void DiffDriveController::set_limit(double linear, double angular)
-        {
-            max_linear_velocity_ = linear;
-            max_angular_velocity_ = angular;
-        }
-
-        void DiffDriveController::set_distance_to_lookahead_point(double distance)
-        {
-            distance_to_lookahead_point_ = distance;
-        }
-
-        void DiffDriveController::set_target_path(const std::vector<geometry_msgs::PoseStamped>& path_msg)
+        void DiffDriveController::setTargetPath(const std::vector<Pose>& path)
         {
             done_init_pose_alignment_ = false;
             set_init_pose_ = false;
             target_path_.clear();
             size_t idx = 0;
             target_path_index_ = 0;
-            for (const auto pose : path_msg)
-            {
-                Point p;
-                p.index = idx++;
-                p.x = pose.pose.position.x;
-                p.y = pose.pose.position.y;
-                p.theta = potbot_lib::utility::get_Yaw(pose.pose.orientation);
-                target_path_.push_back(p);
-            }
+            target_path_ = path;
+            setTarget(target_path_.back());
             lookahead_ = &target_path_.front();
         }
 
-        void DiffDriveController::set_target_path(const nav_msgs::Path& path_msg)
+        void DiffDriveController::setGain(double p,double i,double d)
         {
-            set_target_path(path_msg.poses);
+            gain_p_=p;
+            gain_i_=i;
+            gain_d_=d;
         }
 
-        void DiffDriveController::set_initialize_pose(bool ini)
+        void DiffDriveController::setTimeStateGain(double k1, double k2)
+        {
+            time_state_k1_ = k1;
+            time_state_k2_ = k2;
+        }
+
+        void DiffDriveController::setMargin(double angle, double distance)
+        {
+            stop_margin_angle_ = angle;
+            stop_margin_distance_ = distance;
+        }
+
+        void DiffDriveController::setLimit(double linear, double angular)
+        {
+            max_linear_velocity_ = linear;
+            max_angular_velocity_ = angular;
+        }
+
+        void DiffDriveController::setDistanceToLookaheadPoint(double distance)
+        {
+            distance_to_lookahead_point_ = distance;
+        }
+
+        void DiffDriveController::setInitializePose(bool ini)
         {
             initialize_pose_ = ini;
         }
 
-        int DiffDriveController::get_current_process()
+        int DiffDriveController::getCurrentProcess()
         {
             return process_;
         }
 
-        int DiffDriveController::get_current_line_following_process()
+        int DiffDriveController::getCurrentLineFollowingProcess()
         {
             return line_following_process_;
         }
 
-        void DiffDriveController::get_lookahead(visualization_msgs::Marker& marker_msg)
+        Pose DiffDriveController::getLookahead()
         {
-            
-            if (lookahead_ == nullptr) return;
-
-            marker_msg.ns                    = "LookAhead";
-            marker_msg.id                    = 0;
-            marker_msg.lifetime              = ros::Duration(0);
-
-            marker_msg.type                  = visualization_msgs::Marker::SPHERE;
-            marker_msg.action                = visualization_msgs::Marker::MODIFY;
-            
-            marker_msg.pose                  = potbot_lib::utility::get_Pose(lookahead_->x, lookahead_->y, 0, 0, 0, lookahead_->theta);
-
-            marker_msg.scale.x               = 0.08;
-            marker_msg.scale.y               = 0.08;
-            marker_msg.scale.z               = 0.08;
-
-            marker_msg.color                 = potbot_lib::color::get_msg(potbot_lib::color::RED);
-            marker_msg.color.a               = 0.5;
-            
+            if (lookahead_ == nullptr) return Pose{};
+            else return *lookahead_;
         }
 
-        double DiffDriveController::get_target_path_init_angle()
+        double DiffDriveController::getTargetPathInitAngle()
         {
             double init_angle = 0, x1 = 0, x2 = 1, y1 = 0, y2 = 0;
             if (target_path_index_ <= target_path_.size() - 2)
             {
-                x1 = target_path_[target_path_index_].x;
-                x2 = target_path_[target_path_index_+1].x;
-                y1 = target_path_[target_path_index_].y;
-                y2 = target_path_[target_path_index_+1].y;
+                x1 = target_path_[target_path_index_].position.x;
+                x2 = target_path_[target_path_index_+1].position.x;
+                y1 = target_path_[target_path_index_].position.y;
+                y2 = target_path_[target_path_index_+1].position.y;
             }
             else
             {
-                x1 = target_path_[target_path_index_-1].x;
-                x2 = target_path_[target_path_index_].x;
-                y1 = target_path_[target_path_index_-1].y;
-                y2 = target_path_[target_path_index_].y;
+                x1 = target_path_[target_path_index_-1].position.x;
+                x2 = target_path_[target_path_index_].position.x;
+                y1 = target_path_[target_path_index_-1].position.y;
+                y2 = target_path_[target_path_index_].position.y;
             }
             init_angle = atan2(y2-y1,x2-x1);
             return init_angle;
         }
 
-        void DiffDriveController::apply_limit()
+        void DiffDriveController::applyLimit()
         {
             if (v > max_linear_velocity_) v = max_linear_velocity_;
             else if (v < -max_linear_velocity_) v = -max_linear_velocity_;
@@ -201,9 +126,10 @@ namespace potbot_lib{
             else if (omega < -max_angular_velocity_) omega = -max_angular_velocity_; 
         }
 
-        void DiffDriveController::pid_control_angle()
+        void DiffDriveController::pidControlAngle()
         {
-            double error_angle = target_point_.theta-yaw;
+            // ROS_INFO_STREAM();
+            double error_angle = target_point_.rotation.z-yaw;
             if (isfinite(error_angle_pre_)){
                 error_angle_i_ += error_angle*deltatime;
                 double error_angle_d = (error_angle - error_angle_pre_)/deltatime;
@@ -213,9 +139,9 @@ namespace potbot_lib{
             error_angle_pre_ = error_angle;
         }
 
-        void DiffDriveController::pid_control_distance()
+        void DiffDriveController::pidControlDistance()
         {
-            double error_distance = get_distance(target_point_);
+            double error_distance = getDistance(target_point_);
             if (isfinite(error_distance_pre_)){
                 error_distance_i_ += error_distance*deltatime;
                 double error_distance_d = (error_distance - error_distance_pre_)/deltatime;
@@ -225,9 +151,9 @@ namespace potbot_lib{
             error_distance_pre_ = error_distance;
         }
 
-        void DiffDriveController::pid_control_declination()
+        void DiffDriveController::pidControlDeclination()
         {
-            double error_declination = get_angle(target_point_)-yaw;
+            double error_declination = getAngle(target_point_)-yaw;
             if (isfinite(error_declination_pre_)){
                 error_declination_i_ += error_declination*deltatime;
                 double error_declination_d = (error_declination - error_declination_pre_)/deltatime;
@@ -237,57 +163,57 @@ namespace potbot_lib{
             error_declination_pre_ = error_declination;
         }
 
-        void DiffDriveController::pid_control()
+        void DiffDriveController::pidControl()
         {
             v=0;
             omega=0;
             
-            if (process_ == PROCESS_STOP && (abs(target_point_.theta-yaw) >= stop_margin_angle_ || get_distance(target_point_) >= stop_margin_distance_))
+            if (process_ == PROCESS_STOP && (abs(target_point_.rotation.z-yaw) >= stop_margin_angle_ || getDistance(target_point_) >= stop_margin_distance_))
             {
                 process_ = PROCESS_ROTATE_DECLINATION;
             }
 
-            if (process_ == PROCESS_ROTATE_DECLINATION && abs(get_angle(target_point_)-yaw) < stop_margin_angle_)
+            if (process_ == PROCESS_ROTATE_DECLINATION && abs(getAngle(target_point_)-yaw) < stop_margin_angle_)
             {
                 process_ = PROCESS_STRAIGHT;
                 error_declination_i_ = 0.0;
                 error_declination_pre_ = nan("");
             }
-            else if (process_ == PROCESS_STRAIGHT && get_distance(target_point_) < stop_margin_distance_)
+            else if (process_ == PROCESS_STRAIGHT && getDistance(target_point_) < stop_margin_distance_)
             {
                 process_ = PROCESS_ROTATE_ANGLE;
             }
-            else if (process_ == PROCESS_ROTATE_ANGLE && abs(target_point_.theta-yaw) < stop_margin_angle_)
+            else if (process_ == PROCESS_ROTATE_ANGLE && abs(target_point_.rotation.z-yaw) < stop_margin_angle_)
             {
                 process_ = PROCESS_STOP;
             }
             
             if (process_ == PROCESS_ROTATE_DECLINATION)
             {
-                pid_control_declination();
+                pidControlDeclination();
             }
             else if (process_ == PROCESS_STRAIGHT)
             {
-                pid_control_declination();
-                pid_control_distance();
+                pidControlDeclination();
+                pidControlDistance();
             }
             else if (process_ == PROCESS_ROTATE_ANGLE)
             {
-                pid_control_angle();
+                pidControlAngle();
             }
 
-            apply_limit();
-            ROS_INFO("pid: v:%f omega:%f", v, omega);
+            applyLimit();
+            ROS_DEBUG("pid: v:%f omega:%f", v, omega);
         }
         
-        void DiffDriveController::pure_pursuit()
+        void DiffDriveController::purePursuit()
         {
             v=0;
             omega=0;
 
             if (target_path_.empty()) return;
 
-            if (get_distance(target_path_.back()) <= distance_to_lookahead_point_)
+            if (getDistance(target_path_.back().position) <= distance_to_lookahead_point_)
             {
                 line_following_process_ = PROCESS_STOP;
                 return;
@@ -295,12 +221,12 @@ namespace potbot_lib{
 
             size_t target_path_size = target_path_.size();
 
-            Point* sub_goal = &target_path_.front();
+            Pose* sub_goal = &target_path_.front();
             double l_d;
             while(true)
             {
                 sub_goal = &target_path_[target_path_index_];
-                l_d = get_distance(*sub_goal);
+                l_d = getDistance(*sub_goal);
                 if (l_d <= distance_to_lookahead_point_)
                 {
                     target_path_index_++;
@@ -322,14 +248,14 @@ namespace potbot_lib{
 
             if(initialize_pose_ && !done_init_pose_alignment_)
             {
-                double init_angle = get_target_path_init_angle();
+                double init_angle = getTargetPathInitAngle();
 
                 if (abs(init_angle - yaw) > stop_margin_angle_ || l_d > 2*distance_to_lookahead_point_)
                 {
                     if (!set_init_pose_)
                     {
                         set_init_pose_ = true;
-                        set_target(lookahead_->x, lookahead_->y, init_angle);
+                        setTarget(lookahead_->position.x, lookahead_->position.y, init_angle);
                         line_following_process_ = RETURN_TO_TARGET_PATH;
                     }
                 }
@@ -340,8 +266,8 @@ namespace potbot_lib{
 
                 if (line_following_process_ == RETURN_TO_TARGET_PATH)
                 {
-                    pid_control();
-                    apply_limit();
+                    pidControl();
+                    applyLimit();
                 }
                 
             }
@@ -353,21 +279,21 @@ namespace potbot_lib{
             if (line_following_process_ == FOLLOWING_PATH && target_path_index_ < target_path_size)
             {   
                 done_init_pose_alignment_ = true;
-                double alpha = get_angle(*lookahead_) - yaw;
+                double alpha = getAngle(*lookahead_) - yaw;
                 v = max_linear_velocity_;
                 omega = 2.0*v*sin(alpha)/l_d;
-                apply_limit();
+                applyLimit();
             }
         }
 
-        void DiffDriveController::normalized_pure_pursuit()
+        void DiffDriveController::normalizedPurePursuit()
         {
             v=0;
             omega=0;
 
             if (target_path_.empty()) return;
 
-            if (get_distance(target_path_.back()) <= distance_to_lookahead_point_)
+            if (getDistance(target_path_.back()) <= distance_to_lookahead_point_)
             {
                 line_following_process_ = PROCESS_STOP;
                 return;
@@ -375,12 +301,12 @@ namespace potbot_lib{
 
             size_t target_path_size = target_path_.size();
 
-            Point* sub_goal = &target_path_.front();
+            Pose* sub_goal = &target_path_.front();
             double l_d;
             while(true)
             {
                 sub_goal = &target_path_[target_path_index_];
-                l_d = get_distance(*sub_goal);
+                l_d = getDistance(*sub_goal);
                 if (l_d <= distance_to_lookahead_point_)
                 {
                     target_path_index_++;
@@ -397,16 +323,16 @@ namespace potbot_lib{
                 }
             }
 
-            ROS_INFO("index: %d, size: %d", target_path_index_, target_path_size);
+            ROS_DEBUG("index: %d, size: %d", target_path_index_, target_path_size);
 
-            double alpha = get_angle(*lookahead_) - yaw;
+            double alpha = getAngle(*lookahead_) - yaw;
             v = max_linear_velocity_/(abs(alpha)+1.0);
             double nv = v/max_linear_velocity_;
             omega = 2.0*nv*sin(alpha)/l_d;
-            apply_limit();
+            applyLimit();
         }
 
-        void DiffDriveController::time_state_control()
+        void DiffDriveController::timeStateControl()
         {
             v = 0;
             omega = 0;
@@ -445,6 +371,11 @@ namespace potbot_lib{
             {
                 line_following_process_ = PROCESS_STOP;
             }
+        }
+
+        bool DiffDriveController::reachedTarget()
+        {
+            return abs(getDistance(target_point_)) <= stop_margin_distance_ && abs(getAngle(target_point_)) <= stop_margin_angle_;
         }
     }
 }

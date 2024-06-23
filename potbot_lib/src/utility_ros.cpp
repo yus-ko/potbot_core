@@ -1,6 +1,7 @@
-#include <potbot_lib/Utility.h>
+#include <potbot_lib/utility_ros.h>
 
 namespace potbot_lib{
+
     namespace color{
         std_msgs::ColorRGBA get_msg(const int color_id)
         {
@@ -112,6 +113,11 @@ namespace potbot_lib{
             return orientation;
         }
 
+        geometry_msgs::Quaternion get_Quat(const Point& p)
+        {
+            return get_Quat(p.x, p.y, p.z);
+        }
+
         geometry_msgs::Point get_Point(const double x, const double y, const double z)
         {
             geometry_msgs::Point point;
@@ -119,6 +125,11 @@ namespace potbot_lib{
             point.y = y;
             point.z = z;
             return point;
+        }
+
+        geometry_msgs::Point get_Point(const Point& p)
+        {
+            return get_Point(p.x, p.y, p.z);
         }
 
         geometry_msgs::Pose get_Pose(const double x, const double y, const double z, const double roll, const double pitch, const double yaw)
@@ -132,6 +143,11 @@ namespace potbot_lib{
         geometry_msgs::Pose get_Pose(const geometry_msgs::Point& p, const double roll, const double pitch, const double yaw)
         {
             return get_Pose(p.x, p.y, p.z, roll,pitch,yaw);
+        }
+
+        geometry_msgs::Pose get_Pose(const Pose& p)
+        {
+            return get_Pose(p.position.x, p.position.y, p.position.z, p.rotation.x, p.rotation.y, p.rotation.z);
         }
 
         double get_Yaw(const geometry_msgs::Quaternion& orientation)
@@ -532,37 +548,6 @@ namespace potbot_lib{
             }
         }
 
-        void find_closest_vector(const std::vector<Eigen::Vector2d>& vectors, const Eigen::Vector2d& target, Eigen::Vector2d& closest)
-        {
-            double minDistance = std::numeric_limits<double>::max();
-
-            for (const auto& vec : vectors) {
-                double distance = (vec - target).norm();
-                if (distance < minDistance) {
-                    minDistance = distance;
-                    closest = vec;
-                }
-            }
-        }
-
-        int get_index(const std::vector<Eigen::Vector2d>& vec, const Eigen::Vector2d& value)
-        {
-            auto it = std::find(vec.begin(), vec.end(), value);
-            if (it != vec.end()) {
-                return std::distance(vec.begin(), it);
-            } else {
-                return -1; // Return -1 if the element is not found
-            }
-        }
-
-        Eigen::Matrix2d get_rotate_matrix(double th)
-        {
-            Eigen::Matrix2d R(2,2);
-            R << cos(th), -sin(th),
-                sin(th), cos(th);
-            return R;
-        }
-
         void to_msg(const std::vector<Eigen::Vector2d>& vectors, nav_msgs::Path& msg)
         {
             msg.poses.clear();
@@ -664,6 +649,30 @@ namespace potbot_lib{
                 marker_array.markers.push_back(state_marker);
 
             }
+        }
+
+        void field_to_pcl2(std::vector<potential::FieldGrid>& field, sensor_msgs::PointCloud2& pcl_msg)
+        {
+            // std::vector<pcl::PointXYZ> を作成
+            std::vector<pcl::PointXYZ> pointVector;
+            for (auto value : field)
+            {
+                double x = value.x;
+                double y = value.y;
+                double z = value.value;
+                pcl::PointXYZ point(x,y,z);
+                pointVector.push_back(point);
+            }
+
+            // std::vector<pcl::PointXYZ> を pcl::PointCloud に変換
+            pcl::PointCloud<pcl::PointXYZ>::Ptr pclPointCloud(new pcl::PointCloud<pcl::PointXYZ>);
+            pclPointCloud->points.resize(pointVector.size());
+            for (size_t i = 0; i < pointVector.size(); ++i) {
+                pclPointCloud->points[i] = pointVector[i];
+            }
+
+            // pcl::PointCloud を sensor_msgs::PointCloud2 に変換
+            pcl::toROSMsg(*pclPointCloud, pcl_msg);
         }
 
     }

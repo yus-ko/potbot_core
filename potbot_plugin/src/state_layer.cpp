@@ -294,25 +294,25 @@ namespace potbot_nav
         // std::vector<SEGMENT> segments;
 
         potbot_lib::ScanClustering scanclus;
-        scanclus.set_clusters(scan_data);   //センサーデータの登録
-        scanclus.euclidean_clustering();    //ユークリッド距離に基づいたクラスタリングを実行
+        scanclus.setClusters(scan_data);   //センサーデータの登録
+        scanclus.euclideanClustering();    //ユークリッド距離に基づいたクラスタリングを実行
 
         potbot_msgs::ObstacleArray clusters_obstaclearray_scan;
         clusters_obstaclearray_scan.header = scan_data.header;
-        scanclus.to_obstaclearray(clusters_obstaclearray_scan);    //クラスタリング結果をpotbot_msgs::ObstacleArray型に変換して取得
+        scanclus.toObstaclearray(clusters_obstaclearray_scan);    //クラスタリング結果をpotbot_msgs::ObstacleArray型に変換して取得
         // for (auto& obs : clusters_obstaclearray_scan.data) obs.header = clusters_obstaclearray_scan.header;
 
         //1時刻前のクラスタからの追跡
         static potbot_msgs::ObstacleArray clusters_obstaclearray_pre;
         potbot_lib::utility::associate_obstacle(clusters_obstaclearray_scan, clusters_obstaclearray_pre, *tf_);
 
-        scanclus.set_clusters(clusters_obstaclearray_scan);
+        scanclus.setClusters(clusters_obstaclearray_scan);
 
         //クラスタをワールド座標系に変換して1時刻先の追跡用データにする
         potbot_lib::utility::get_tf(*tf_, clusters_obstaclearray_scan, global_frame_, clusters_obstaclearray_pre);
 
         visualization_msgs::MarkerArray clusters_markerarray;
-        scanclus.to_markerarray(clusters_markerarray);  //クラスタリング結果をvisualization_msgs::MarkerArray型に変換して取得
+        scanclus.toMarkerarray(clusters_markerarray);  //クラスタリング結果をvisualization_msgs::MarkerArray型に変換して取得
         for (auto& clus : clusters_markerarray.markers) clus.header = scan_data.header;
 
 

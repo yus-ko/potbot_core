@@ -2,9 +2,16 @@ cmake_minimum_required(VERSION 3.0.2)
 project(potbot_lib)
 
 find_package(catkin REQUIRED COMPONENTS
+  dynamic_reconfigure
   roscpp
   pcl_ros
   potbot_msgs
+)
+
+generate_dynamic_reconfigure_options(
+  cfg/APFPathPlanner.cfg
+  cfg/PotentialField.cfg
+  cfg/Controller.cfg
 )
 
 catkin_package(
@@ -24,16 +31,22 @@ include_directories(
 )
 
 add_library(${PROJECT_NAME}
-  src/Utility.cpp
-  src/PotentialField.cpp
-  src/PathPlanner.cpp
-  src/UnscentedKalmanFilter.cpp
-  src/PCLClustering.cpp
-  src/ScanClustering.cpp
-  src/DiffDriveController.cpp
-  src/DWAController.cpp
+  src/utility.cpp
+  src/utility_ros.cpp
+  src/field.cpp
+  src/artificial_potential_field.cpp
+  src/artificial_potential_field_ros.cpp
+  src/apf_path_planner.cpp
+  src/apf_path_planner_ros.cpp
+  src/unscented_kalman_filter.cpp
+  src/pcl_clustering.cpp
+  src/scan_clustering.cpp
+  src/diff_drive_agent.cpp
+  src/diff_drive_controller.cpp
+  src/diff_drive_controller_ros.cpp
+  src/dwa_controller_ros.cpp
 )
-
+add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
 
 add_definitions(-std=c++14)

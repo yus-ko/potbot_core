@@ -1,86 +1,26 @@
-#include <potbot_lib/PathPlanner.h>
+#include <potbot_lib/apf_path_planner.h>
 
 namespace potbot_lib{
 
-    namespace PathPlanner{
-
-        void get_path_msg_from_csv(nav_msgs::Path& path_msg,const std::string& csv_fullpath)
-        {
-            nav_msgs::Path init;
-            path_msg = init;
-
-            std::string str_buf;
-            std::string str_conma_buf;
-            std::ifstream ifs_csv_file(csv_fullpath);
-
-            double line_buf[3];
-            while (getline(ifs_csv_file, str_buf)) 
-            {    
-                
-                std::istringstream i_stream(str_buf);// 「,」区切りごとにデータを読み込むためにistringstream型にする
-                
-                int i = 0;
-                while (getline(i_stream, str_conma_buf, ',')) // 「,」区切りごとにデータを読み込む
-                {
-                    line_buf[i++] = std::stod(str_conma_buf);
-                }
-                geometry_msgs::PoseStamped pose;
-                pose.pose = potbot_lib::utility::get_Pose(line_buf[0], line_buf[1], 0, 0, 0, line_buf[2]);
-                path_msg.poses.push_back(pose);
-            }
-            
-        }
+    namespace path_planner{
 
         // void get_search_index_APF(Field& field, std::vector<size_t>, )
-        APFPathPlanner::APFPathPlanner(size_t rows, size_t cols, double resolution, double weight_attraction_field, double weight_repulsion_field, double distance_threshold_repulsion_field, double apf_origin_x, double apf_origin_y) : 
-        APF::APF(rows, cols, resolution,weight_attraction_field, weight_repulsion_field, distance_threshold_repulsion_field, apf_origin_x, apf_origin_y){}
-
-        APFPathPlanner::APFPathPlanner(costmap_2d::Costmap2D* costmap, double weight_attraction_field, double weight_repulsion_field, double distance_threshold_repulsion_field):
-        APF::APF(costmap, weight_attraction_field, weight_repulsion_field, distance_threshold_repulsion_field){}
-
-        void APFPathPlanner::get_loop_edges(visualization_msgs::MarkerArray& msg)
+        APFPathPlanner::APFPathPlanner(ArtificialPotentialField *apf) : apf_(NULL)
         {
-            msg.markers.clear();
-            int id = 0;
-            for (const auto& loops:loop_edges_)
-            {
-                visualization_msgs::Marker marker;
-                marker.type = visualization_msgs::Marker::LINE_STRIP;
-                marker.id = id++;
-                marker.color = potbot_lib::color::get_msg(marker.id);
-                marker.scale.x = 0.05;
-                marker.lifetime = ros::Duration(0.5);
-                marker.pose = utility::get_Pose();
-                marker.ns = std::to_string(marker.id);
-                for (const auto& point:loops)
-                {
-                    geometry_msgs::Point point_msg = utility::get_Point(point.x, point.y);
-                    marker.points.push_back(point_msg);
-                }
-                msg.markers.push_back(marker);
-            }
+            apf_ = apf;
         }
 
-        void APFPathPlanner::path_to_msg(std::vector<std::vector<double>> &path, std::vector<geometry_msgs::PoseStamped> &msg)
+        void APFPathPlanner::setParams(double maxp, size_t sr, double wpot, double wpos)
         {
-            msg.clear();
-            for (auto point : path)
-            {
-                geometry_msgs::PoseStamped pose_msg;
-                pose_msg.pose.position.x = point[0];
-                pose_msg.pose.position.y = point[1];
-                pose_msg.pose.orientation = potbot_lib::utility::get_Quat(0,0,0);
-                msg.push_back(pose_msg);
-            }
+            max_path_length_ = maxp;
+            path_search_range_ = sr;
+            path_weight_potential_ = wpot;
+            path_weight_pose_ = wpos;
         }
 
-        void APFPathPlanner::path_to_msg(std::vector<std::vector<double>> &path, nav_msgs::Path &msg)
+        bool APFPathPlanner::createPathWithWeight(double init_robot_pose)
         {
-            path_to_msg(path, msg.poses);
-        }
-
-        void APFPathPlanner::create_path_with_weight(std::vector<std::vector<double>> &path, double init_robot_pose, double max_path_length, size_t path_search_range, double path_weight_potential, double path_weight_pose)
-        {
+            path_.clear();
             size_t center_row   = 0;
             size_t center_col   = 0;
             double center_x     = 0;
@@ -89,15 +29,14 @@ namespace potbot_lib{
             double J_min_pre, J_min_tmp;
             double P_min;
             double path_length  = 0;
-            size_t range        = path_search_range;
-            std::vector<Potential::FieldGrid>* field_values;
-            Field& field = potential_field_;
-            field_values = field.get_values();
+            size_t range        = path_search_range_;
+            std::vector<potential::FieldGrid>* field_values;
+            field_values = apf_->getValues();
             double scale = std::pow(10, 3);
 
             for (auto value : (*field_values))
             {
-                if (value.states[Potential::GridInfo::IS_ROBOT])
+                if (value.states[potential::GridInfo::IS_ROBOT])
                 {
                     pf_idx_min  = value.index;
                     center_x    = value.x;
@@ -109,27 +48,27 @@ namespace potbot_lib{
                     break;
                 }
             }
-            path.push_back({center_x, center_y});
-            (*field_values)[pf_idx_min].states[Potential::GridInfo::IS_PLANNED_PATH] = true;
+            path_.push_back(Pose{center_x, center_y});
+            (*field_values)[pf_idx_min].states[potential::GridInfo::IS_PLANNED_PATH] = true;
 
-            __sort_repulsion_edges();
+            sortRepulsionEdges();
 
             double theta_pre = init_robot_pose;
-            double x_pre     = path.back()[0];
-            double y_pre     = path.back()[1];
+            double x_pre     = path_.back().position.x;
+            double y_pre     = path_.back().position.y;
 
             bool solving_local_minimum = false;
             bool change_weight = false;
             // J_min_pre = 1e10;
-            while ((*field_values)[pf_idx_min].states[Potential::GridInfo::IS_AROUND_GOAL] == false && 
-                    path_length <= max_path_length)
+            while ((*field_values)[pf_idx_min].states[potential::GridInfo::IS_AROUND_GOAL] == false && 
+                    path_length <= max_path_length_)
             {
                 //経路補間に時間がかかってしまうため制御点(path.size())の数に上限を設ける
-                if (path.size() > 100) break;
+                if (path_.size() > 100) break;
                 double J_min = J_min_pre;
                 
                 std::vector<size_t> search_indexes;
-                field.get_square_index(search_indexes, center_row, center_col, range);
+                apf_->getSquareIndex(search_indexes, center_row, center_col, range);
                 if (search_indexes.empty()) break;
 
                 if (solving_local_minimum == false)
@@ -137,7 +76,7 @@ namespace potbot_lib{
                     solving_local_minimum = true;
                     for (auto idx : search_indexes)
                     {
-                        if ((*field_values)[idx].states[Potential::GridInfo::IS_PLANNED_PATH] == true) continue;
+                        if ((*field_values)[idx].states[potential::GridInfo::IS_PLANNED_PATH] == true) continue;
 
                         double PotentialValue   = (*field_values)[idx].value;
                         if (PotentialValue < P_min) 
@@ -167,7 +106,7 @@ namespace potbot_lib{
                         
                     for (auto idx : search_indexes)
                     {
-                        if ((*field_values)[idx].states[Potential::GridInfo::IS_PLANNED_PATH] == true) continue;
+                        if ((*field_values)[idx].states[potential::GridInfo::IS_PLANNED_PATH] == true) continue;
 
                         double PotentialValue   = (*field_values)[idx].value;
                         double x                = (*field_values)[idx].x;
@@ -177,8 +116,8 @@ namespace potbot_lib{
                         double posediff         = abs(theta - theta_pre);
                                 posediff         = std::floor(posediff * scale) / scale;
 
-                        double wu               = path_weight_potential;
-                        double w_theta          = path_weight_pose;
+                        double wu               = path_weight_potential_;
+                        double w_theta          = path_weight_pose_;
                         double J                = wu*PotentialValue + w_theta*posediff;
 
                         if (J <= J_min) 
@@ -193,25 +132,28 @@ namespace potbot_lib{
                 
                 double px   = (*field_values)[pf_idx_min].x;
                 double py   = (*field_values)[pf_idx_min].y;
-                path_length += sqrt(pow(px - path.back()[0],2) + pow(py - path.back()[1],2));
+                path_length += sqrt(pow(px - path_.back().position.x,2) + pow(py - path_.back().position.y,2));
                 center_row  = (*field_values)[pf_idx_min].row;
                 center_col  = (*field_values)[pf_idx_min].col;
                 J_min_pre   = J_min;
                 P_min = (*field_values)[pf_idx_min].value;
                 x_pre       = px;
                 y_pre       = py;
-                theta_pre   = atan2(py-path.back()[1],px-path.back()[0]);
+                theta_pre   = atan2(py-path_.back().position.y,px-path_.back().position.x);
                 //経路点が2連続で同じ場所の場合処理を終わらせる
-                if ((std::vector<double>){px, py} == path.end()[-1] && (std::vector<double>){px, py} == path.end()[-2]) break;
+                Pose p{px,py};
+                if (p == path_.end()[-1] && (p == path_.end()[-2])) break;
 
-                path.push_back({px, py});
-                (*field_values)[pf_idx_min].states[Potential::GridInfo::IS_PLANNED_PATH] = true;
+                path_.push_back(Pose{px, py});
+                (*field_values)[pf_idx_min].states[potential::GridInfo::IS_PLANNED_PATH] = true;
                 
             }
+            return true;
         }
 
-        void APFPathPlanner::create_path(std::vector<std::vector<double>> &path, double init_robot_pose, double max_path_length, size_t path_search_range)
+        bool APFPathPlanner::createPath(double init_robot_pose)
         {
+            path_.clear();
             size_t center_row   = 0;
             size_t center_col   = 0;
             double center_x     = 0;
@@ -219,14 +161,13 @@ namespace potbot_lib{
             size_t pf_idx_min   = 0;
             double J_min_pre;
             double path_length  = 0;
-            size_t range        = path_search_range;
-            std::vector<Potential::FieldGrid>* field_values;
-            Field& field = potential_field_;
-            field_values = field.get_values();
+            size_t range        = path_search_range_;
+            std::vector<potential::FieldGrid>* field_values;
+            field_values = apf_->getValues();
 
             for (auto value : (*field_values))
             {
-                if (value.states[Potential::GridInfo::IS_ROBOT])
+                if (value.states[potential::GridInfo::IS_ROBOT])
                 {
                     pf_idx_min  = value.index;
                     center_x    = value.x;
@@ -237,26 +178,26 @@ namespace potbot_lib{
                     break;
                 }
             }
-            path.push_back({center_x, center_y});
-            (*field_values)[pf_idx_min].states[Potential::GridInfo::IS_PLANNED_PATH] = true;
+            path_.push_back(Pose{center_x, center_y});
+            (*field_values)[pf_idx_min].states[potential::GridInfo::IS_PLANNED_PATH] = true;
 
-            __sort_repulsion_edges();
+            sortRepulsionEdges();
 
             double theta_pre = init_robot_pose;
-            double x_pre     = path.back()[0];
-            double y_pre     = path.back()[1];
+            double x_pre     = path_.back().position.x;
+            double y_pre     = path_.back().position.y;
 
             bool solving_local_minimum = false;
             bool change_weight = false;
-            while ((*field_values)[pf_idx_min].states[Potential::GridInfo::IS_AROUND_GOAL] == false && 
-                    path_length <= max_path_length)
+            while ((*field_values)[pf_idx_min].states[potential::GridInfo::IS_AROUND_GOAL] == false && 
+                    path_length <= max_path_length_)
             {
                 //経路補間に時間がかかってしまうため制御点(path.size())の数に上限を設ける
-                if (path.size() > 100) break;
+                if (path_.size() > 100) break;
                 double J_min = J_min_pre;
                 
                 std::vector<size_t> search_indexes;
-                field.get_square_index(search_indexes, center_row, center_col, range);
+                apf_->getSquareIndex(search_indexes, center_row, center_col, range);
                 if (search_indexes.empty()) break;
 
                 if (solving_local_minimum == false)
@@ -264,7 +205,7 @@ namespace potbot_lib{
                     solving_local_minimum = true;
                     for (auto idx : search_indexes)
                     {
-                        if ((*field_values)[idx].states[Potential::GridInfo::IS_PLANNED_PATH] == true) continue;
+                        if ((*field_values)[idx].states[potential::GridInfo::IS_PLANNED_PATH] == true) continue;
 
                         double PotentialValue   = (*field_values)[idx].value;
                         double x                = (*field_values)[idx].x;
@@ -294,8 +235,8 @@ namespace potbot_lib{
                 else
                 {
 
-                    std::vector<Potential::FieldGrid> edges_clockwise, edges_counterclockwise;
-                    __get_repulsion_edges(edges_clockwise, edges_counterclockwise, center_row, center_col);
+                    std::vector<potential::FieldGrid> edges_clockwise, edges_counterclockwise;
+                    getRepulsionEdges(edges_clockwise, edges_counterclockwise, center_row, center_col);
 
 
 
@@ -304,7 +245,7 @@ namespace potbot_lib{
                     // for (size_t i = 0; i < edges_clockwise.size(); i++)
                     // {
                     //     path.push_back({edges_clockwise[i].x, edges_clockwise[i].y});
-                    //     (*field_values)[edges_clockwise[i].index].states[Potential::GridInfo::IS_PLANNED_PATH] = true;
+                    //     (*field_values)[edges_clockwise[i].index].states[potential::GridInfo::IS_PLANNED_PATH] = true;
                     // }
                     // return;
 
@@ -312,7 +253,7 @@ namespace potbot_lib{
                     // for (size_t i = 0; i < edges_counterclockwise.size(); i++)
                     // {
                     //     path.push_back({edges_counterclockwise[i].x, edges_counterclockwise[i].y});
-                    //     (*field_values)[edges_counterclockwise[i].index].states[Potential::GridInfo::IS_PLANNED_PATH] = true;
+                    //     (*field_values)[edges_counterclockwise[i].index].states[potential::GridInfo::IS_PLANNED_PATH] = true;
                     // }
                     // return;
 
@@ -323,7 +264,7 @@ namespace potbot_lib{
                     size_t path_length_clockwise;
                     for (path_length_clockwise = 0;path_length_clockwise < edges_clockwise.size()/2; path_length_clockwise++)
                     {
-                        if (__get_smaller_potential_index(edges_clockwise[path_length_clockwise].index, J_min) != edges_clockwise[path_length_clockwise].index)
+                        if (getSmallerPotentialIndex(edges_clockwise[path_length_clockwise].index, J_min) != edges_clockwise[path_length_clockwise].index)
                         {
                             break;
                         }
@@ -332,7 +273,7 @@ namespace potbot_lib{
                     size_t path_length_counterclockwise;
                     for (path_length_counterclockwise = 0;path_length_counterclockwise < edges_counterclockwise.size()/2; path_length_counterclockwise++)
                     {
-                        if (__get_smaller_potential_index(edges_counterclockwise[path_length_counterclockwise].index, J_min) != edges_counterclockwise[path_length_counterclockwise].index)
+                        if (getSmallerPotentialIndex(edges_counterclockwise[path_length_counterclockwise].index, J_min) != edges_counterclockwise[path_length_counterclockwise].index)
                         {
                             break;
                         }
@@ -342,8 +283,8 @@ namespace potbot_lib{
                     {
                         for (size_t i = 0; i < path_length_clockwise; i++)
                         {
-                            path.push_back({edges_clockwise[i].x, edges_clockwise[i].y});
-                            (*field_values)[edges_clockwise[i].index].states[Potential::GridInfo::IS_PLANNED_PATH] = true;
+                            path_.push_back(Pose{edges_clockwise[i].x, edges_clockwise[i].y});
+                            (*field_values)[edges_clockwise[i].index].states[potential::GridInfo::IS_PLANNED_PATH] = true;
                         }
                         pf_idx_min = edges_clockwise[path_length_clockwise].index;
                     }
@@ -351,8 +292,8 @@ namespace potbot_lib{
                     {
                         for (size_t i = 0; i < path_length_counterclockwise; i++)
                         {
-                            path.push_back({edges_counterclockwise[i].x, edges_counterclockwise[i].y});
-                            (*field_values)[edges_counterclockwise[i].index].states[Potential::GridInfo::IS_PLANNED_PATH] = true;
+                            path_.push_back(Pose{edges_counterclockwise[i].x, edges_counterclockwise[i].y});
+                            (*field_values)[edges_counterclockwise[i].index].states[potential::GridInfo::IS_PLANNED_PATH] = true;
                         }
                         pf_idx_min = edges_counterclockwise[path_length_counterclockwise].index;
                     }
@@ -362,27 +303,28 @@ namespace potbot_lib{
                 
                 double px   = (*field_values)[pf_idx_min].x;
                 double py   = (*field_values)[pf_idx_min].y;
-                path_length += sqrt(pow(px - path.back()[0],2) + pow(py - path.back()[1],2));
+                path_length += sqrt(pow(px - path_.back().position.x,2) + pow(py - path_.back().position.y,2));
                 center_row  = (*field_values)[pf_idx_min].row;
                 center_col  = (*field_values)[pf_idx_min].col;
                 J_min_pre   = J_min;
                 x_pre       = px;
                 y_pre       = py;
-                theta_pre   = atan2(py-path.back()[1],px-path.back()[0]);
+                theta_pre   = atan2(py-path_.back().position.y,px-path_.back().position.x);
                 //経路点が2連続で同じ場所の場合処理を終わらせる
-                if ((std::vector<double>){px, py} == path.end()[-1] && (std::vector<double>){px, py} == path.end()[-2]) break;
+                Pose p{px,py};
+                if ((p == path_.end()[-1] && p == path_.end()[-2])) break;
 
-                path.push_back({px, py});
-                (*field_values)[pf_idx_min].states[Potential::GridInfo::IS_PLANNED_PATH] = true;
+                path_.push_back(Pose{px, py});
+                (*field_values)[pf_idx_min].states[potential::GridInfo::IS_PLANNED_PATH] = true;
                 
             }
+            return true;
         }
 
-        size_t APFPathPlanner::__get_smaller_potential_index(size_t centor_index, double potential_value)
+        size_t APFPathPlanner::getSmallerPotentialIndex(size_t centor_index, double potential_value)
         {
-            std::vector<Potential::FieldGrid>* field_values;
-            Field& field = potential_field_;
-            field_values = field.get_values();
+            std::vector<potential::FieldGrid>* field_values;
+            field_values = apf_->getValues();
 
             size_t centor_row = (*field_values)[centor_index].row;
             size_t centor_col = (*field_values)[centor_index].col;
@@ -393,16 +335,16 @@ namespace potbot_lib{
             }
             
             std::vector<size_t> search_indexes;
-            field.get_square_index(search_indexes, centor_row, centor_col, 1);
+            apf_->getSquareIndex(search_indexes, centor_row, centor_col, 1);
             if (search_indexes.empty()) return centor_index;
 
-            double distance_from_centor_to_goal = sqrt(pow((*field_values)[centor_index].x - goal_[0],2)+pow((*field_values)[centor_index].y - goal_[1],2));
+            double distance_from_centor_to_goal = sqrt(pow((*field_values)[centor_index].x - apf_->getGoal().x,2)+pow((*field_values)[centor_index].y - apf_->getGoal().y,2));
 
             for (auto idx : search_indexes)
             {
                 if ((*field_values)[idx].value < potential_value) 
                 {
-                    double distance_from_idx_to_goal = sqrt(pow((*field_values)[idx].x - goal_[0],2)+pow((*field_values)[idx].y - goal_[1],2));
+                    double distance_from_idx_to_goal = sqrt(pow((*field_values)[idx].x - apf_->getGoal().x,2)+pow((*field_values)[idx].y - apf_->getGoal().y,2));
                     if (distance_from_idx_to_goal < distance_from_centor_to_goal)
                     {
                         return idx;
@@ -414,22 +356,21 @@ namespace potbot_lib{
 
         }
 
-        void APFPathPlanner::__sort_repulsion_edges()
+        void APFPathPlanner::sortRepulsionEdges()
         {
             loop_edges_.clear();
-            Field& field = potential_field_;
             
-            Field edge_field;
-            field.info_filter(edge_field, Potential::GridInfo::IS_REPULSION_FIELD_EDGE);
-            std::vector<Potential::FieldGrid>* edge_values = edge_field.get_values();
+            potential::Field edge_field;
+            apf_->infoFilter(edge_field, potential::GridInfo::IS_REPULSION_FIELD_EDGE);
+            std::vector<potential::FieldGrid>* edge_values = edge_field.getValues();
             if((*edge_values).empty()) return;
 
-            float next_grid_distance = sqrt(2.0) * field.get_header().resolution;
+            float next_grid_distance = sqrt(2.0) * apf_->getHeader().resolution;
             // next_grid_distance+=0.2;
             float scale = std::pow(10, 3);
             next_grid_distance =  std::ceil(next_grid_distance * scale) / scale;
 
-            std::vector<Potential::FieldGrid> sorted_values;
+            std::vector<potential::FieldGrid> sorted_values;
             sorted_values.push_back((*edge_values)[0]);
             (*edge_values).erase((*edge_values).begin());
             while (!(*edge_values).empty())
@@ -458,7 +399,7 @@ namespace potbot_lib{
             }
             loop_edges_.push_back(sorted_values);
 
-            // std::vector<std::vector<potbot_lib::Potential::FieldGrid>> merged;
+            // std::vector<std::vector<potbot_lib::potential::FieldGrid>> merged;
             // for (const auto& points : loop_edges_) 
             // {
             //     if (merged.empty()) 
@@ -494,7 +435,7 @@ namespace potbot_lib{
 
         }
 
-        void APFPathPlanner::__get_repulsion_edges(std::vector<Potential::FieldGrid>& edges_clockwise, std::vector<Potential::FieldGrid>& edges_counterclockwise, size_t row_centor, size_t col_centor)
+        void APFPathPlanner::getRepulsionEdges(std::vector<potential::FieldGrid>& edges_clockwise, std::vector<potential::FieldGrid>& edges_counterclockwise, size_t row_centor, size_t col_centor)
         {
             // auto loops = loop_edges_[0];
             // edges_clockwise.push_back(loops[0]);
@@ -519,16 +460,12 @@ namespace potbot_lib{
             // return;
             
 
-
-
-
-            Field& field = potential_field_;
-            size_t start_index = field.get_field_index(row_centor, col_centor);
+            size_t start_index = apf_->getFieldIndex(row_centor, col_centor);
 
             float min_distance = std::numeric_limits<float>::infinity();
-            float start_x = field.get_value(start_index).x;
-            float start_y = field.get_value(start_index).y;
-            // std::vector<Potential::FieldGrid> near_edges;
+            float start_x = apf_->getValue(start_index).x;
+            float start_y = apf_->getValue(start_index).y;
+            // std::vector<potential::FieldGrid> near_edges;
             for (const auto& loops : loop_edges_)
             {
                 for (const auto& value : loops)
@@ -583,21 +520,23 @@ namespace potbot_lib{
             }
         }
 
-        void APFPathPlanner::bezier(const std::vector<std::vector<double>> &path_control, std::vector<std::vector<double>> &path_interpolated)
+        bool APFPathPlanner::bezier()
         {
             // https://www.f.waseda.jp/moriya/PUBLIC_HTML/education/classes/infomath6/applet/fractal/spline/
+            
+            const std::vector<Pose> &path_control = path_;
+            std::vector<Pose> path_interpolated;
 
-            if (path_control.size() < 2) return;
-            path_interpolated.clear();
+            if (path_control.size() < 2) return false;
 
-            double x_min = path_control[0][0];
-            double x_max = path_control[0][0];
-            double y_min = path_control[0][1];
-            double y_max = path_control[0][1];
+            double x_min = path_control[0].position.x;
+            double x_max = path_control[0].position.x;
+            double y_min = path_control[0].position.y;
+            double y_max = path_control[0].position.y;
             for(const auto& point : path_control)
             {
-                double x = point[0];
-                double y = point[1];
+                double x = point.position.x;
+                double y = point.position.y;
                 if (x < x_min) x_min = x;
                 if (x > x_max) x_max = x;
                 if (y < y_min) y_min = y;
@@ -608,18 +547,18 @@ namespace potbot_lib{
 
             int bezier_idx = 0;
             double inc = 1.0/double(n*10);
-            double interpolate_distance_threshold = sqrt(pow(path_control[0][0] - path_control[1][0],2) + pow(path_control[0][1] - path_control[1][1],2));
+            double interpolate_distance_threshold = sqrt(pow(path_control[0].position.x - path_control[1].position.x,2) + pow(path_control[0].position.y - path_control[1].position.y,2));
             for (double t = 0.0; t <= 1.0; t += inc)
             {
                 double x = 0;
                 double y = 0;
                 for (double i = 0.0; i <= n-1.0; i++)
                 {
-                    double a = __nCr(n-1.0,i);
+                    double a = combination(n-1.0,i);
                     double b = pow(t,i);
                     double c = pow(1.0-t,n-i-1.0);
-                    double x_inc = a * b * c * path_control[size_t(i)][0];
-                    double y_inc = __nCr(n-1.0,i) * pow(t,i) * pow(1.0-t,n-i-1.0) * path_control[size_t(i)][1];
+                    double x_inc = a * b * c * path_control[size_t(i)].position.x;
+                    double y_inc = combination(n-1.0,i) * pow(t,i) * pow(1.0-t,n-i-1.0) * path_control[size_t(i)].position.y;
                     if (std::isnan(x_inc) || std::isinf(x_inc))
                     {
                         x_inc = 0;
@@ -639,15 +578,23 @@ namespace potbot_lib{
                 // }
                 if (path_interpolated.size() > 1)
                 {
-                    double distance = sqrt(pow(x - path_interpolated.back()[0],2) + pow(y - path_interpolated.back()[1],2));
+                    double distance = sqrt(pow(x - path_interpolated.back().position.x,2) + pow(y - path_interpolated.back().position.y,2));
                     if (distance > interpolate_distance_threshold) break;
                 }
                 
                 path_interpolated.push_back({x,y});
             }
+            
+            path_ = path_interpolated;
+            return true;
         }
 
-        double APFPathPlanner::__nCr(double n, double r)
+        void APFPathPlanner::getPath(std::vector<Pose>& path)
+        {
+            path = path_;
+        }
+
+        double APFPathPlanner::combination(double n, double r)
         {
             double top = 1.0;
             double bottom = 1.0;

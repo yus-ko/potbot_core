@@ -1,10 +1,10 @@
-#ifndef _H_UNSCENTEDKALMANFILTER_
-#define _H_UNSCENTEDKALMANFILTER_
+#ifndef H_UNSCENTEDKALMANFILTER_
+#define H_UNSCENTEDKALMANFILTER_
 
-#include <ros/ros.h>
 #include <Eigen/Core>
 #include <Eigen/Geometry>
-#include <potbot_lib/DiffDriveController.h>
+#include <ros/ros.h>
+#include <nav_msgs/Odometry.h>
 
 namespace potbot_lib{
 
@@ -22,7 +22,7 @@ namespace potbot_lib{
             Eigen::MatrixXd R_;          //システムノイズ共分散行列
 
             // U変換(unscented transform)
-            std::tuple<bool, Eigen::VectorXd, Eigen::MatrixXd, Eigen::MatrixXd> __U_transform(ModelFunction f_ut, Eigen::VectorXd xm, Eigen::MatrixXd Pxx, double dt); 
+            std::tuple<bool, Eigen::VectorXd, Eigen::MatrixXd, Eigen::MatrixXd> uTransform(ModelFunction f_ut, Eigen::VectorXd xm, Eigen::MatrixXd Pxx, double dt); 
 
         public:
             UnscentedKalmanFilter(ModelFunction model_func_system, ModelFunction model_func_observ, 
@@ -32,9 +32,9 @@ namespace potbot_lib{
 
             std::tuple<Eigen::VectorXd, Eigen::MatrixXd, Eigen::MatrixXd> update(Eigen::VectorXd y, double dt);
 
-            void get_odom_state(nav_msgs::Odometry& odom_msg);
+            void getOdomState(nav_msgs::Odometry& odom_msg);
 
     };
 }
 
-#endif	// _H_UNSCENTEDKALMANFILTER_
+#endif	// H_UNSCENTEDKALMANFILTER_

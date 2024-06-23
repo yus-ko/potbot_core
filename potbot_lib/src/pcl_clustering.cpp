@@ -1,4 +1,4 @@
-#include <potbot_lib/PCLClustering.h>
+#include <potbot_lib/pcl_clustering.h>
 
 namespace potbot_lib
 {

@@ -1,7 +1,7 @@
-#ifndef _H_PCLCLUSTERING_
-#define _H_PCLCLUSTERING_
+#ifndef H_PCLCLUSTERING_
+#define H_PCLCLUSTERING_
 
-#include <potbot_lib/Utility.h>
+#include <potbot_lib/utility_ros.h>
 #include <potbot_msgs/ObstacleArray.h>
 #include <ros/ros.h>
 #include <visualization_msgs/MarkerArray.h>
@@ -88,4 +88,4 @@ namespace potbot_lib
 
 }
 
-#endif	// _H_PCLCLUSTERING_
+#endif	// H_PCLCLUSTERING_

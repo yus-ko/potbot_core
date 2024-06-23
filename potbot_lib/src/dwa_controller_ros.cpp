@@ -1,12 +1,12 @@
-#include <potbot_lib/DWAController.h>
+#include <potbot_lib/dwa_controller_ros.h>
 
 namespace potbot_lib
 {
 
-    namespace Controller
+    namespace controller
     {
         
-        void DWAController::set_dwa_target_path(const nav_msgs::Path& msg)
+        void DWAControllerROS::setDwaTargetPath(const nav_msgs::Path& msg)
         {
             closest_index_pre = 0;
             dwa_target_path_.clear();
@@ -17,12 +17,12 @@ namespace potbot_lib
             
         }
 
-        void DWAController::get_plans(std::vector<plan>& plans)
+        void DWAControllerROS::getPlans(std::vector<plan>& plans)
         {
             plans = plans_;
         }
 
-        void DWAController::get_plans(visualization_msgs::MarkerArray& msg)
+        void DWAControllerROS::getPlans(visualization_msgs::MarkerArray& msg)
         {
             msg.markers.clear();
 
@@ -48,44 +48,44 @@ namespace potbot_lib
             }
         }
 
-        void DWAController::get_split_path(std::vector<Eigen::Vector2d>& path)
+        void DWAControllerROS::getSplitPath(std::vector<Eigen::Vector2d>& path)
         {
             path = split_path_;
         }
 
-        void DWAController::get_split_path(nav_msgs::Path& msg)
+        void DWAControllerROS::getSplitPath(nav_msgs::Path& msg)
         {
             utility::to_msg(split_path_, msg);
         }
 
-        void DWAController::get_best_path(std::vector<Eigen::Vector2d>& path)
+        void DWAControllerROS::getBestPath(std::vector<Eigen::Vector2d>& path)
         {
             path = best_plan_.path;
         }
 
-        void DWAController::get_best_path(nav_msgs::Path& msg)
+        void DWAControllerROS::getBestPath(nav_msgs::Path& msg)
         {
             utility::to_msg(best_plan_.path, msg);
         }
 
-        void DWAController::get_best_plan(plan& plan)
+        void DWAControllerROS::getBestPlan(plan& plan)
         {
             plan = best_plan_;
         }
 
-        void DWAController::get_best_cmd(double& v, double& omega)
+        void DWAControllerROS::getBestCmd(double& v, double& omega)
         {
             v = best_plan_.linear_velocity;
             omega = best_plan_.angular_velocity;
         }
 
-        void DWAController::get_best_cmd(geometry_msgs::Twist& cmd)
+        void DWAControllerROS::getBestCmd(geometry_msgs::Twist& cmd)
         {
             cmd.linear.x = best_plan_.linear_velocity;
             cmd.angular.z = best_plan_.angular_velocity;
         }
 
-        void DWAController::__split_path()
+        void DWAControllerROS::splitPath()
         {
             split_path_.clear();
             Eigen::Vector2d closest_point;
@@ -122,7 +122,7 @@ namespace potbot_lib
             }
         }
 
-        void DWAController::__search_for_best_plan()
+        void DWAControllerROS::searchForBestPlan()
         {
             // plan tmp;
             // best_plan_ = tmp;
@@ -146,7 +146,7 @@ namespace potbot_lib
             }
         }
 
-        void DWAController::__create_plans()
+        void DWAControllerROS::createPlans()
         {
             plans_.clear();
             double x_init = x;
@@ -183,11 +183,11 @@ namespace potbot_lib
             }
         }
 
-        void DWAController::calculate_command()
+        void DWAControllerROS::calculateCommand()
         {
-            __create_plans();
-            __split_path();
-            __search_for_best_plan();
+            createPlans();
+            splitPath();
+            searchForBestPlan();
             v = best_plan_.linear_velocity;
             omega = best_plan_.angular_velocity;
         }

@@ -1,4 +1,4 @@
-#include <potbot_lib/ScanClustering.h>
+#include <potbot_lib/scan_clustering.h>
 
 namespace potbot_lib{
 
@@ -7,7 +7,7 @@ namespace potbot_lib{
 
     }
 
-    void ScanClustering::set_clusters(const sensor_msgs::LaserScan& scan)
+    void ScanClustering::setClusters(const sensor_msgs::LaserScan& scan)
     {
         clusters_.clear();
         Segment clus;
@@ -16,7 +16,7 @@ namespace potbot_lib{
         {
             if (scan.range_min <= range && range <= scan.range_max)
             {
-                Point p;
+                ScanPoint p;
                 p.index = p_idx++;
                 p.theta = (double)range_idx * scan.angle_increment + scan.angle_min;
                 p.r = range;   //minは足さない
@@ -30,7 +30,7 @@ namespace potbot_lib{
         
     }
 
-    void ScanClustering::set_clusters(const potbot_msgs::ObstacleArray& obstaclearray)
+    void ScanClustering::setClusters(const potbot_msgs::ObstacleArray& obstaclearray)
     {
         clusters_.resize(obstaclearray.data.size());
         size_t p_idx = 0;
@@ -55,7 +55,7 @@ namespace potbot_lib{
         }
     }
     
-    void ScanClustering::get_clusters(std::vector<Segment>& clusters_arg)
+    void ScanClustering::getClusters(std::vector<Segment>& clusters_arg)
     {
         clusters_arg = clusters_;
     }
@@ -90,7 +90,7 @@ namespace potbot_lib{
 
     // }
 
-    void ScanClustering::euclidean_clustering()
+    void ScanClustering::euclideanClustering()
     {
         int size = clusters_[0].points.size();
         bool start = false;
@@ -104,11 +104,11 @@ namespace potbot_lib{
                 seg.points.clear();
             }
 
-            Point &p = clusters_[0].points[i];
+            ScanPoint &p = clusters_[0].points[i];
 
             if (!seg.points.empty())
             {    
-                Point &p_next = seg.points.back();
+                ScanPoint &p_next = seg.points.back();
 
                 double distance = sqrt(pow(p.x - p_next.x,2) + pow(p.y - p_next.y,2));
                 if (distance <= 0.3)
@@ -141,9 +141,9 @@ namespace potbot_lib{
 
             std::vector<double> vec_x, vec_y;
             //x のみを抽出
-            std::transform(clus.points.begin(), clus.points.end(), std::back_inserter(vec_x), [](const Point& p) { return p.x; });
+            std::transform(clus.points.begin(), clus.points.end(), std::back_inserter(vec_x), [](const ScanPoint& p) { return p.x; });
             //y のみを抽出
-            std::transform(clus.points.begin(), clus.points.end(), std::back_inserter(vec_y), [](const Point& p) { return p.y; });
+            std::transform(clus.points.begin(), clus.points.end(), std::back_inserter(vec_y), [](const ScanPoint& p) { return p.y; });
 
             // xの最小値を取得
             auto min_x_itr = std::min_element(vec_x.begin(), vec_x.end());
@@ -169,7 +169,7 @@ namespace potbot_lib{
 
     }
 
-    void ScanClustering::to_markerarray(visualization_msgs::MarkerArray& ma)
+    void ScanClustering::toMarkerarray(visualization_msgs::MarkerArray& ma)
     {
         ma.markers.clear();
         int points_id = clusters_.back().id + 1;
@@ -216,7 +216,7 @@ namespace potbot_lib{
         }
     }
 
-    void ScanClustering::to_obstaclearray(potbot_msgs::ObstacleArray& oa)
+    void ScanClustering::toObstaclearray(potbot_msgs::ObstacleArray& oa)
     {
         oa.data.clear();
         for (const auto& clus : clusters_)

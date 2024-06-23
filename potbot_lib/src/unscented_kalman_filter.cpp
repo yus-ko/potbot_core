@@ -1,4 +1,4 @@
-#include <potbot_lib/UnscentedKalmanFilter.h>
+#include <potbot_lib/unscented_kalman_filter.h>
 
 namespace potbot_lib{
 
@@ -16,7 +16,7 @@ namespace potbot_lib{
     UnscentedKalmanFilter::~UnscentedKalmanFilter(){};
 
     // U変換(unscented transform)
-    std::tuple<bool, Eigen::VectorXd, Eigen::MatrixXd, Eigen::MatrixXd> UnscentedKalmanFilter::__U_transform(ModelFunction f_ut, Eigen::VectorXd xm, Eigen::MatrixXd Pxx, double dt) 
+    std::tuple<bool, Eigen::VectorXd, Eigen::MatrixXd, Eigen::MatrixXd> UnscentedKalmanFilter::uTransform(ModelFunction f_ut, Eigen::VectorXd xm, Eigen::MatrixXd Pxx, double dt) 
     {
         bool result = false;
         double n = xm.rows();
@@ -82,7 +82,7 @@ namespace potbot_lib{
         
         Eigen::MatrixXd G(xhat_.rows(), y.rows());
         
-        std::tuple<bool, Eigen::VectorXd, Eigen::MatrixXd, Eigen::MatrixXd> ans1 = __U_transform(f_,xhat_,P_,dt);
+        std::tuple<bool, Eigen::VectorXd, Eigen::MatrixXd, Eigen::MatrixXd> ans1 = uTransform(f_,xhat_,P_,dt);
 
         bool success                = std::get<0>(ans1);
         if (!success) return std::make_tuple(xhat_, P_, G);
@@ -92,7 +92,7 @@ namespace potbot_lib{
 
         Pm                          += R_;
 
-        std::tuple<bool, Eigen::VectorXd, Eigen::MatrixXd, Eigen::MatrixXd> ans2 = __U_transform(h_,xhatm,Pm,dt);
+        std::tuple<bool, Eigen::VectorXd, Eigen::MatrixXd, Eigen::MatrixXd> ans2 = uTransform(h_,xhatm,Pm,dt);
 
         success                     = std::get<0>(ans2);
         if (!success) return std::make_tuple(xhat_, P_, G);
@@ -112,9 +112,9 @@ namespace potbot_lib{
         return std::make_tuple(xhat_new, P_new, G);
     }
 
-    void UnscentedKalmanFilter::get_odom_state(nav_msgs::Odometry& odom_msg)
+    void UnscentedKalmanFilter::getOdomState(nav_msgs::Odometry& odom_msg)
     {
-        DiffDriveAgent agent(xhat_[0], xhat_[1], xhat_[2], xhat_[3], xhat_[4]);
-        agent.to_msg(odom_msg);
+        // DiffDriveAgent agent(xhat_[0], xhat_[1], xhat_[2], xhat_[3], xhat_[4]);
+        // agent.to_msg(odom_msg);
     }
 }

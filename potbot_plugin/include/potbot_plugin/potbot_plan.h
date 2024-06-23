@@ -47,7 +47,7 @@
 #include <nav_core/base_global_planner.h>
 #include <nav_msgs/GetPlan.h>
 #include <dynamic_reconfigure/server.h>
-#include <potbot_lib/Utility.h>
+#include <potbot_lib/utility_ros.h>
 
 namespace potbot_nav {
 

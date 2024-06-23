@@ -37,6 +37,10 @@
 #ifndef POTBOT_LOCAL_PLANNER_H_
 #define POTBOT_LOCAL_PLANNER_H_
 
+#include <potbot_lib/apf_path_planner_ros.h>
+#include <potbot_lib/diff_drive_controller_ros.h>
+#include <potbot_lib/dwa_controller_ros.h>
+
 #include <ros/ros.h>
 #include <costmap_2d/costmap_2d.h>
 #include <costmap_2d/costmap_2d_publisher.h>
@@ -70,8 +74,7 @@
 #include <base_local_planner/odometry_helper_ros.h>
 #include <base_local_planner/goal_functions.h>
 
-#include <potbot_lib/PathPlanner.h>
-#include <potbot_lib/DiffDriveController.h>
+// #include <base_local_planner/trajectory_planner_ros.h>
 
 namespace potbot_nav {
   using namespace base_local_planner;
@@ -80,6 +83,7 @@ namespace potbot_nav {
    * @class PotbotLocalPlanner
    * @brief A ROS wrapper for the trajectory controller that queries the param server to construct a controller
    */
+  // class PotbotLocalPlanner : private base_local_planner::TrajectoryPlannerROS {
   class PotbotLocalPlanner : public nav_core::BaseLocalPlanner {
     public:
       /**
@@ -159,7 +163,7 @@ namespace potbot_nav {
       bool reached_goal_;
       bool latch_xy_goal_tolerance_, xy_tolerance_latch_;
 
-      ros::Publisher g_plan_pub_, l_plan_pub_, pub_potential_field_;
+      ros::Publisher g_plan_pub_, l_plan_pub_;
 
       // dynamic_reconfigure::Server<BaseLocalPlannerConfig> *dsrv_;
       // base_local_planner::BaseLocalPlannerConfig default_config_;
@@ -169,8 +173,9 @@ namespace potbot_nav {
 
       std::vector<geometry_msgs::Point> footprint_spec_;
 
-      potbot_lib::PathPlanner::APFPathPlanner *apf_;
-      potbot_lib::Controller::DiffDriveController robot_controller_;
+      potbot_lib::ArtificialPotentialFieldROS* apf_ = nullptr;
+      potbot_lib::path_planner::APFPathPlannerROS* apf_planner_ = nullptr;
+      potbot_lib::controller::DiffDriveControllerROS* robot_controller_ = nullptr;
   };
 };
 #endif
