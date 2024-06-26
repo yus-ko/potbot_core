@@ -5,33 +5,40 @@ namespace potbot_lib{
 	InteractiveMarkerManager::InteractiveMarkerManager(std::string name)
 	{
 		name_space_ = name;
-		initInteractiveMarkers();
-		initInteractiveMarkerServer();
 	}
 
 	InteractiveMarkerManager::~InteractiveMarkerManager()
 	{
 	}
 
-	void InteractiveMarkerManager::initInteractiveMarkers()
+	void InteractiveMarkerManager::initInteractiveMarkers(visualization_msgs::Marker init_marker)
 	{
 		interactive_markers_.resize(interactive_marker_num_);
-		visualization_msgs::Marker init_marker;
-		init_marker.type = visualization_msgs::Marker::CUBE;
-		init_marker.scale.x = 0.5;
-		init_marker.scale.y = 0.5;
-		init_marker.scale.z = 0.2;
-		init_marker.color.r = 0.5;
-		init_marker.color.g = 0.5;
-		init_marker.color.b = 0.5;
-		init_marker.color.a = 1.0;
-		init_marker.pose = potbot_lib::utility::get_Pose();
 		std::fill(interactive_markers_.begin(), interactive_markers_.end(), init_marker);
+	}
+
+	void InteractiveMarkerManager::initInteractiveMarkers()
+	{
+		visualization_msgs::Marker default_marker;
+		default_marker.type = visualization_msgs::Marker::CUBE;
+		default_marker.scale.x = 0.5;
+		default_marker.scale.y = 0.5;
+		default_marker.scale.z = 0.2;
+		default_marker.color.r = 0.5;
+		default_marker.color.g = 0.5;
+		default_marker.color.b = 0.5;
+		default_marker.color.a = 1.0;
+		default_marker.pose = potbot_lib::utility::get_Pose();
+		initInteractiveMarkers(default_marker);
 	}
 
 	void InteractiveMarkerManager::initInteractiveMarkerServer()
 	{
-
+		if (interactive_markers_.size() != interactive_marker_num_)
+		{
+			initInteractiveMarkers();
+		}
+		
 		imsrv_ = new interactive_markers::InteractiveMarkerServer(name_space_ + "/simple_marker");
 		menu_handler_ = new interactive_markers::MenuHandler;
 

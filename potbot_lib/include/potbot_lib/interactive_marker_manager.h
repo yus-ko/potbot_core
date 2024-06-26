@@ -25,6 +25,7 @@ namespace potbot_lib{
             InteractiveMarkerManager(std::string name = "");
             ~InteractiveMarkerManager();
 
+            void initInteractiveMarkers(visualization_msgs::Marker init_marker);
             void initInteractiveMarkers();
             void initInteractiveMarkerServer();
 
