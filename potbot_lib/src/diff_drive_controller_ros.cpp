@@ -21,6 +21,7 @@ namespace potbot_lib{
             setMargin(	param.stop_margin_angle, param.stop_margin_distance);
             setLimit( param.max_linear_velocity, param.max_linear_velocity);
             setDistanceToLookaheadPoint(param.distance_to_lookahead_point);
+            reset_path_index_ = param.reset_path_index;
         }
 
         void DiffDriveControllerROS::setTarget(const geometry_msgs::Pose& pose_msg)
@@ -32,11 +33,7 @@ namespace potbot_lib{
 
         void DiffDriveControllerROS::setTargetPath(const std::vector<geometry_msgs::PoseStamped>& path_msg)
         {
-            done_init_pose_alignment_ = false;
-            set_init_pose_ = false;
             target_path_.clear();
-            size_t idx = 0;
-            target_path_index_ = 0;
             for (const auto pose : path_msg)
             {
                 Pose p;
@@ -45,7 +42,15 @@ namespace potbot_lib{
                 p.rotation.z = potbot_lib::utility::get_Yaw(pose.pose.orientation);
                 target_path_.push_back(p);
             }
-            lookahead_ = &target_path_.front();
+
+            if (reset_path_index_)
+            {
+                done_init_pose_alignment_ = false;
+                set_init_pose_ = false;
+                target_path_index_ = 0;
+                lookahead_ = &target_path_.front();
+            }
+            
         }
 
         void DiffDriveControllerROS::setTargetPath(const nav_msgs::Path& path_msg)
@@ -65,7 +70,7 @@ namespace potbot_lib{
             marker_msg.type                  = visualization_msgs::Marker::SPHERE;
             marker_msg.action                = visualization_msgs::Marker::MODIFY;
             
-            marker_msg.pose                  = potbot_lib::utility::get_Pose(lookahead_->position.x, lookahead_->position.y, 0, 0, 0, lookahead_->rotation.y);
+            marker_msg.pose                  = potbot_lib::utility::get_Pose(lookahead_->position.x, lookahead_->position.y, 0, 0, 0, lookahead_->rotation.z);
 
             marker_msg.scale.x               = 0.08;
             marker_msg.scale.y               = 0.08;

@@ -5,6 +5,14 @@ namespace potbot_lib{
 	InteractiveMarkerManager::InteractiveMarkerManager(std::string name)
 	{
 		name_space_ = name;
+
+		ros::NodeHandle nh("~/" + name_space_);
+		nh.getParam("frame_id_global", frame_id_global_);
+		int n = interactive_marker_num_;
+		nh.getParam("marker_num", n);
+		interactive_marker_num_ = n;
+
+		pub_marker_trajectory_ = nh.advertise<visualization_msgs::MarkerArray>("trajectory", 1);
 	}
 
 	InteractiveMarkerManager::~InteractiveMarkerManager()
@@ -15,6 +23,20 @@ namespace potbot_lib{
 	{
 		interactive_markers_.resize(interactive_marker_num_);
 		std::fill(interactive_markers_.begin(), interactive_markers_.end(), init_marker);
+
+		trajectories_.resize(interactive_marker_num_);
+		for (size_t i = 0; i < interactive_marker_num_; i++)
+		{
+			visualization_msgs::Marker traj;
+			traj.id = i;
+			traj.type = visualization_msgs::Marker::LINE_STRIP;
+			traj.header.frame_id = frame_id_global_;
+			traj.pose = potbot_lib::utility::get_Pose();
+			traj.scale.x = 0.02;
+			traj.color = interactive_markers_[i].color;
+			// traj.points.push_back(traj.pose);
+			trajectory_markers_.markers.push_back(traj);
+		}
 	}
 
 	void InteractiveMarkerManager::initInteractiveMarkers()
@@ -38,8 +60,8 @@ namespace potbot_lib{
 		{
 			initInteractiveMarkers();
 		}
-		
-		imsrv_ = new interactive_markers::InteractiveMarkerServer(name_space_ + "/simple_marker");
+		ros::NodeHandle nh("~");
+		imsrv_ = new interactive_markers::InteractiveMarkerServer(nh.getNamespace() + "/" + name_space_ + "/simple_marker");
 		menu_handler_ = new interactive_markers::MenuHandler;
 
 		interactive_markers::MenuHandler::EntryHandle x_entry = menu_handler_->insert("scale x");
@@ -128,9 +150,22 @@ namespace potbot_lib{
 				int id = std::stoi(segments[1]);
 				interactive_markers_[id].pose = feedback->pose;
 
+				if (trajectories_[id].size() == 0 || interactive_markers_[id].pose != trajectories_[id].back().pose)
+				{
+					geometry_msgs::PoseStamped pose;
+					pose.header.frame_id = frame_id_global_;
+					pose.header.stamp = ros::Time::now();
+					pose.pose = interactive_markers_[id].pose;
+					trajectories_[id].push_back(pose);
+
+					trajectory_markers_.markers[id].points.push_back(pose.pose.position);
+					trajectory_markers_.markers[id].header.stamp = pose.header.stamp;
+					pub_marker_trajectory_.publish(trajectory_markers_);
+				}
+
 				visualization_msgs::InteractiveMarker int_marker;
-				if (imsrv_->get(feedback->marker_name, int_marker)) {
-					
+				if (imsrv_->get(feedback->marker_name, int_marker)) 
+				{
 					size_t eid = feedback->menu_entry_id;
 					if (eid == 4)
 					{
@@ -181,5 +216,10 @@ namespace potbot_lib{
 	std::vector<visualization_msgs::Marker>* InteractiveMarkerManager::getMarker()
 	{
 		return &interactive_markers_;
+	}
+
+	std::vector<std::vector<geometry_msgs::PoseStamped>>* InteractiveMarkerManager::getMarkerTrajectories()
+	{
+		return &trajectories_;
 	}
 }

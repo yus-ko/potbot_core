@@ -12,9 +12,14 @@ namespace potbot_lib{
     class InteractiveMarkerManager
     {
         private:
+            ros::Publisher pub_marker_trajectory_;
+
             std::string name_space_ = "", frame_id_global_ = "map";
             size_t interactive_marker_num_ = 1;
             std::vector<visualization_msgs::Marker> interactive_markers_;
+
+            std::vector<std::vector<geometry_msgs::PoseStamped>> trajectories_;
+            visualization_msgs::MarkerArray trajectory_markers_;
 
             interactive_markers::InteractiveMarkerServer *imsrv_;
             interactive_markers::MenuHandler *menu_handler_;
@@ -30,6 +35,7 @@ namespace potbot_lib{
             void initInteractiveMarkerServer();
 
             std::vector<visualization_msgs::Marker>* getMarker();
+            std::vector<std::vector<geometry_msgs::PoseStamped>>* getMarkerTrajectories();
     };
 }
 

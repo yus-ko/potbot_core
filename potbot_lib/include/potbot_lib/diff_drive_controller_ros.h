@@ -18,6 +18,7 @@ namespace potbot_lib{
             private:
                 ros::Publisher pub_lookahead_;
                 std::string frame_id_global_ = "map";
+                bool reset_path_index_ = true;
                 dynamic_reconfigure::Server<potbot_lib::ControllerConfig> *dsrv_;
 
                 void reconfigureCB(const potbot_lib::ControllerConfig& param, uint32_t level); 
