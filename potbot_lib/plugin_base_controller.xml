@@ -1,0 +1,8 @@
+<library path="lib/libpotbot_lib">
+  <class name="potbot_lib/PurePursuit" type="potbot_lib::controller::PurePursuit" base_class_type="potbot_lib::controller::BaseController">
+    <description>This is a potbot_lib::controller::BaseController plugin.</description>
+  </class>
+  <class name="potbot_lib/DWA" type="potbot_lib::controller::DynamicWindowApproach" base_class_type="potbot_lib::controller::BaseController">
+    <description>This is a potbot_lib::controller::BaseController plugin.</description>
+  </class>
+</library>

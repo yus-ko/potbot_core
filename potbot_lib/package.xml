@@ -9,4 +9,8 @@
   <depend>costmap_2d</depend>
   <build_depend>eigen</build_depend>
   <build_depend>potbot_msgs</build_depend>
+  
+  <export>
+    <potbot_lib plugin="${prefix}/plugin_base_controller.xml" />
+  </export>
 </package>
