@@ -14,22 +14,30 @@ namespace potbot_lib
             pub_best_plan_ = private_nh.advertise<nav_msgs::Path>("path/best", 1);
             pub_split_path_ = private_nh.advertise<nav_msgs::Path>("path/split", 1);
 
-            dsrv_ = new dynamic_reconfigure::Server<potbot_lib::ControllerConfig>(private_nh);
-            dynamic_reconfigure::Server<potbot_lib::ControllerConfig>::CallbackType cb = boost::bind(&DynamicWindowApproach::reconfigureCB, this, _1, _2);
+            dsrv_ = new dynamic_reconfigure::Server<potbot_lib::DWAConfig>(private_nh);
+            dynamic_reconfigure::Server<potbot_lib::DWAConfig>::CallbackType cb = boost::bind(&DynamicWindowApproach::reconfigureCB, this, _1, _2);
             dsrv_->setCallback(cb);
         }
 
-        void DynamicWindowApproach::reconfigureCB(const potbot_lib::ControllerConfig& param, uint32_t level)
+        void DynamicWindowApproach::reconfigureCB(const potbot_lib::DWAConfig& param, uint32_t level)
         {
-            setGain( param.gain_p, param.gain_i, param.gain_d);
             setMargin(	param.stop_margin_angle, param.stop_margin_distance);
             setLimit( param.max_linear_velocity, param.max_linear_velocity);
-            setDistanceToLookaheadPoint(param.distance_to_lookahead_point);
             reset_path_index_ = param.reset_path_index;
+            time_increment_ = param.time_increment;
+            time_end_ = param.time_end;
+            linear_velocity_min_ = param.min_linear_velocity;
+            linear_velocity_max_ = param.max_linear_velocity;
+            linear_velocity_increment_ = param.linear_velocity_increment;
+            angular_velocity_min_ = param.min_angular_velocity;
+            angular_velocity_max_ = param.max_angular_velocity;
+            angular_velocity_increment_ = param.angular_velocity_increment;
         }
 
         void DynamicWindowApproach::calculateCommand(geometry_msgs::Twist& cmd_vel)
         {
+            if (reachedTarget() || target_path_.empty()) return;
+            
             createPlans();
             splitPath();
             searchForBestPlan();
@@ -45,11 +53,25 @@ namespace potbot_lib
 
         void DynamicWindowApproach::setTargetPath(const std::vector<geometry_msgs::PoseStamped>& path_msg)
         {
-            closest_index_pre_ = 0;
             target_path_.clear();
             for (const auto& p:path_msg)
             {
                 target_path_.push_back(Eigen::Vector2d(p.pose.position.x, p.pose.position.y));
+            }
+
+            Pose g;
+            if (!target_path_.empty())
+            {
+                g.position.x = target_path_.back()[0];
+                g.position.y = target_path_.back()[1];
+            }
+            target_point_ = g;
+
+            if (reset_path_index_) 
+            {
+                Eigen::Vector2d closest_point;
+                utility::find_closest_vector(target_path_, Eigen::Vector2d(x,y), closest_point);
+                path_index_ = utility::get_index(target_path_, closest_point);
             }
         }
 
@@ -126,18 +148,13 @@ namespace potbot_lib
         void DynamicWindowApproach::splitPath()
         {
             split_path_.clear();
-            Eigen::Vector2d closest_point;
-            utility::find_closest_vector(target_path_, Eigen::Vector2d(x,y), closest_point);
-            // int closest_index = 0;
-            int closest_index = utility::get_index(target_path_, closest_point);
-            if (closest_index < closest_index_pre_) closest_index = closest_index_pre_+1;
-            closest_index_pre_ = closest_index;
+            if ((target_path_[path_index_] - Eigen::Vector2d(x,y)).norm() < 0.05) path_index_++;
 
             double total_distance = 0;
             double limit_ditance = max_linear_velocity_*time_end_;
             double inc_distance = max_linear_velocity_*time_increment_;
             double downsample_distance = 0; 
-            for (int i = closest_index; i < target_path_.size(); i++)
+            for (int i = path_index_; i < target_path_.size(); i++)
             {
                 if (i < 2)
                 {
@@ -240,6 +257,11 @@ namespace potbot_lib
             nav_msgs::Path path_msg;
             getSplitPath(path_msg);
             pub_split_path_.publish(path_msg);
+        }
+
+        bool DynamicWindowApproach::reachedTarget()
+        {
+            return abs(getDistance(target_point_)) <= stop_margin_distance_;
         }
     }
 }

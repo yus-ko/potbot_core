@@ -28,7 +28,7 @@ namespace potbot_lib
 
         void PurePursuit::calculateCommand(geometry_msgs::Twist& cmd_vel)
         {
-            purePursuit();
+            purePursuitController();
             publishLookahead();
             nav_msgs::Odometry robot;
             toMsg(robot);
@@ -92,6 +92,132 @@ namespace potbot_lib
             marker_msg.header.frame_id = frame_id_global_;
             marker_msg.header.stamp = ros::Time::now();
             pub_lookahead_.publish(marker_msg);
+        }
+
+        void PurePursuit::purePursuitController()
+        {
+            v=0;
+            omega=0;
+
+            if (target_path_.empty()) return;
+
+            if (getDistance(target_path_.back().position) <= distance_to_lookahead_point_)
+            {
+                line_following_process_ = PROCESS_STOP;
+                return;
+            }
+
+            size_t target_path_size = target_path_.size();
+
+            Pose* sub_goal = &target_path_.front();
+            double l_d;
+            while(true)
+            {
+                sub_goal = &target_path_[target_path_index_];
+                l_d = getDistance(*sub_goal);
+                if (l_d <= distance_to_lookahead_point_)
+                {
+                    target_path_index_++;
+                    if (target_path_index_ > target_path_size-1)
+                    {
+                        target_path_index_ = target_path_size-1;
+                        return;
+                        // break;
+                    }
+                }
+                else
+                {
+                    lookahead_ = sub_goal;
+                    break;
+                }
+            }
+
+            ROS_INFO("process: %d, index: %d, size: %d", line_following_process_, target_path_index_, target_path_size);
+
+            if(initialize_pose_ && !done_init_pose_alignment_)
+            {
+                double init_angle = getTargetPathInitAngle();
+
+                if (abs(init_angle - yaw) > stop_margin_angle_ || l_d > 2*distance_to_lookahead_point_)
+                {
+                    if (!set_init_pose_)
+                    {
+                        set_init_pose_ = true;
+                        setTarget(lookahead_->position.x, lookahead_->position.y, init_angle);
+                        line_following_process_ = RETURN_TO_TARGET_PATH;
+                    }
+                }
+                else
+                {
+                    line_following_process_ = FOLLOWING_PATH;
+                }
+
+                if (line_following_process_ == RETURN_TO_TARGET_PATH)
+                {
+                    pidControl();
+                    applyLimit();
+                }
+                
+            }
+            else
+            {
+                line_following_process_ = FOLLOWING_PATH;
+            }
+
+            if (line_following_process_ == FOLLOWING_PATH && target_path_index_ < target_path_size)
+            {   
+                done_init_pose_alignment_ = true;
+                double alpha = getAngle(*lookahead_) - yaw;
+                v = max_linear_velocity_;
+                omega = 2.0*v*sin(alpha)/l_d;
+                applyLimit();
+            }
+        }
+
+        void PurePursuit::normalizedPurePursuit()
+        {
+            v=0;
+            omega=0;
+
+            if (target_path_.empty()) return;
+
+            if (getDistance(target_path_.back()) <= distance_to_lookahead_point_)
+            {
+                line_following_process_ = PROCESS_STOP;
+                return;
+            }
+
+            size_t target_path_size = target_path_.size();
+
+            Pose* sub_goal = &target_path_.front();
+            double l_d;
+            while(true)
+            {
+                sub_goal = &target_path_[target_path_index_];
+                l_d = getDistance(*sub_goal);
+                if (l_d <= distance_to_lookahead_point_)
+                {
+                    target_path_index_++;
+                    if (target_path_index_ > target_path_size-1)
+                    {
+                        target_path_index_ = target_path_size-1;
+                        return;
+                    }
+                }
+                else
+                {
+                    lookahead_ = sub_goal;
+                    break;
+                }
+            }
+
+            ROS_DEBUG("index: %d, size: %d", target_path_index_, target_path_size);
+
+            double alpha = getAngle(*lookahead_) - yaw;
+            v = max_linear_velocity_/(abs(alpha)+1.0);
+            double nv = v/max_linear_velocity_;
+            omega = 2.0*nv*sin(alpha)/l_d;
+            applyLimit();
         }
     }
 }

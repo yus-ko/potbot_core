@@ -32,7 +32,7 @@ namespace potbot_lib{
 			traj.type = visualization_msgs::Marker::LINE_STRIP;
 			traj.header.frame_id = frame_id_global_;
 			traj.pose = potbot_lib::utility::get_Pose();
-			traj.scale.x = 0.02;
+			traj.scale.x = 0.01;
 			traj.color = interactive_markers_[i].color;
 			// traj.points.push_back(traj.pose);
 			trajectory_markers_.markers.push_back(traj);

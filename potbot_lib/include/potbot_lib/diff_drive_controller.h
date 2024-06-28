@@ -81,9 +81,6 @@ namespace potbot_lib{
                 void pidControlDistance();
                 void pidControlDeclination();
                 void pidControl();
-
-                void purePursuit();
-                void normalizedPurePursuit();
                 
                 void timeStateControl();
                 void p166_41();

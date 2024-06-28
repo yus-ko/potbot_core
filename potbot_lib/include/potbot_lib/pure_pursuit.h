@@ -23,6 +23,9 @@ namespace potbot_lib
                 void getLookahead(visualization_msgs::Marker& marker_msg);
                 void publishLookahead();
 
+                void purePursuitController();
+                void normalizedPurePursuit();
+
             public:
                 PurePursuit(){};
                 ~PurePursuit(){};

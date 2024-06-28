@@ -5,7 +5,7 @@
 #include <potbot_lib/diff_drive_controller.h>
 #include <pluginlib/class_list_macros.h>
 #include <dynamic_reconfigure/server.h>
-#include <potbot_lib/ControllerConfig.h>
+#include <potbot_lib/DWAConfig.h>
 
 namespace potbot_lib
 {
@@ -26,9 +26,10 @@ namespace potbot_lib
                 ros::Publisher pub_plans_, pub_best_plan_, pub_split_path_;
                 std::string frame_id_global_ = "map";
                 bool reset_path_index_ = true;
-                dynamic_reconfigure::Server<potbot_lib::ControllerConfig> *dsrv_;
+                int path_index_ = 0;
+                dynamic_reconfigure::Server<potbot_lib::DWAConfig> *dsrv_;
 
-                void reconfigureCB(const potbot_lib::ControllerConfig& param, uint32_t level);
+                void reconfigureCB(const potbot_lib::DWAConfig& param, uint32_t level);
 
                 double time_increment_ = 0.1;
                 double time_end_ = 1.0;
@@ -65,6 +66,8 @@ namespace potbot_lib
                 void publishPlans();
                 void publishBestPlan();
                 void publishSplitPath();
+
+                bool reachedTarget();
 
             public:
                 DynamicWindowApproach(){};

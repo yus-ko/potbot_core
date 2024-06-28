@@ -14,6 +14,7 @@ generate_dynamic_reconfigure_options(
   cfg/APFPathPlanner.cfg
   cfg/PotentialField.cfg
   cfg/Controller.cfg
+  cfg/DWA.cfg
 )
 
 catkin_package(
