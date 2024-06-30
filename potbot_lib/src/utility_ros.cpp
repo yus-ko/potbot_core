@@ -132,6 +132,16 @@ namespace potbot_lib{
             return get_Point(p.x, p.y, p.z);
         }
 
+        void get_Point(const std::vector<geometry_msgs::PoseStamped>& poses, std::vector<geometry_msgs::Point>& points)
+        {
+            points.resize(poses.size());
+            for (size_t i = 0; i < poses.size(); i++)
+            {
+                points[i] = poses[i].pose.position;
+            }
+            
+        }
+
         geometry_msgs::Pose get_Pose(const double x, const double y, const double z, const double roll, const double pitch, const double yaw)
         {
             geometry_msgs::Pose pose;
@@ -548,18 +558,34 @@ namespace potbot_lib{
             }
         }
 
-        void to_msg(const std::vector<Eigen::Vector2d>& vectors, nav_msgs::Path& msg)
+        void to_msg(const std::vector<Eigen::Vector2d>& vectors, std::vector<geometry_msgs::PoseStamped>& msg)
         {
-            msg.poses.clear();
-            msg.header.frame_id = "map";
-
+            msg.clear();
             for (const auto& p:vectors)
             {
                 geometry_msgs::PoseStamped pose;
-                pose.header = msg.header;
                 pose.pose = utility::get_Pose(p(0),p(1),0,0,0,0);
-                msg.poses.push_back(pose);
+                msg.push_back(pose);
             }
+        }
+
+        void to_msg(const std::vector<Eigen::Vector2d>& vectors, nav_msgs::Path& msg)
+        {
+            to_msg(vectors, msg.poses);
+        }
+
+        void to_mat(const std::vector<geometry_msgs::PoseStamped>& msg, std::vector<Eigen::Vector2d>& vectors)
+        {
+            vectors.clear();
+            for (const auto& p:msg)
+            {
+                vectors.push_back(Eigen::Vector2d(p.pose.position.x, p.pose.position.y));
+            }
+        }
+
+        void to_mat(const nav_msgs::Path& msg, std::vector<Eigen::Vector2d>& vectors)
+        {
+            to_mat(msg.poses,vectors);
         }
 
         std_msgs::Float64MultiArray matrix_to_multiarray(const Eigen::MatrixXd& mat)

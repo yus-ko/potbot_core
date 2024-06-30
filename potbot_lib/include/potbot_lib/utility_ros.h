@@ -61,6 +61,7 @@ namespace potbot_lib{
         geometry_msgs::Quaternion get_Quat(const Point& p);
         geometry_msgs::Point get_Point(const double x = 0, const double y = 0, const double z = 0);
         geometry_msgs::Point get_Point(const Point& p);
+        void get_Point(const std::vector<geometry_msgs::PoseStamped>& poses, std::vector<geometry_msgs::Point>& points);
         geometry_msgs::Pose get_Pose(const double x = 0, const double y = 0, const double z = 0, const double roll = 0, const double pitch = 0, const double yaw = 0);
         geometry_msgs::Pose get_Pose(const geometry_msgs::Point& p, const double roll = 0, const double pitch = 0, const double yaw = 0);
         geometry_msgs::Pose get_Pose(const Pose& p);
@@ -95,7 +96,10 @@ namespace potbot_lib{
 
         void associate_obstacle(potbot_msgs::ObstacleArray& obstacle_input, const potbot_msgs::ObstacleArray& obstacle_compare, const tf2_ros::Buffer &buffer);
 
+        void to_msg(const std::vector<Eigen::Vector2d>& vectors, std::vector<geometry_msgs::PoseStamped>& msg);
         void to_msg(const std::vector<Eigen::Vector2d>& vectors, nav_msgs::Path& msg);
+        void to_mat(const std::vector<geometry_msgs::PoseStamped>& msg, std::vector<Eigen::Vector2d>& vectors);
+        void to_mat(const nav_msgs::Path& msg, std::vector<Eigen::Vector2d>& vectors);
 
         std_msgs::Float64MultiArray matrix_to_multiarray(const Eigen::MatrixXd& mat);
         Eigen::MatrixXd multiarray_to_matrix(const std_msgs::Float64MultiArray& multiarray);

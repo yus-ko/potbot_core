@@ -36,6 +36,8 @@ namespace potbot_lib
                 void setTargetPath(const std::vector<geometry_msgs::PoseStamped>& path_msg);
                 void setTargetPath(const nav_msgs::Path& path_msg);
 
+                bool reachedTarget();
+
         };
     }
 }

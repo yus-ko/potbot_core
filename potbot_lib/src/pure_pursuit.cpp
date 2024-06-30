@@ -28,7 +28,9 @@ namespace potbot_lib
 
         void PurePursuit::calculateCommand(geometry_msgs::Twist& cmd_vel)
         {
-            purePursuitController();
+            if (reachedTarget()) return;
+            // purePursuitController();
+            normalizedPurePursuit();
             publishLookahead();
             nav_msgs::Odometry robot;
             toMsg(robot);
@@ -181,19 +183,12 @@ namespace potbot_lib
 
             if (target_path_.empty()) return;
 
-            if (getDistance(target_path_.back()) <= distance_to_lookahead_point_)
-            {
-                line_following_process_ = PROCESS_STOP;
-                return;
-            }
-
             size_t target_path_size = target_path_.size();
 
-            Pose* sub_goal = &target_path_.front();
             double l_d;
             while(true)
             {
-                sub_goal = &target_path_[target_path_index_];
+                Pose* sub_goal = &target_path_[target_path_index_];
                 l_d = getDistance(*sub_goal);
                 if (l_d <= distance_to_lookahead_point_)
                 {
@@ -218,6 +213,27 @@ namespace potbot_lib
             double nv = v/max_linear_velocity_;
             omega = 2.0*nv*sin(alpha)/l_d;
             applyLimit();
+        }
+
+        bool PurePursuit::reachedTarget()
+        {
+            return abs(getDistance(target_point_)) <= distance_to_lookahead_point_ && target_path_index_ == target_path_.size()-1;
+            // ROS_DEBUG("if reached index: %d, size: %d", target_path_index_, target_path_.size());
+            // ROS_DEBUG_STREAM(bool(target_path_index_ == target_path_.size()-1));
+
+            // if (target_path_index_ == target_path_.size()-1)
+            // {
+            //     ROS_INFO("true");
+            //     return true;
+            // }
+            // else
+            // {
+            //     ROS_INFO("false");
+            //     return false;
+            // }
+            
+
+            // // return bool(target_path_index_ == target_path_.size()-1);
         }
     }
 }

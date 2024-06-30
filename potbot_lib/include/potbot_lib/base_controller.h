@@ -21,6 +21,7 @@ namespace potbot_lib
             virtual void setTargetPose(const geometry_msgs::Pose& pose_msg);
             virtual void setTargetPath(const std::vector<geometry_msgs::PoseStamped>& path_msg);
             virtual void getRobot(nav_msgs::Odometry& pose_msg);
+            virtual bool reachedTarget(){};
         };
     }
 }

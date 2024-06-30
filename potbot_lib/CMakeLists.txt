@@ -15,6 +15,7 @@ generate_dynamic_reconfigure_options(
   cfg/PotentialField.cfg
   cfg/Controller.cfg
   cfg/DWA.cfg
+  cfg/MarkerManager.cfg
 )
 
 catkin_package(
@@ -36,6 +37,7 @@ include_directories(
 add_library(${PROJECT_NAME}
   src/utility.cpp
   src/utility_ros.cpp
+  src/interpolate.cpp
   src/field.cpp
   src/artificial_potential_field.cpp
   src/artificial_potential_field_ros.cpp

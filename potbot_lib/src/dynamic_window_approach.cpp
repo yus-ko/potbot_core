@@ -36,6 +36,7 @@ namespace potbot_lib
 
         void DynamicWindowApproach::calculateCommand(geometry_msgs::Twist& cmd_vel)
         {
+            ROS_DEBUG("path index: %d / %d", (int)path_index_, (int)target_path_.size());
             if (reachedTarget() || target_path_.empty()) return;
             
             createPlans();
@@ -148,14 +149,40 @@ namespace potbot_lib
         void DynamicWindowApproach::splitPath()
         {
             split_path_.clear();
-            if ((target_path_[path_index_] - Eigen::Vector2d(x,y)).norm() < 0.05) path_index_++;
+
+            for (size_t i = path_index_; i < target_path_.size(); i++)
+            {
+                if ((target_path_[i] - Eigen::Vector2d(x,y)).norm() < stop_margin_distance_)
+                {
+                    path_index_=i;
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            size_t closest_index = 0;
+            double mind = 1e100;
+            for (size_t i = 0; i < target_path_.size(); i++)
+            {
+                double d = (target_path_[i] - Eigen::Vector2d(x,y)).norm();
+                if (d < mind)
+                {
+                    closest_index = i;
+                    mind = d;
+                }
+            }
+
+            // closest_index = path_index_;
 
             double total_distance = 0;
             double limit_ditance = max_linear_velocity_*time_end_;
             double inc_distance = max_linear_velocity_*time_increment_;
             double downsample_distance = 0; 
-            for (int i = path_index_; i < target_path_.size(); i++)
+            for (int i = closest_index; i < target_path_.size(); i++)
             {
+                
                 if (i < 2)
                 {
                     split_path_.push_back(target_path_[i]);
@@ -261,6 +288,8 @@ namespace potbot_lib
 
         bool DynamicWindowApproach::reachedTarget()
         {
+            // ROS_INFO_STREAM(abs(getDistance(target_point_)) << ":" << stop_margin_distance_);
+            // return path_index_ == target_path_.size()-1 && abs(getDistance(target_point_)) <= stop_margin_distance_;
             return abs(getDistance(target_point_)) <= stop_margin_distance_;
         }
     }

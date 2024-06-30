@@ -34,6 +34,33 @@ namespace potbot_lib{
                 sin(th), cos(th);
             return R;
         }
+
+        double combination(double n, double r)
+        {
+            double top = 1.0;
+            double bottom = 1.0;
+
+            for(double i = 0.0; i < r; i++)
+            {
+                top *= n-i;
+            }
+
+            for(double i = 0.0; i < r; i++)
+            {
+                bottom *= i+1.0;
+            }
+            
+            double ans = top/bottom;
+            if (std::isnan(ans))
+            {
+                ans = 0;
+            }
+            if (std::isinf(ans))
+            {
+                ans = 1e100;
+            }
+            return ans;
+        }
     }
 
 }

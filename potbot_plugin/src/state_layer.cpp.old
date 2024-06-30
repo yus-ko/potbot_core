@@ -1,8 +1,56 @@
+/*********************************************************************
+ *
+ * Software License Agreement (BSD License)
+ *
+ *  Copyright (c) 2008, 2013, Willow Garage, Inc.
+ *  All rights reserved.
+ *
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
+ *
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ *   * Redistributions in binary form must reproduce the above
+ *     copyright notice, this list of conditions and the following
+ *     disclaimer in the documentation and/or other materials provided
+ *     with the distribution.
+ *   * Neither the name of Willow Garage, Inc. nor the names of its
+ *     contributors may be used to endorse or promote products derived
+ *     from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ *  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+ *  COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+ *  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ *  BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ *  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ *  CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ *  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+ *  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ *  POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Author: Eitan Marder-Eppstein
+ *         David V. Lu!!
+ *********************************************************************/
 #include <potbot_plugin/state_layer.h>
+#include <costmap_2d/obstacle_layer.h>
+#include <costmap_2d/costmap_math.h>
+#include <tf2_ros/message_filter.h>
 
 #include <pluginlib/class_list_macros.h>
+#include <sensor_msgs/point_cloud2_iterator.h>
 
 PLUGINLIB_EXPORT_CLASS(potbot_nav::StateLayer, costmap_2d::Layer)
+
+using costmap_2d::FREE_SPACE;
+using costmap_2d::LETHAL_OBSTACLE;
+using costmap_2d::NO_INFORMATION;
+
+using costmap_2d::Observation;
+using costmap_2d::ObservationBuffer;
 
 #define __NX__ 5
 #define __NY__ 2
@@ -13,6 +61,17 @@ namespace potbot_nav
     void StateLayer::onInitialize()
     {
         ros::NodeHandle nh("~/" + name_), g_nh;
+        rolling_window_ = layered_costmap_->isRolling();
+
+        bool track_unknown_space;
+        nh.param("track_unknown_space", track_unknown_space, layered_costmap_->isTrackingUnknown());
+        if (track_unknown_space)
+            default_value_ = NO_INFORMATION;
+        else
+            default_value_ = FREE_SPACE;
+
+        StateLayer::matchSize();
+        current_ = true;
 
         global_frame_ = layered_costmap_->getGlobalFrameID();
         double transform_tolerance;
@@ -73,18 +132,87 @@ namespace potbot_nav
             ROS_DEBUG("Creating an observation buffer for source %s, topic %s, frame %s", source.c_str(), topic.c_str(),
                       sensor_frame.c_str());
 
+            // create an observation buffer
+            observation_buffers_.push_back(
+                boost::shared_ptr<ObservationBuffer>(new ObservationBuffer(topic, observation_keep_time, expected_update_rate, min_obstacle_height,
+                                                                           max_obstacle_height, obstacle_range, raytrace_range, *tf_, global_frame_,
+                                                                           sensor_frame, transform_tolerance)));
+
+            // check if we'll add this buffer to our marking observation buffers
+            if (marking)
+                marking_buffers_.push_back(observation_buffers_.back());
+
+            // check if we'll also add this buffer to our clearing observation buffers
+            if (clearing)
+                clearing_buffers_.push_back(observation_buffers_.back());
+
+            ROS_DEBUG(
+                "Created an observation buffer for source %s, topic %s, global frame: %s, "
+                "expected update rate: %.2f, observation persistence: %.2f",
+                source.c_str(), topic.c_str(), global_frame_.c_str(), expected_update_rate, observation_keep_time);
+
             // create a callback for the topic
             if (data_type == "LaserScan")
             {
-                sub_scan_ = nh.subscribe(topic,1, &StateLayer::laserScanCallback, this);
+                boost::shared_ptr<message_filters::Subscriber<sensor_msgs::LaserScan>> sub(new message_filters::Subscriber<sensor_msgs::LaserScan>(g_nh, topic, 50));
 
-                // boost::shared_ptr<message_filters::Subscriber<sensor_msgs::LaserScan>> sub(new message_filters::Subscriber<sensor_msgs::LaserScan>(g_nh, topic, 50));
+                boost::shared_ptr<tf2_ros::MessageFilter<sensor_msgs::LaserScan>> filter(
+                    new tf2_ros::MessageFilter<sensor_msgs::LaserScan>(*sub, *tf_, global_frame_, 50, g_nh));
 
-                // boost::shared_ptr<tf2_ros::MessageFilter<sensor_msgs::LaserScan>> filter(
-                //     new tf2_ros::MessageFilter<sensor_msgs::LaserScan>(*sub, *tf_, global_frame_, 50, g_nh));
+                if (inf_is_valid)
+                {
+                    filter->registerCallback(boost::bind(&StateLayer::laserScanValidInfCallback, this, _1,
+                                                         observation_buffers_.back()));
+                }
+                else
+                {
+                    filter->registerCallback(boost::bind(&StateLayer::laserScanCallback, this, _1, observation_buffers_.back()));
+                }
 
-                // filter->registerCallback(boost::bind(&StateLayer::laserScanCallback, this, _1));
+                observation_subscribers_.push_back(sub);
+                observation_notifiers_.push_back(filter);
 
+                observation_notifiers_.back()->setTolerance(ros::Duration(0.05));
+            }
+            else if (data_type == "PointCloud")
+            {
+                boost::shared_ptr<message_filters::Subscriber<sensor_msgs::PointCloud>> sub(new message_filters::Subscriber<sensor_msgs::PointCloud>(g_nh, topic, 50));
+
+                if (inf_is_valid)
+                {
+                    ROS_WARN("obstacle_layer: inf_is_valid option is not applicable to PointCloud observations.");
+                }
+
+                boost::shared_ptr<tf2_ros::MessageFilter<sensor_msgs::PointCloud>> filter(new tf2_ros::MessageFilter<sensor_msgs::PointCloud>(*sub, *tf_, global_frame_, 50, g_nh));
+                filter->registerCallback(
+                    boost::bind(&StateLayer::pointCloudCallback, this, _1, observation_buffers_.back()));
+
+                observation_subscribers_.push_back(sub);
+                observation_notifiers_.push_back(filter);
+            }
+            else
+            {
+                boost::shared_ptr<message_filters::Subscriber<sensor_msgs::PointCloud2>> sub(new message_filters::Subscriber<sensor_msgs::PointCloud2>(g_nh, topic, 50));
+
+                if (inf_is_valid)
+                {
+                    ROS_WARN("obstacle_layer: inf_is_valid option is not applicable to PointCloud observations.");
+                }
+
+                boost::shared_ptr<tf2_ros::MessageFilter<sensor_msgs::PointCloud2>> filter(new tf2_ros::MessageFilter<sensor_msgs::PointCloud2>(*sub, *tf_, global_frame_, 50, g_nh));
+                filter->registerCallback(
+                    boost::bind(&StateLayer::pointCloud2Callback, this, _1, observation_buffers_.back()));
+
+                observation_subscribers_.push_back(sub);
+                observation_notifiers_.push_back(filter);
+            }
+
+            if (sensor_frame != "")
+            {
+                std::vector<std::string> target_frames;
+                target_frames.push_back(global_frame_);
+                target_frames.push_back(sensor_frame);
+                observation_notifiers_.back()->setTargetFrames(target_frames);
             }
         }
         
@@ -111,6 +239,9 @@ namespace potbot_nav
     void StateLayer::reconfigureCB(potbot_plugin::StatePluginConfig &config, uint32_t level)
     {
         enabled_ = config.enabled;
+        footprint_clearing_enabled_ = config.footprint_clearing_enabled;
+        max_obstacle_height_ = config.max_obstacle_height;
+        combination_method_ = config.combination_method;
         apply_cluster_to_localmap_ = config.apply_localmap_threshold_2d_size;
         max_estimated_linear_velocity_ = config.max_estimated_linear_velocity;
         max_estimated_angular_velocity_ = config.max_estimated_angular_velocity;
@@ -136,12 +267,25 @@ namespace potbot_nav
         return y;
     }
 
-    void StateLayer::laserScanCallback(const sensor_msgs::LaserScanConstPtr &message)
+    void StateLayer::laserScanCallback(const sensor_msgs::LaserScanConstPtr &message,
+                                          const boost::shared_ptr<ObservationBuffer> &buffer)
     {
         // ROS_INFO("laserScanCallback");
         // project the laser into a point cloud
         sensor_msgs::PointCloud2 cloud;
         cloud.header = message->header;
+
+        // project the scan into a point cloud
+        try
+        {
+            projector_.transformLaserScanToPointCloud(message->header.frame_id, *message, cloud, *tf_);
+        }
+        catch (tf2::TransformException &ex)
+        {
+            ROS_WARN("High fidelity enabled, but TF returned a transform exception to frame %s: %s", global_frame_.c_str(),
+                     ex.what());
+            projector_.projectLaser(*message, cloud);
+        }
 
         sensor_msgs::LaserScan scan_data = *message;
 
@@ -273,7 +417,7 @@ namespace potbot_nav
 
         if (!obstacle_array.data.empty())
         {
-            scan_cloud_.clear();
+            pcl::PointCloud<pcl::PointXYZ> cloudxyz;
             // pcl::fromROSMsg(cloud, cloudxyz);
 
             visualization_msgs::MarkerArray state_markers;
@@ -284,20 +428,17 @@ namespace potbot_nav
             for (const auto& obs:obstacle_array.data)
             {
                 if (!obs.is_moving) continue;
-
-                potbot_msgs::Obstacle wobs;
-                potbot_lib::utility::get_tf(*tf_, obs, global_frame_, wobs);
                 
-                double v                    = wobs.twist.linear.x;  //障害物の並進速度
-                double omega                = fmod(wobs.twist.angular.z, 2*M_PI); //障害物の回転角速度
-                double yaw                  = potbot_lib::utility::get_Yaw(wobs.pose.orientation);  //障害物の姿勢
-                double width                = wobs.scale.y; //障害物の幅
-                double depth                = wobs.scale.x; //障害物の奥行き
+                double v                    = obs.twist.linear.x;  //障害物の並進速度
+                double omega                = fmod(obs.twist.angular.z, 2*M_PI); //障害物の回転角速度
+                double yaw                  = potbot_lib::utility::get_Yaw(obs.pose.orientation);  //障害物の姿勢
+                double width                = obs.scale.y; //障害物の幅
+                double depth                = obs.scale.x; //障害物の奥行き
                 double size                 = width + depth;
 
                 if (size < apply_cluster_to_localmap_)
                 {
-                    // ROS_INFO("est vel %d: %f, %f, %f, %f, %f", obs.id, wobs.pose.position.x, wobs.pose.position.y, yaw, v, omega);
+                    // ROS_INFO("est vel %d: %f, %f, %f, %f, %f", obs.id, obs.pose.position.x, obs.pose.position.y, yaw, v, omega);
                     if (abs(v) < max_estimated_linear_velocity_ && abs(omega) < max_estimated_angular_velocity_)
                     {
                         //並進速度と角速度を一定として1秒後までの位置x,yを算出
@@ -305,11 +446,11 @@ namespace potbot_nav
                         {
                             double distance = v*t;
                             double angle = omega*t + yaw;
-                            for (const auto& p : wobs.points)
+                            for (const auto& p : obs.points)
                             {
                                 double x            = distance*cos(angle) + p.x;
                                 double y            = distance*sin(angle) + p.y;
-                                scan_cloud_.push_back(pcl::PointXYZ(x,y,p.z));
+                                cloudxyz.push_back(pcl::PointXYZ(x,y,p.z));
                             }
                             
                         }
@@ -317,44 +458,84 @@ namespace potbot_nav
                 }
 
             }
+
+            // ROS_INFO("%d, %d, %d, %d", cloudxyz.width, cloudxyz.height, cloudxyz.is_dense, cloudxyz.points.size());
+
+            sensor_msgs::PointCloud2 msg_apply_map;
+            pcl::toROSMsg(cloudxyz, msg_apply_map);
+            msg_apply_map.header = message->header;
+
+            // buffer the point cloud
+            buffer->lock();
+            buffer->bufferCloud(msg_apply_map);
+            buffer->unlock();
             
         }
         
     }
 
-    void StateLayer::updateBounds(double origin_x, double origin_y, double origin_yaw, double* min_x, double* min_y, double* max_x, double* max_y)
+    void StateLayer::laserScanValidInfCallback(const sensor_msgs::LaserScanConstPtr &raw_message,
+                                                  const boost::shared_ptr<ObservationBuffer> &buffer)
     {
-        if (!enabled_)
-            return;
-
-        *min_x = std::min(*min_x, -10.0);
-        *min_y = std::min(*min_y, -10.0);
-        *max_x = std::max(*max_x, 10.0);
-        *max_y = std::max(*max_y, 10.0);
-
-        // ROS_INFO("%f, %f, %f, %f", *min_x, *min_y, *max_x, *max_y);
-    }
-
-    void StateLayer::updateCosts(costmap_2d::Costmap2D& master_grid, int min_i, int min_j, int max_i, int max_j)
-    {
-        if (!enabled_)
-            return;
-
-        // if (footprint_clearing_enabled_)
-        // {
-        //     setConvexPolygonCost(transformed_footprint_, costmap_2d::FREE_SPACE);
-        // }
-
-        current_ = true;
-        for (const auto& p:scan_cloud_)
+        // ROS_INFO("laserScanValidInfCallback");
+        // Filter positive infinities ("Inf"s) to max_range.
+        float epsilon = 0.0001; // a tenth of a millimeter
+        sensor_msgs::LaserScan message = *raw_message;
+        for (size_t i = 0; i < message.ranges.size(); i++)
         {
-            unsigned int mx,my;
-            if (master_grid.worldToMap(p.x,p.y,mx,my))
+            float range = message.ranges[i];
+            if (!std::isfinite(range) && range > 0)
             {
-                master_grid.setCost(mx,my,LETHAL_OBSTACLE);
+                message.ranges[i] = message.range_max - epsilon;
             }
         }
-        
+
+        // project the laser into a point cloud
+        sensor_msgs::PointCloud2 cloud;
+        cloud.header = message.header;
+
+        // project the scan into a point cloud
+        try
+        {
+            projector_.transformLaserScanToPointCloud(message.header.frame_id, message, cloud, *tf_);
+        }
+        catch (tf2::TransformException &ex)
+        {
+            ROS_WARN("High fidelity enabled, but TF returned a transform exception to frame %s: %s",
+                     global_frame_.c_str(), ex.what());
+            projector_.projectLaser(message, cloud);
+        }
+
+        // buffer the point cloud
+        buffer->lock();
+        buffer->bufferCloud(cloud);
+        buffer->unlock();
+    }
+
+    void StateLayer::pointCloudCallback(const sensor_msgs::PointCloudConstPtr &message,
+                                           const boost::shared_ptr<ObservationBuffer> &buffer)
+    {
+        sensor_msgs::PointCloud2 cloud2;
+
+        if (!sensor_msgs::convertPointCloudToPointCloud2(*message, cloud2))
+        {
+            ROS_ERROR("Failed to convert a PointCloud to a PointCloud2, dropping message");
+            return;
+        }
+
+        // buffer the point cloud
+        buffer->lock();
+        buffer->bufferCloud(cloud2);
+        buffer->unlock();
+    }
+
+    void StateLayer::pointCloud2Callback(const sensor_msgs::PointCloud2ConstPtr &message,
+                                            const boost::shared_ptr<ObservationBuffer> &buffer)
+    {
+        // buffer the point cloud
+        buffer->lock();
+        buffer->bufferCloud(*message);
+        buffer->unlock();
     }
 
 } // namespace potbot_nav
