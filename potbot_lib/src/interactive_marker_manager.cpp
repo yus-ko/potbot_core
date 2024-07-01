@@ -304,7 +304,7 @@ namespace potbot_lib{
 				interpolate::linear(interp_vecs, int(distance_to_pre/0.05), interp_vecs);
 				utility::to_msg(interp_vecs,start_end);
 
-				ROS_DEBUG("distance_to_pre: %f, linear_interpolate_num: %d", distance_to_pre, start_end.size());
+				ROS_DEBUG("distance_to_pre: %f, linear_interpolate_num: %d", distance_to_pre, (int)start_end.size());
 
 				for (size_t i = 1; i < start_end.size(); i++)
 				{
@@ -362,7 +362,7 @@ namespace potbot_lib{
 				{
 					visual_markers_[id].trajectory = split_traj;
 				}
-				ROS_DEBUG("interpolate size: %d, trajectories_[%d]_size: %d", split_traj.size(), id, visual_markers_[id].trajectory.size());
+				ROS_DEBUG("interpolate size: %d, trajectories_[%d]_size: %d", (int)split_traj.size(), (int)id, (int)visual_markers_[id].trajectory.size());
 
 			}
 			publishMarkerTrajectory();
