@@ -56,6 +56,9 @@ namespace potbot_lib{
 
 		pub_marker_trajectory_ = pnh.advertise<visualization_msgs::MarkerArray>("trajectory", 1);
 
+		srv_save_marker_trajectory_ = pnh.advertiseService("save_marker_tarajectory", &InteractiveMarkerManager::serviceSaveMarkerTrajectory, this);
+		srv_clear_marker_trajectory_ = pnh.advertiseService("clear_marker_tarajectory", &InteractiveMarkerManager::serviceClearMarkerTrajectory, this);
+
 		XmlRpc::XmlRpcValue markers;
 		pnh.getParam("markers", markers);
 		interactive_marker_num_ = markers.size();
@@ -387,6 +390,194 @@ namespace potbot_lib{
 			}
 		}
 		pub_marker_trajectory_.publish(traj_marker);
+	}
+
+	bool directoryExists(const std::string &path) 
+	{
+		struct stat info;
+		if (stat(path.c_str(), &info) != 0) 
+		{
+			return false; // ディレクトリは存在しない
+		}
+		else if (info.st_mode & S_IFDIR) 
+		{
+			return true; // ディレクトリは存在する
+		} 
+		else 
+		{
+			return false; // パスはディレクトリではない
+		}
+	}
+
+	bool createDirectory(const std::string &path) 
+	{
+		if (mkdir(path.c_str(), 0755) != 0) 
+		{
+			if (errno == EEXIST) 
+			{
+				return true; // ディレクトリは既に存在する
+			} else 
+			{
+				return false; // ディレクトリの作成に失敗
+			}
+		}
+		return true; // ディレクトリの作成に成功
+	}
+
+	bool createDirectoriesRecursively(const std::string &path) 
+	{
+		size_t pos = 0;
+		std::string current_path;
+
+		while ((pos = path.find_first_of('/', pos)) != std::string::npos) 
+		{
+			current_path = path.substr(0, pos++);
+			if (!current_path.empty() && !directoryExists(current_path)) 
+			{
+				if (!createDirectory(current_path)) 
+				{
+					return false;
+				}
+			}
+		}
+
+		if (!directoryExists(path)) {
+			if (!createDirectory(path)) 
+			{
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	int InteractiveMarkerManager::getMarkerId(std::string marker_name)
+	{
+		for (size_t i = 0; i < visual_markers_.size(); i++)
+		{
+			if (visual_markers_[i].marker.text == marker_name)
+			{
+				return i;
+			}
+			else if (i == visual_markers_.size() - 1)
+			{
+				return -1;
+			}
+		}
+	}
+
+	bool InteractiveMarkerManager::serviceSaveMarkerTrajectory(potbot_lib::Save::Request &req, potbot_lib::Save::Response &resp)
+	{
+		std::string marker_name = req.save_target;
+		int id = 0;
+
+		if (marker_name == "")
+		{
+			marker_name = visual_markers_[0].marker.text;
+		}
+		else
+		{
+			id = getMarkerId(marker_name);
+			if (id == -1)
+			{
+				resp.success = false;
+				resp.message = "Invalid save_target: " + marker_name;
+				return false;
+			}
+		}
+		
+		std::string csv_path = req.full_path;
+
+		if (csv_path == "")
+		{
+			csv_path = std::string(std::getenv("HOME")) + "/.ros/marker/trajectory/" + marker_name + ".csv";
+		}
+
+		size_t last_slash_pos = csv_path.find_last_of('/');
+    	std::string directory_path = csv_path.substr(0, last_slash_pos);
+
+		// ディレクトリが存在するか確認し、存在しない場合は作成
+		if (!directoryExists(directory_path)) 
+		{
+			if (!createDirectoriesRecursively(directory_path)) 
+			{
+				ROS_ERROR_STREAM("Failed to create directory: " << directory_path);
+				resp.success = false;
+				resp.message = "Failed to create directory: " + directory_path;
+				return false;
+			}
+		}
+
+		std::ofstream csv_file(csv_path);
+
+		if (csv_file.is_open()) 
+		{
+			for (const auto& p : visual_markers_[id].trajectory) 
+			{
+				double roll,pitch,yaw;
+				utility::get_RPY(p.pose.orientation, roll, pitch, yaw);
+
+				csv_file	<< p.pose.position.x 	<< ","
+							<< p.pose.position.y 	<< ","
+							<< p.pose.position.z 	<< ","
+							<< roll 				<< ","
+							<< pitch 				<< ","
+							<< yaw 					<< "\n";
+			}
+			csv_file.close();
+
+			ROS_INFO_STREAM("Saved to: " << csv_path);
+			resp.success = true;
+			resp.message = "Saved to: " + csv_path;
+			return true;
+		} 
+		else 
+		{
+			ROS_ERROR_STREAM("Failed to open file: " << csv_path);
+			resp.success = false;
+			resp.message = "Failed to open file: " + csv_path;
+			return false;
+		}
+		
+	}
+
+	bool InteractiveMarkerManager::serviceClearMarkerTrajectory(potbot_lib::Save::Request &req, potbot_lib::Save::Response &resp)
+	{
+		std::string marker_name = req.save_target;
+
+		if (marker_name == "")
+		{
+			std::string names = "";
+			for (auto& vm:visual_markers_)
+			{
+				vm.trajectory.clear();
+				names+=vm.marker.text + ", ";
+			}
+			names.pop_back();
+			names.pop_back();
+			ROS_INFO_STREAM("Clear trajectory: " << names);
+			resp.success = true;
+			resp.message = "Clear trajectory: " + names;
+		}
+		else
+		{
+			int id = getMarkerId(marker_name);
+			if (id == -1)
+			{
+				ROS_INFO_STREAM("Invalid target name: " << marker_name);
+				resp.success = false;
+				resp.message = "Invalid target name: " + marker_name;
+				return false;
+			}
+			else
+			{
+				visual_markers_[id].trajectory.clear();
+				ROS_INFO_STREAM("Clear trajectory: " << visual_markers_[id].marker.text);
+				resp.success = true;
+				resp.message = "Clear trajectory: " + visual_markers_[id].marker.text;
+			}
+		}
+		return true;
 	}
 
 	std::vector<VisualMarker>* InteractiveMarkerManager::getVisualMarker()

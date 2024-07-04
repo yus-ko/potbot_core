@@ -8,6 +8,12 @@ find_package(catkin REQUIRED COMPONENTS
   pcl_ros
   potbot_msgs
   interactive_markers
+  message_generation
+)
+
+add_service_files(
+  FILES
+  Save.srv
 )
 
 generate_dynamic_reconfigure_options(
@@ -16,6 +22,10 @@ generate_dynamic_reconfigure_options(
   cfg/Controller.cfg
   cfg/DWA.cfg
   cfg/MarkerManager.cfg
+)
+
+generate_messages(
+  # DEPENDENCIES
 )
 
 catkin_package(

@@ -22,7 +22,7 @@ namespace potbot_lib
         void DynamicWindowApproach::reconfigureCB(const potbot_lib::DWAConfig& param, uint32_t level)
         {
             setMargin(	param.stop_margin_angle, param.stop_margin_distance);
-            setLimit( param.max_linear_velocity, param.max_linear_velocity);
+            setLimit( param.max_linear_velocity, param.max_angular_velocity);
             reset_path_index_ = param.reset_path_index;
             time_increment_ = param.time_increment;
             time_end_ = param.time_end;
@@ -32,6 +32,7 @@ namespace potbot_lib
             angular_velocity_min_ = param.min_angular_velocity;
             angular_velocity_max_ = param.max_angular_velocity;
             angular_velocity_increment_ = param.angular_velocity_increment;
+            learning_rate_ = param.learning_rate;
         }
 
         void DynamicWindowApproach::calculateCommand(geometry_msgs::Twist& cmd_vel)
@@ -39,14 +40,16 @@ namespace potbot_lib
             ROS_DEBUG("path index: %d / %d", (int)path_index_, (int)target_path_.size());
             if (reachedTarget() || target_path_.empty()) return;
             
-            createPlans();
+            // createPlans();
             splitPath();
-            searchForBestPlan();
+            // searchForBestPlan();
+            searchForBestPlanWithGradient();
             publishPlans();
             publishBestPlan();
             publishSplitPath();
             v = best_plan_.linear_velocity;
             omega = best_plan_.angular_velocity;
+            // applyLimit();
             nav_msgs::Odometry robot;
             toMsg(robot);
             cmd_vel = robot.twist.twist;
@@ -175,12 +178,14 @@ namespace potbot_lib
             }
 
             // closest_index = path_index_;
-
+            double v = std::max(abs(linear_velocity_min_),abs(linear_velocity_max_));
             double total_distance = 0;
-            double limit_ditance = max_linear_velocity_*time_end_;
-            double inc_distance = max_linear_velocity_*time_increment_;
+            double limit_ditance = v*time_end_;
+            double inc_distance = v*time_increment_;
             double downsample_distance = 0; 
-            for (int i = closest_index; i < target_path_.size(); i++)
+            int shift = 0;
+            // if (target_path_.size() - closest_index > 5) shift = 5;
+            for (int i = closest_index+shift; i < target_path_.size(); i++)
             {
                 
                 if (i < 2)
@@ -193,7 +198,6 @@ namespace potbot_lib
                 if (total_distance < limit_ditance)
                 {
                     if (downsample_distance == 0) split_path_.push_back(target_path_[i]);
-                    
                 }
                 else
                 {
@@ -225,6 +229,97 @@ namespace potbot_lib
                     best_plan_ = plan;
                     score_min = score_diff;
                 }
+            }
+        }
+
+        void DynamicWindowApproach::searchForBestPlanWithGradient()
+        {
+            plans_.clear();
+
+            double x_init = x;
+            double y_init = y;
+            double th_init = yaw;
+            double dt = time_increment_;
+            double tau = time_end_;
+            double v_min = linear_velocity_min_;
+            double v_max = linear_velocity_max_;
+            double v_delta = linear_velocity_increment_;
+            double omega_min = angular_velocity_min_;
+            double omega_max = angular_velocity_max_;
+            double omega_delta = angular_velocity_increment_;
+
+            double v = v;
+            double omega = omega;
+
+            double score_min = 1e100;
+            double score_min_threshold = 1e-2;
+            double learning_rate = learning_rate_;
+            size_t iteration_max = 100;
+
+            for (size_t i = 0; i < iteration_max; i++)
+            {
+                plan p;
+                p.linear_velocity = v;
+                p.angular_velocity = omega;
+                p.delta_time = dt;
+                p.end_time = tau;
+                size_t num_points = split_path_.size();
+                Eigen::Vector2d gradient(0,0);
+                // for (double t = 0; t < tau; t += dt)
+                for (int j = 0; j < num_points; j++)
+                {
+                    double t = dt*j;
+                    double th = th_init + omega*t;
+                    double x = x_init + v*t*cos(th);
+                    double y = y_init + v*t*sin(th);
+                    p.path.push_back(Eigen::Vector2d(x,y));
+                
+                    double x2 = split_path_[j](0);
+                    double y2 = split_path_[j](1);
+
+                    double s1 = x - x2;
+                    double s2 = y - y2;
+                    double s3 = sqrt(pow(s1,2)+pow(s2,2));
+
+                    double gv = t*(cos(th)*s1+sin(th)*s2)/(s3); 
+                    // double gv =
+                    //     2*t*sin(th)*(t*sin(th)*v-y2+y_init) + 2*t*cos(th)*(t*cos(th)*v-x2+x_init)/
+                    //     2*sqrt(pow(t*sin(th)*v-y2+y_init,2)+pow(t*cos(th)-x2+x_init,2));
+
+                    double gomega = -t*t*v*(sin(th)*s1-cos(th)*s2)/(s3);
+                    // double gomega = 
+                    //     t*t*v*((x2-x_init)*sin(th)+(y_init-y2)*cos(th))/
+                    //     sqrt(pow(t*v*sin(th)-y2+y_init,2)+pow(t*v*cos(th)-x2+x_init,2));
+
+                    gradient+=Eigen::Vector2d(gv,gomega);
+                }
+
+                double sum = 0;
+                for (size_t j = 0; j < num_points; j++)
+                {
+                    sum += (p.path[j] - split_path_[j]).norm();
+                }
+
+                plans_.push_back(p);
+                
+                if (sum < score_min)
+                {
+                    best_plan_ = p;
+                    score_min = sum;
+                    if (gradient.norm() < score_min_threshold)
+                    {
+                        break;
+                    }
+                }
+
+                v -= learning_rate * gradient(0);
+                omega -= learning_rate * gradient(1);
+
+                v = std::min(v,v_max);
+                v = std::max(v,v_min);
+                omega = std::min(omega,omega_max);
+                omega = std::max(omega,omega_min);
+    
             }
         }
 

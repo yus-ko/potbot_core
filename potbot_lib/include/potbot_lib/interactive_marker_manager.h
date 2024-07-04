@@ -4,6 +4,8 @@
 #include <potbot_lib/interpolate.h>
 #include <potbot_lib/utility_ros.h>
 
+#include <fstream>
+
 #include <ros/ros.h>
 
 #include <interactive_markers/interactive_marker_server.h>
@@ -11,6 +13,9 @@
 
 #include <dynamic_reconfigure/server.h>
 #include <potbot_lib/MarkerManagerConfig.h>
+
+#include <potbot_lib/Save.h>
+#include <std_srvs/Empty.h>
 
 namespace potbot_lib{
 
@@ -26,6 +31,8 @@ namespace potbot_lib{
     {
         private:
             ros::Publisher pub_marker_trajectory_;
+
+            ros::ServiceServer srv_save_marker_trajectory_, srv_clear_marker_trajectory_;
 
             std::string name_space_ = "", frame_id_global_ = "map";
             size_t interactive_marker_num_ = 1;
@@ -43,6 +50,11 @@ namespace potbot_lib{
             void interpolateTrajectory(size_t id);
 
             void publishMarkerTrajectory();
+            
+            bool serviceSaveMarkerTrajectory(potbot_lib::Save::Request &req, potbot_lib::Save::Response &resp);
+            bool serviceClearMarkerTrajectory(potbot_lib::Save::Request &req, potbot_lib::Save::Response &resp);
+
+            int getMarkerId(std::string marker_name);
 
         public:
             InteractiveMarkerManager(std::string name = "");

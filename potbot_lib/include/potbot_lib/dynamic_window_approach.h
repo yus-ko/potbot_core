@@ -3,6 +3,9 @@
 
 #include <potbot_lib/base_controller.h>
 #include <potbot_lib/diff_drive_controller.h>
+
+#include <algorithm>
+
 #include <pluginlib/class_list_macros.h>
 #include <dynamic_reconfigure/server.h>
 #include <potbot_lib/DWAConfig.h>
@@ -39,6 +42,7 @@ namespace potbot_lib
                 double angular_velocity_min_ = -1.0;
                 double angular_velocity_max_ = 1.0;
                 double angular_velocity_increment_ = 0.1;
+                double learning_rate_ = 0.1;
 
                 std::vector<Eigen::Vector2d> target_path_;
                 std::vector<Eigen::Vector2d> split_path_;
@@ -50,6 +54,8 @@ namespace potbot_lib
 
                 void splitPath();
                 void searchForBestPlan();
+
+                void searchForBestPlanWithGradient();
 
                 void createPlans(); 
 
