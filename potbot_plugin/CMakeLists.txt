@@ -28,7 +28,7 @@ generate_dynamic_reconfigure_options(
 
 catkin_package(
   INCLUDE_DIRS include
-  LIBRARIES ${PROJECT_NAME}
+  LIBRARIES ${PROJECT_NAME} potbot_lib
   # CATKIN_DEPENDS
   #   costmap_2d
   #   dynamic_reconfigure

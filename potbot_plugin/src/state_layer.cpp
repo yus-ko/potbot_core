@@ -2,6 +2,9 @@
 
 #include <pluginlib/class_list_macros.h>
 
+#include <potbot_lib/base_controller.h>
+#include <pluginlib/class_loader.h>
+
 PLUGINLIB_EXPORT_CLASS(potbot_nav::StateLayer, costmap_2d::Layer)
 
 #define __NX__ 5
@@ -93,6 +96,19 @@ namespace potbot_nav
 
         pub_state_marker_			    = nh.advertise<visualization_msgs::MarkerArray>(	"state/marker", 1);
 	    pub_obstacles_scan_estimate_	= nh.advertise<potbot_msgs::ObstacleArray>(			"obstacle/scan/estimate", 1);
+
+        pluginlib::ClassLoader<potbot_lib::controller::BaseController> loader("potbot_lib", "potbot_lib::controller::BaseController");
+        std::string plugin_name = "potbot_lib/DWA";
+        // n.getParam("controller_name", plugin_name);
+        try
+        {
+            // loader.createInstance(plugin_name);
+            // ddr_->initialize("controller");
+        }
+        catch(pluginlib::PluginlibException& ex)
+        {
+            ROS_ERROR("failed to load plugin. Error: %s", ex.what());
+        }
     }
 
     void StateLayer::setupDynamicReconfigure(ros::NodeHandle &nh)

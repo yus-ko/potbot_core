@@ -26,7 +26,7 @@ namespace potbot_lib
         class DynamicWindowApproach : public BaseController
         {
             private:
-                ros::Publisher pub_plans_, pub_best_plan_, pub_split_path_;
+                ros::Publisher pub_plans_, pub_best_plan_, pub_split_path_, pub_objective_function_;
                 std::string frame_id_global_ = "map";
                 bool reset_path_index_ = true;
                 int path_index_ = 0;
@@ -34,6 +34,7 @@ namespace potbot_lib
 
                 void reconfigureCB(const potbot_lib::DWAConfig& param, uint32_t level);
 
+                std::string optimization_method_ = "gradient";
                 double time_increment_ = 0.1;
                 double time_end_ = 1.0;
                 double linear_velocity_min_ = -0.2;
@@ -42,6 +43,7 @@ namespace potbot_lib
                 double angular_velocity_min_ = -1.0;
                 double angular_velocity_max_ = 1.0;
                 double angular_velocity_increment_ = 0.1;
+                size_t iteration_max_ = 100;
                 double learning_rate_ = 0.1;
 
                 std::vector<Eigen::Vector2d> target_path_;

@@ -1,4 +1,6 @@
 #include <potbot_lib/pure_pursuit.h>
+#include <pluginlib/class_loader.h>
+#include <nav_core/base_local_planner.h>
 
 PLUGINLIB_EXPORT_CLASS(potbot_lib::controller::PurePursuit, potbot_lib::controller::BaseController)
 namespace potbot_lib
@@ -15,6 +17,21 @@ namespace potbot_lib
             dsrv_ = new dynamic_reconfigure::Server<potbot_lib::ControllerConfig>(private_nh);
             dynamic_reconfigure::Server<potbot_lib::ControllerConfig>::CallbackType cb = boost::bind(&PurePursuit::reconfigureCB, this, _1, _2);
             dsrv_->setCallback(cb);
+
+            // pluginlib::ClassLoader<nav_core::BaseLocalPlanner>
+            pluginlib::ClassLoader<nav_core::BaseLocalPlanner> loader("nav_core", "nav_core::BaseLocalPlanner");
+            std::string plugin_name = "potbot_nav/PotbotLocalPlanner";
+            // n.getParam("controller_name", plugin_name);
+            try
+            {
+                loader.createInstance(plugin_name);
+                // ddr_ = loader.createInstance(plugin_name);
+                // ddr_->initialize("controller");
+            }
+            catch(pluginlib::PluginlibException& ex)
+            {
+                ROS_ERROR("failed to load plugin. Error: %s", ex.what());
+            }
         }
 
         void PurePursuit::reconfigureCB(const potbot_lib::ControllerConfig& param, uint32_t level)
@@ -29,8 +46,8 @@ namespace potbot_lib
         void PurePursuit::calculateCommand(geometry_msgs::Twist& cmd_vel)
         {
             if (reachedTarget()) return;
-            // purePursuitController();
-            normalizedPurePursuit();
+            purePursuitController();
+            // normalizedPurePursuit();
             publishLookahead();
             nav_msgs::Odometry robot;
             toMsg(robot);
@@ -134,7 +151,7 @@ namespace potbot_lib
                 }
             }
 
-            ROS_INFO("process: %d, index: %d, size: %d", line_following_process_, target_path_index_, target_path_size);
+            ROS_DEBUG("process: %d, index: %d, size: %d", (int)line_following_process_, (int)target_path_index_, (int)target_path_size);
 
             if(initialize_pose_ && !done_init_pose_alignment_)
             {
@@ -185,34 +202,65 @@ namespace potbot_lib
 
             size_t target_path_size = target_path_.size();
 
-            double l_d;
-            while(true)
+            double d_min = 1e100;
+            for (size_t i = 0; i < target_path_size; i++)
             {
-                Pose* sub_goal = &target_path_[target_path_index_];
-                l_d = getDistance(*sub_goal);
-                if (l_d <= distance_to_lookahead_point_)
+                double d = getDistance(target_path_[i]);
+                if (d < d_min)
                 {
-                    target_path_index_++;
-                    if (target_path_index_ > target_path_size-1)
-                    {
-                        target_path_index_ = target_path_size-1;
-                        return;
-                    }
-                }
-                else
-                {
-                    lookahead_ = sub_goal;
-                    break;
+                    d_min = d;
+                    target_path_index_ = i;
                 }
             }
 
-            ROS_DEBUG("index: %d, size: %d", target_path_index_, target_path_size);
+            double d_sum = 0;
+            for (size_t i = target_path_index_; i < target_path_size; i++)
+            {
+                if (i > 0)
+                {
+                    d_sum += hypot(target_path_[i].position.x - target_path_[i-1].position.x,target_path_[i].position.y - target_path_[i-1].position.y);
+                    if (d_sum > distance_to_lookahead_point_)
+                    {
+                        lookahead_ = &target_path_[i];
+                        break;
+                    }
+                }
+            }
+            double l_d = getDistance(*lookahead_);
+
+            // double l_d;
+            // while(true)
+            // {
+            //     Pose* sub_goal = &target_path_[target_path_index_];
+            //     l_d = getDistance(*sub_goal);
+            //     if (l_d <= distance_to_lookahead_point_)
+            //     {
+            //         target_path_index_++;
+            //         if (target_path_index_ > target_path_size-1)
+            //         {
+            //             target_path_index_ = target_path_size-1;
+            //             return;
+            //         }
+            //     }
+            //     else
+            //     {
+            //         lookahead_ = sub_goal;
+            //         break;
+            //     }
+            // }
+
+            ROS_DEBUG("index: %d, size: %d", (int)target_path_index_, (int)target_path_size);
 
             double alpha = getAngle(*lookahead_) - yaw;
             v = max_linear_velocity_/(abs(alpha)+1.0);
             double nv = v/max_linear_velocity_;
             omega = 2.0*nv*sin(alpha)/l_d;
             applyLimit();
+
+            // double alpha = getAngle(*lookahead_) - yaw;
+            // v = max_linear_velocity_;
+            // omega = 2.0*v*sin(alpha)/l_d;
+            // applyLimit();
         }
 
         bool PurePursuit::reachedTarget()

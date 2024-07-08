@@ -13,6 +13,7 @@ namespace potbot_lib
             pub_plans_ = private_nh.advertise<visualization_msgs::MarkerArray>("path/plans", 1);
             pub_best_plan_ = private_nh.advertise<nav_msgs::Path>("path/best", 1);
             pub_split_path_ = private_nh.advertise<nav_msgs::Path>("path/split", 1);
+            pub_objective_function_ = private_nh.advertise<sensor_msgs::PointCloud2>("objective_function", 1);
 
             dsrv_ = new dynamic_reconfigure::Server<potbot_lib::DWAConfig>(private_nh);
             dynamic_reconfigure::Server<potbot_lib::DWAConfig>::CallbackType cb = boost::bind(&DynamicWindowApproach::reconfigureCB, this, _1, _2);
@@ -23,6 +24,7 @@ namespace potbot_lib
         {
             setMargin(	param.stop_margin_angle, param.stop_margin_distance);
             setLimit( param.max_linear_velocity, param.max_angular_velocity);
+            optimization_method_ = param.optimization_method;
             reset_path_index_ = param.reset_path_index;
             time_increment_ = param.time_increment;
             time_end_ = param.time_end;
@@ -32,6 +34,7 @@ namespace potbot_lib
             angular_velocity_min_ = param.min_angular_velocity;
             angular_velocity_max_ = param.max_angular_velocity;
             angular_velocity_increment_ = param.angular_velocity_increment;
+            iteration_max_ = param.max_iteration;
             learning_rate_ = param.learning_rate;
         }
 
@@ -40,10 +43,18 @@ namespace potbot_lib
             ROS_DEBUG("path index: %d / %d", (int)path_index_, (int)target_path_.size());
             if (reachedTarget() || target_path_.empty()) return;
             
-            // createPlans();
             splitPath();
-            // searchForBestPlan();
-            searchForBestPlanWithGradient();
+
+            if (optimization_method_ == "all_search")
+            {
+                createPlans();
+                searchForBestPlan();
+            }
+            else if (optimization_method_ == "gradient")
+            {
+                searchForBestPlanWithGradient();
+            }
+            
             publishPlans();
             publishBestPlan();
             publishSplitPath();
@@ -210,9 +221,9 @@ namespace potbot_lib
 
         void DynamicWindowApproach::searchForBestPlan()
         {
-            // plan tmp;
-            // best_plan_ = tmp;
-            double score_min = 1e9;
+            double score_min = 1e100;
+            double score_max = 1e-100;
+            std::vector<double> score;
             for (const auto& plan:plans_)
             {
                 size_t num_points = plan.path.size();
@@ -224,12 +235,27 @@ namespace potbot_lib
                     score_diff += (plan.path[i] - split_path_[i]).norm();
                 }
 
-                if (score_diff < score_min)
-                {
-                    best_plan_ = plan;
-                    score_min = score_diff;
-                }
+                score.push_back(score_diff);
             }
+
+            auto min_it = std::min_element(score.begin(), score.end());
+            int min_index = std::distance(score.begin(), min_it);
+
+            best_plan_ = plans_[min_index];
+            score_min = *min_it;
+
+            auto max_value = *std::max_element(score.begin(), score.end());
+
+            pcl::PointCloud<pcl::PointXYZ> objective_value;
+            for (size_t i = 0; i < plans_.size(); i++)
+            {
+                objective_value.points.push_back(pcl::PointXYZ(plans_[i].linear_velocity, plans_[i].angular_velocity, score[i]/max_value));
+            }
+            sensor_msgs::PointCloud2 msg;
+            pcl::toROSMsg(objective_value, msg);
+            msg.header.frame_id = frame_id_global_;
+            msg.header.stamp = ros::Time::now();
+            pub_objective_function_.publish(msg);
         }
 
         void DynamicWindowApproach::searchForBestPlanWithGradient()
@@ -243,10 +269,8 @@ namespace potbot_lib
             double tau = time_end_;
             double v_min = linear_velocity_min_;
             double v_max = linear_velocity_max_;
-            double v_delta = linear_velocity_increment_;
             double omega_min = angular_velocity_min_;
             double omega_max = angular_velocity_max_;
-            double omega_delta = angular_velocity_increment_;
 
             double v = v;
             double omega = omega;
@@ -254,9 +278,10 @@ namespace potbot_lib
             double score_min = 1e100;
             double score_min_threshold = 1e-2;
             double learning_rate = learning_rate_;
-            size_t iteration_max = 100;
+            size_t iteration_max = iteration_max_;
 
-            for (size_t i = 0; i < iteration_max; i++)
+            size_t i = 0;
+            for (i = 0; i < iteration_max; i++)
             {
                 plan p;
                 p.linear_velocity = v;
@@ -300,20 +325,26 @@ namespace potbot_lib
                     sum += (p.path[j] - split_path_[j]).norm();
                 }
 
+                double score = sum;
+
                 plans_.push_back(p);
                 
-                if (sum < score_min)
+                if (score < score_min)
                 {
                     best_plan_ = p;
-                    score_min = sum;
-                    if (gradient.norm() < score_min_threshold)
-                    {
-                        break;
-                    }
+                    score_min = score;
                 }
 
-                v -= learning_rate * gradient(0);
-                omega -= learning_rate * gradient(1);
+                double v_inc = learning_rate * gradient(0);
+                double omega_inc = learning_rate * gradient(1);
+                // if (abs(v_inc) < score_min_threshold && abs(omega_inc) < score_min_threshold)
+                // {
+                //     i++;
+                //     break;
+                // }
+
+                v -= v_inc;
+                omega -= omega_inc;
 
                 v = std::min(v,v_max);
                 v = std::max(v,v_min);
@@ -321,6 +352,7 @@ namespace potbot_lib
                 omega = std::max(omega,omega_min);
     
             }
+            ROS_DEBUG("max iteratin: %d, actual iterated: %d", (int)iteration_max, (int)i);
         }
 
         void DynamicWindowApproach::createPlans()
