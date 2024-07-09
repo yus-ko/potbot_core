@@ -20,7 +20,6 @@ find_package(catkin REQUIRED COMPONENTS
   tf2_ros
   potbot_lib
   potbot_msgs
-  test_pkg
   potbot_base
 )
 
@@ -53,6 +52,7 @@ add_library(${PROJECT_NAME}
   src/local_planner.cpp
   src/state_layer.cpp
   src/pure_pursuit.cpp
+  src/optimal_path_follower.cpp
 )
 add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})

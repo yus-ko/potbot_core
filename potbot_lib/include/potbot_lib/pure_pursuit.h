@@ -1,47 +1,43 @@
-#ifndef H_POTBOT_PURE_PURSUIT_
-#define H_POTBOT_PURE_PURSUIT_
+#ifndef H_POTBOT_LIB_PUREPURSUIT_
+#define H_POTBOT_LIB_PUREPURSUIT_
 
-#include <potbot_lib/base_controller.h>
-#include <pluginlib/class_list_macros.h>
-#include <dynamic_reconfigure/server.h>
-#include <potbot_lib/ControllerConfig.h>
-#include <nav_core/base_local_planner.h>
+#include <potbot_lib/diff_drive_agent.h>
 
-namespace potbot_lib
-{
-    namespace controller
-    {
-        class PurePursuit : public BaseController
-        {
-            private:
-                ros::Publisher pub_lookahead_;
-                std::string frame_id_global_ = "map";
-                bool reset_path_index_ = true;
-                dynamic_reconfigure::Server<potbot_lib::ControllerConfig> *dsrv_;
-                boost::shared_ptr<nav_core::BaseLocalPlanner> ddr_;
+namespace potbot_lib{
 
-                void reconfigureCB(const potbot_lib::ControllerConfig& param, uint32_t level); 
+    namespace controller{
 
-                void getLookahead(visualization_msgs::Marker& marker_msg);
-                void publishLookahead();
+        class PurePursuit : public DiffDriveAgent{
+            protected:
+                std::vector<Pose> target_path_;
+                Pose* lookahead_ = &target_path_.front();
+                double distance_to_lookahead_point_ = 0.3;
 
-                void purePursuitController();
-                void normalizedPurePursuit();
+                double stop_margin_angle_ = 0.1;
+                double stop_margin_distance_ = 0.03;
+
+                double max_linear_velocity_ = 1.0;
+                double max_angular_velocity_ = M_PI;
 
             public:
                 PurePursuit(){};
                 ~PurePursuit(){};
 
-                void initialize(std::string name);
-                
-                void calculateCommand(geometry_msgs::Twist& cmd_vel);
-                void setTargetPath(const std::vector<geometry_msgs::PoseStamped>& path_msg);
-                void setTargetPath(const nav_msgs::Path& path_msg);
+                void setTargetPath(const std::vector<Pose>& path);
+                void setMargin(double angle, double distance);
+                void setLimit(double linear, double angular);
+                void setDistanceToLookaheadPoint(double distance);
+
+                Pose getLookahead();
+
+                void applyLimit();
 
                 bool reachedTarget();
 
+                void calculateCommand();
+            
         };
     }
 }
 
-#endif	// H_POTBOT_PURE_PURSUIT_
+#endif	// H_POTBOT_LIB_PUREPURSUIT_

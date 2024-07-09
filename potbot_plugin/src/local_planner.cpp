@@ -104,46 +104,17 @@ namespace potbot_nav
             apf_ = new potbot_lib::ArtificialPotentialFieldROS("potbot/potential_field");
             apf_planner_ = new potbot_lib::path_planner::APFPathPlannerROS("potbot/path_planner", apf_);
             // robot_controller_ = new potbot_lib::controller::DiffDriveControllerROS("potbot/controller");
-            ROS_INFO("potbot local planner");
-            std::string plugin_name = "potbot_lib/DWA";
+            std::string plugin_name = "potbot_nav/OPF";
             // n.getParam("controller_name", plugin_name);
             try
             {
-                ddr_ = loader_.createInstance("potbot_nav/PurePursuit");
-                ddr_->initialize("controller_pp");
+                controller_ = loader_.createInstance(plugin_name);
+                controller_->initialize(name + "/controller");
             }
             catch(pluginlib::PluginlibException& ex)
             {
                 ROS_ERROR("failed to load plugin. Error: %s", ex.what());
             }
-
-            // pluginlib::ClassLoader<nav_core::BaseLocalPlanner> loader2("nav_core", "nav_core::BaseLocalPlanner");
-            // try
-            // {
-            //     boost::shared_ptr<nav_core::BaseLocalPlanner> nbc_;
-            //     nbc_ = loader2.createInstance("dwa_local_planner/DWAPlannerROS");
-
-            //     // tf2_ros::Buffer buffer;
-            //     // tf2_ros::TransformListener tf(buffer);
-            //     // costmap_2d::Costmap2DROS costmap_ros("local_costmap", buffer);
-            //     nbc_->initialize("controller_dlp",tf_,costmap_ros_);
-            // }
-            // catch(pluginlib::PluginlibException& ex)
-            // {
-            //     ROS_ERROR("failed to load plugin. Error: %s", ex.what());
-            // }
-
-            // pluginlib::ClassLoader<test_lib::TestLib> loader2("test_pkg", "test_lib::TestLib");
-            // try
-            // {
-            //     boost::shared_ptr<test_lib::TestLib> te;
-            //     te = loader2.createInstance("test_lib/plugin");
-            //     te->initialize();
-            // }
-            // catch(pluginlib::PluginlibException& ex)
-            // {
-            //     ROS_ERROR("failed to load plugin. Error: %s", ex.what());
-            // }
 
             initialized_ = true;
         }
@@ -231,7 +202,7 @@ namespace potbot_nav
 
         // robot_controller_->setTarget(global_plan_.back().pose);
         // reached_goal_ = robot_controller_->reachedTarget();
-        nav_msgs::Odometry sim_pose;
+        // nav_msgs::Odometry sim_pose;
         if (!reached_goal_)
         {
             potbot_lib::Point p;
@@ -262,7 +233,13 @@ namespace potbot_nav
             //     // robot_controller_->to_msg(sim_pose);
                 
             // }
-            cmd_vel = sim_pose.twist.twist;
+            controller_->setTargetPath(path_msg_interpolated.poses);
+            nav_msgs::Odometry sim_pose;
+            sim_pose.pose.pose = global_pose.pose;
+            controller_->setRobot(sim_pose);
+            controller_->calculateCommand(cmd_vel);
+            // controller_->getRobot(sim_pose);
+            // cmd_vel = sim_pose.twist.twist;
         }
         else
         {

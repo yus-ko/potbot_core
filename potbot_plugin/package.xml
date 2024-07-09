@@ -54,7 +54,6 @@
   <build_depend>potbot_lib</build_depend>
   <exec_depend>roscpp</exec_depend>
 
-  <depend>test_pkg</depend>
   <depend>nav_core</depend>
   <depend>costmap_2d</depend>
   <depend>potbot_base</depend>

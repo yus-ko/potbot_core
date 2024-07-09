@@ -180,7 +180,7 @@ namespace potbot_nav {
       potbot_lib::path_planner::APFPathPlannerROS* apf_planner_ = nullptr;
       // potbot_lib::controller::DiffDriveControllerROS* robot_controller_ = nullptr;
 
-      boost::shared_ptr<potbot_base::Controller> ddr_;
+      boost::shared_ptr<potbot_base::Controller> controller_;
       pluginlib::ClassLoader<potbot_base::Controller> loader_;
   };
 };

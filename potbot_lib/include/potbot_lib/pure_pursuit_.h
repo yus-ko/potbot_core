@@ -1,25 +1,24 @@
-#ifndef H_POTBOT_NAV_PURE_PURSUIT_
-#define H_POTBOT_NAV_PURE_PURSUIT_
+#ifndef H_POTBOT_PURE_PURSUIT_
+#define H_POTBOT_PURE_PURSUIT_
 
-#include <potbot_lib/pure_pursuit.h>
-#include <potbot_base/base_controller.h>
-#include <potbot_lib/utility.h>
+#include <potbot_lib/base_controller.h>
 #include <pluginlib/class_list_macros.h>
 #include <dynamic_reconfigure/server.h>
 #include <potbot_lib/ControllerConfig.h>
-#include <visualization_msgs/Marker.h>
+#include <nav_core/base_local_planner.h>
 
-namespace potbot_nav
+namespace potbot_lib
 {
     namespace controller
     {
-        class PurePursuit : public potbot_base::Controller
+        class PurePursuit : public BaseController
         {
             private:
-                potbot_lib::controller::PurePursuit pure_pursuit_;
                 ros::Publisher pub_lookahead_;
                 std::string frame_id_global_ = "map";
+                bool reset_path_index_ = true;
                 dynamic_reconfigure::Server<potbot_lib::ControllerConfig> *dsrv_;
+                boost::shared_ptr<nav_core::BaseLocalPlanner> ddr_;
 
                 void reconfigureCB(const potbot_lib::ControllerConfig& param, uint32_t level); 
 
@@ -37,6 +36,7 @@ namespace potbot_nav
                 
                 void calculateCommand(geometry_msgs::Twist& cmd_vel);
                 void setTargetPath(const std::vector<geometry_msgs::PoseStamped>& path_msg);
+                void setTargetPath(const nav_msgs::Path& path_msg);
 
                 bool reachedTarget();
 
@@ -44,4 +44,4 @@ namespace potbot_nav
     }
 }
 
-#endif	// H_POTBOT_NAV_PURE_PURSUIT_
+#endif	// H_POTBOT_PURE_PURSUIT_
