@@ -61,9 +61,9 @@ PLUGINLIB_EXPORT_CLASS(potbot_nav::PotbotLocalPlanner, nav_core::BaseLocalPlanne
 namespace potbot_nav
 {
 
-    PotbotLocalPlanner::PotbotLocalPlanner() : costmap_ros_(NULL), tf_(NULL), initialized_(false) {}
+    PotbotLocalPlanner::PotbotLocalPlanner() : costmap_ros_(NULL), tf_(NULL), initialized_(false), loader_("potbot_base", "potbot_base::Controller") {}
 
-    PotbotLocalPlanner::PotbotLocalPlanner(std::string name, tf2_ros::Buffer *tf, costmap_2d::Costmap2DROS *costmap_ros) : costmap_ros_(NULL), tf_(NULL), initialized_(false)
+    PotbotLocalPlanner::PotbotLocalPlanner(std::string name, tf2_ros::Buffer *tf, costmap_2d::Costmap2DROS *costmap_ros) : costmap_ros_(NULL), tf_(NULL), initialized_(false), loader_("potbot_base", "potbot_base::Controller")
     {
 
         // initialize the planner
@@ -103,20 +103,47 @@ namespace potbot_nav
 
             apf_ = new potbot_lib::ArtificialPotentialFieldROS("potbot/potential_field");
             apf_planner_ = new potbot_lib::path_planner::APFPathPlannerROS("potbot/path_planner", apf_);
-            robot_controller_ = new potbot_lib::controller::DiffDriveControllerROS("potbot/controller");
-
-            pluginlib::ClassLoader<potbot_lib::controller::BaseController> loader("potbot_lib", "potbot_lib::controller::BaseController");
+            // robot_controller_ = new potbot_lib::controller::DiffDriveControllerROS("potbot/controller");
+            ROS_INFO("potbot local planner");
             std::string plugin_name = "potbot_lib/DWA";
             // n.getParam("controller_name", plugin_name);
             try
             {
-                // loader.createInstance(plugin_name);
-                // ddr_->initialize("controller");
+                ddr_ = loader_.createInstance("potbot_nav/PurePursuit");
+                ddr_->initialize("controller_pp");
             }
             catch(pluginlib::PluginlibException& ex)
             {
                 ROS_ERROR("failed to load plugin. Error: %s", ex.what());
             }
+
+            // pluginlib::ClassLoader<nav_core::BaseLocalPlanner> loader2("nav_core", "nav_core::BaseLocalPlanner");
+            // try
+            // {
+            //     boost::shared_ptr<nav_core::BaseLocalPlanner> nbc_;
+            //     nbc_ = loader2.createInstance("dwa_local_planner/DWAPlannerROS");
+
+            //     // tf2_ros::Buffer buffer;
+            //     // tf2_ros::TransformListener tf(buffer);
+            //     // costmap_2d::Costmap2DROS costmap_ros("local_costmap", buffer);
+            //     nbc_->initialize("controller_dlp",tf_,costmap_ros_);
+            // }
+            // catch(pluginlib::PluginlibException& ex)
+            // {
+            //     ROS_ERROR("failed to load plugin. Error: %s", ex.what());
+            // }
+
+            // pluginlib::ClassLoader<test_lib::TestLib> loader2("test_pkg", "test_lib::TestLib");
+            // try
+            // {
+            //     boost::shared_ptr<test_lib::TestLib> te;
+            //     te = loader2.createInstance("test_lib/plugin");
+            //     te->initialize();
+            // }
+            // catch(pluginlib::PluginlibException& ex)
+            // {
+            //     ROS_ERROR("failed to load plugin. Error: %s", ex.what());
+            // }
 
             initialized_ = true;
         }
@@ -199,42 +226,42 @@ namespace potbot_nav
 
         apf_->publishPotentialField();
 
-        robot_controller_->setMsg(global_pose);
-        robot_controller_->deltatime = 1.0 / 30.0;
+        // robot_controller_->setMsg(global_pose);
+        // robot_controller_->deltatime = 1.0 / 30.0;
 
-        robot_controller_->setTarget(global_plan_.back().pose);
-        reached_goal_ = robot_controller_->reachedTarget();
+        // robot_controller_->setTarget(global_plan_.back().pose);
+        // reached_goal_ = robot_controller_->reachedTarget();
         nav_msgs::Odometry sim_pose;
         if (!reached_goal_)
         {
             potbot_lib::Point p;
             p.x = goal_point.pose.position.x;
             p.y = goal_point.pose.position.y;
-            if (robot_controller_->getDistance(p) < 0.6)
-            {
-                robot_controller_->pidControl();
-                robot_controller_->toMsg(sim_pose);
-            }
-            else
-            {
+            // if (robot_controller_->getDistance(p) < 0.6)
+            // {
+            //     robot_controller_->pidControl();
+            //     robot_controller_->toMsg(sim_pose);
+            // }
+            // else
+            // {
 
-                potbot_lib::controller::DWAControllerROS dwa;
-                dwa.setMsg(global_pose);
-                dwa.setDwaTargetPath(path_msg_interpolated);
-                robot_controller_->initPID();
-                dwa.calculateCommand();
-                dwa.toMsg(sim_pose);
+            //     // potbot_lib::controller::DWAControllerROS dwa;
+            //     // dwa.setMsg(global_pose);
+            //     // dwa.setDwaTargetPath(path_msg_interpolated);
+            //     // robot_controller_->initPID();
+            //     // dwa.calculateCommand();
+            //     // dwa.toMsg(sim_pose);
 
 
-                // robot_controller_->set_target_path(path_msg_interpolated);
-                // robot_controller_->initPID();
-                // robot_controller_->normalized_pure_pursuit();
-                // // robot_controller_.pure_pursuit();
-                // robot_controller_->publishLookahead();
+            //     // robot_controller_->set_target_path(path_msg_interpolated);
+            //     // robot_controller_->initPID();
+            //     // robot_controller_->normalized_pure_pursuit();
+            //     // // robot_controller_.pure_pursuit();
+            //     // robot_controller_->publishLookahead();
                 
-                // robot_controller_->to_msg(sim_pose);
+            //     // robot_controller_->to_msg(sim_pose);
                 
-            }
+            // }
             cmd_vel = sim_pose.twist.twist;
         }
         else

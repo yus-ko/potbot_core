@@ -20,6 +20,8 @@ find_package(catkin REQUIRED COMPONENTS
   tf2_ros
   potbot_lib
   potbot_msgs
+  test_pkg
+  potbot_base
 )
 
 generate_dynamic_reconfigure_options(
@@ -28,7 +30,7 @@ generate_dynamic_reconfigure_options(
 
 catkin_package(
   INCLUDE_DIRS include
-  LIBRARIES ${PROJECT_NAME} potbot_lib
+  LIBRARIES ${PROJECT_NAME} potbot_lib test_pkg
   # CATKIN_DEPENDS
   #   costmap_2d
   #   dynamic_reconfigure
@@ -50,6 +52,7 @@ add_library(${PROJECT_NAME}
   src/potbot_plan.cpp
   src/local_planner.cpp
   src/state_layer.cpp
+  src/pure_pursuit.cpp
 )
 add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})

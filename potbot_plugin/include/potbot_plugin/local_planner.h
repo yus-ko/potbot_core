@@ -37,10 +37,10 @@
 #ifndef POTBOT_LOCAL_PLANNER_H_
 #define POTBOT_LOCAL_PLANNER_H_
 
-#include <potbot_lib/base_controller.h>
+#include <potbot_base/base_controller.h>
 #include <potbot_lib/apf_path_planner_ros.h>
-#include <potbot_lib/diff_drive_controller_ros.h>
-#include <potbot_lib/dwa_controller_ros.h>
+// #include <potbot_lib/diff_drive_controller_ros.h>
+// #include <potbot_lib/dwa_controller_ros.h>
 
 #include <ros/ros.h>
 #include <costmap_2d/costmap_2d.h>
@@ -178,9 +178,10 @@ namespace potbot_nav {
 
       potbot_lib::ArtificialPotentialFieldROS* apf_ = nullptr;
       potbot_lib::path_planner::APFPathPlannerROS* apf_planner_ = nullptr;
-      potbot_lib::controller::DiffDriveControllerROS* robot_controller_ = nullptr;
+      // potbot_lib::controller::DiffDriveControllerROS* robot_controller_ = nullptr;
 
-      boost::shared_ptr<potbot_lib::controller::BaseController> ddr_;
+      boost::shared_ptr<potbot_base::Controller> ddr_;
+      pluginlib::ClassLoader<potbot_base::Controller> loader_;
   };
 };
 #endif

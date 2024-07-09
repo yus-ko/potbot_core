@@ -54,11 +54,14 @@
   <build_depend>potbot_lib</build_depend>
   <exec_depend>roscpp</exec_depend>
 
+  <depend>test_pkg</depend>
   <depend>nav_core</depend>
   <depend>costmap_2d</depend>
+  <depend>potbot_base</depend>
   <export>
     <nav_core plugin="${prefix}/plugin_nav_core.xml" />
     <costmap_2d plugin="${prefix}/plugin_costmap_2d.xml" />
+    <potbot_base plugin="${prefix}/plugin_base_controller.xml" />
   </export>
   
 </package>

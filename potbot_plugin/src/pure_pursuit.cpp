@@ -1,13 +1,13 @@
-#include <potbot_lib/pure_pursuit.h>
+#include <potbot_plugin/pure_pursuit.h>
 #include <pluginlib/class_loader.h>
 // #include <test_pkg/test_lib.h>
 
-PLUGINLIB_EXPORT_CLASS(potbot_lib::controller::PurePursuit, potbot_lib::controller::BaseController)
-namespace potbot_lib
+PLUGINLIB_EXPORT_CLASS(potbot_nav::controller::PurePursuit, potbot_base::Controller)
+namespace potbot_nav
 {
     namespace controller
     {
-
+        using namespace potbot_lib;
         void PurePursuit::initialize(std::string name)
         {
             ros::NodeHandle private_nh("~/" + name);
@@ -133,7 +133,7 @@ namespace potbot_lib
 
             if (getDistance(target_path_.back().position) <= distance_to_lookahead_point_)
             {
-                line_following_process_ = PROCESS_STOP;
+                line_following_process_ = potbot_lib::controller::PROCESS_STOP;
                 return;
             }
 
@@ -174,15 +174,15 @@ namespace potbot_lib
                     {
                         set_init_pose_ = true;
                         setTarget(lookahead_->position.x, lookahead_->position.y, init_angle);
-                        line_following_process_ = RETURN_TO_TARGET_PATH;
+                        line_following_process_ = potbot_lib::controller::RETURN_TO_TARGET_PATH;
                     }
                 }
                 else
                 {
-                    line_following_process_ = FOLLOWING_PATH;
+                    line_following_process_ = potbot_lib::controller::FOLLOWING_PATH;
                 }
 
-                if (line_following_process_ == RETURN_TO_TARGET_PATH)
+                if (line_following_process_ == potbot_lib::controller::RETURN_TO_TARGET_PATH)
                 {
                     pidControl();
                     applyLimit();
@@ -191,10 +191,10 @@ namespace potbot_lib
             }
             else
             {
-                line_following_process_ = FOLLOWING_PATH;
+                line_following_process_ = potbot_lib::controller::FOLLOWING_PATH;
             }
 
-            if (line_following_process_ == FOLLOWING_PATH && target_path_index_ < target_path_size)
+            if (line_following_process_ == potbot_lib::controller::FOLLOWING_PATH && target_path_index_ < target_path_size)
             {   
                 done_init_pose_alignment_ = true;
                 double alpha = getAngle(*lookahead_) - yaw;

@@ -1,17 +1,17 @@
 #ifndef H_POTBOT_PURE_PURSUIT_
 #define H_POTBOT_PURE_PURSUIT_
 
-#include <potbot_lib/base_controller.h>
+#include <potbot_base/base_controller.h>
 #include <pluginlib/class_list_macros.h>
 #include <dynamic_reconfigure/server.h>
 #include <potbot_lib/ControllerConfig.h>
 #include <nav_core/base_local_planner.h>
 
-namespace potbot_lib
+namespace potbot_nav
 {
     namespace controller
     {
-        class PurePursuit : public BaseController
+        class PurePursuit : public potbot_base::Controller
         {
             private:
                 ros::Publisher pub_lookahead_;
