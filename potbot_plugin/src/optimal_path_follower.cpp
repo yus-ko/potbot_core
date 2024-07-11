@@ -6,7 +6,7 @@ namespace potbot_nav
     namespace controller
     {
 
-        void OptimalPathFollower::initialize(std::string name)
+        void OptimalPathFollower::initialize(std::string name, tf2_ros::Buffer* tf)
         {
             ros::NodeHandle private_nh("~/" + name);
             private_nh.getParam("frame_id_global",           frame_id_global_);
@@ -15,23 +15,19 @@ namespace potbot_nav
             pub_split_path_ = private_nh.advertise<nav_msgs::Path>("path/split", 1);
             pub_objective_function_ = private_nh.advertise<sensor_msgs::PointCloud2>("objective_function", 1);
 
-            dsrv_ = new dynamic_reconfigure::Server<potbot_lib::DWAConfig>(private_nh);
-            dynamic_reconfigure::Server<potbot_lib::DWAConfig>::CallbackType cb = boost::bind(&OptimalPathFollower::reconfigureCB, this, _1, _2);
+            dsrv_ = new dynamic_reconfigure::Server<potbot_plugin::OptimalPathFollowerConfig>(private_nh);
+            dynamic_reconfigure::Server<potbot_plugin::OptimalPathFollowerConfig>::CallbackType cb = boost::bind(&OptimalPathFollower::reconfigureCB, this, _1, _2);
             dsrv_->setCallback(cb);
         }
 
-        void OptimalPathFollower::reconfigureCB(const potbot_lib::DWAConfig& param, uint32_t level)
+        void OptimalPathFollower::reconfigureCB(const potbot_plugin::OptimalPathFollowerConfig& param, uint32_t level)
         {
-            // setMargin(	param.stop_margin_angle, param.stop_margin_distance);
-            // setLimit( param.max_linear_velocity, param.max_angular_velocity);
+            optimizer_.setMargin(param.stop_margin_angle, param.stop_margin_distance);
+            optimizer_.setLimit(param.min_linear_velocity, param.max_linear_velocity, param.min_angular_velocity, param.max_angular_velocity);
             optimizer_.setOptimizationMethod(param.optimization_method);
             optimizer_.setTimeIncrement(param.time_increment);
             optimizer_.setTimeEnd(param.time_end);
-            optimizer_.setLinearVelocityMin(param.min_linear_velocity);
-            optimizer_.setLinearVelocityMax(param.max_linear_velocity);
             optimizer_.setLinearVelocityIncrement(param.linear_velocity_increment);
-            optimizer_.setAngularVelocityMin(param.min_angular_velocity);
-            optimizer_.setAngularVelocityMax(param.max_angular_velocity);
             optimizer_.setAngularVelocityIncrement(param.angular_velocity_increment);
             optimizer_.setIterationMax(param.max_iteration);
             optimizer_.setLearningRate(param.learning_rate);
@@ -39,20 +35,21 @@ namespace potbot_nav
 
         void OptimalPathFollower::calculateCommand(geometry_msgs::Twist& cmd_vel)
         {
-            optimizer_.setMsg(robot_pose_);
+            potbot_lib::utility::to_agent(robot_pose_, optimizer_);
             if (reachedTarget()) return;
             optimizer_.calculateCommand();
             publishSplitPath();
             publishPlans();
             publishBestPlan();
-            optimizer_.toMsg(robot_pose_);
+            potbot_lib::utility::to_msg(optimizer_, robot_pose_);
             cmd_vel = robot_pose_.twist.twist;
         }
 
         void OptimalPathFollower::setTargetPath(const std::vector<geometry_msgs::PoseStamped>& path_msg)
         {
+            if (path_msg.empty()) return;
             target_path_ = path_msg;
-            target_pose_ = path_msg.back().pose;
+            target_pose_ = path_msg.back();
             std::vector<potbot_lib::Pose> path;
             for (const auto pose : path_msg)
             {

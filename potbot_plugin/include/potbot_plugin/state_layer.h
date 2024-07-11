@@ -59,6 +59,8 @@
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 
+#include <geometry_msgs/Polygon.h>
+
 #include <potbot_plugin/StatePluginConfig.h>
 #include <potbot_msgs/StateArray.h>
 #include <potbot_lib/scan_clustering.h>
@@ -94,9 +96,10 @@ namespace potbot_nav
         std::string global_frame_;
 
         ros::Subscriber sub_scan_;
-        ros::Publisher pub_state_marker_, pub_obstacles_scan_estimate_;
+        ros::Publisher pub_scan_clustering_, pub_state_marker_, pub_obstacles_scan_estimate_, pub_scan_range_;
         std::vector<potbot_lib::UnscentedKalmanFilter> states_ukf_;
 
+        double kappa_ = -2;
         double sigma_q_ = 0.00001;
         double sigma_r_ = 0.00001;
         double sigma_p_ = 1;

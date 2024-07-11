@@ -140,11 +140,6 @@ namespace potbot_lib
 
             auto max_value = *std::max_element(score.begin(), score.end());
 
-            pcl::PointCloud<pcl::PointXYZ> objective_value;
-            for (size_t i = 0; i < plans_.size(); i++)
-            {
-                objective_value.points.push_back(pcl::PointXYZ(plans_[i].linear_velocity, plans_[i].angular_velocity, score[i]/max_value));
-            }
         }
 
         void OptimalPathFollower::searchForBestPlanWithGradient()
@@ -241,7 +236,6 @@ namespace potbot_lib
                 omega = std::max(omega,omega_min);
     
             }
-            ROS_DEBUG("max iteratin: %d, actual iterated: %d", (int)iteration_max, (int)i);
         }
 
         void OptimalPathFollower::createPlans()
@@ -283,10 +277,11 @@ namespace potbot_lib
 
         bool OptimalPathFollower::reachedTarget()
         {
-            // ROS_INFO_STREAM(abs(getDistance(target_point_)) << ":" << stop_margin_distance_);
-            // return path_index_ == target_path_.size()-1 && abs(getDistance(target_point_)) <= stop_margin_distance_;
-            // return abs(getDistance(target_path_.back())) <= stop_margin_distance_;
-            return false;
+            if (target_path_.empty()) return true;
+            Pose p;
+            p.position.x = target_path_.back()[0];
+            p.position.y = target_path_.back()[1];
+            return getDistance(p) <= stop_margin_distance_;
         }
     }
 }

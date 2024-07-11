@@ -206,6 +206,23 @@ namespace potbot_lib{
             print_Pose(pose.pose.pose);
         }
 
+        void broadcast_frame(tf2_ros::TransformBroadcaster& bc, std::string parent_frame_id, std::string child_frame_id, const geometry_msgs::Pose& pose)
+        {
+            geometry_msgs::TransformStamped transformStamped;
+            transformStamped.header.frame_id = parent_frame_id; // 親フレーム
+            transformStamped.child_frame_id = child_frame_id; // 新しいフレーム
+            transformStamped.transform.translation.x = pose.position.x; // x座標
+            transformStamped.transform.translation.y = pose.position.y; // y座標
+            transformStamped.transform.translation.z = pose.position.z; // z座標
+            transformStamped.transform.rotation.x = pose.orientation.x; // 回転クォータニオンのx成分
+            transformStamped.transform.rotation.y = pose.orientation.y; // 回転クォータニオンのy成分
+            transformStamped.transform.rotation.z = pose.orientation.z; // 回転クォータニオンのz成分
+            transformStamped.transform.rotation.w = pose.orientation.w; // 回転クォータニオンのw成分
+
+            transformStamped.header.stamp = ros::Time::now();
+            bc.sendTransform(transformStamped);
+        }
+
         geometry_msgs::PoseStamped get_tf(const tf2_ros::Buffer &buffer, const geometry_msgs::PoseStamped& pose_in, const std::string target_frame_id)
         {
             geometry_msgs::PoseStamped pose_out;
@@ -641,6 +658,7 @@ namespace potbot_lib{
                 // if (abs(v) > 2.0 || abs(v) < 0.1) continue;
 
                 visualization_msgs::Marker state_marker;
+                visualization_msgs::Marker text_marker;
 
                 state_marker.header             = obs.header;
 
@@ -651,14 +669,16 @@ namespace potbot_lib{
                 state_marker.type               = visualization_msgs::Marker::ARROW;
                 state_marker.action             = visualization_msgs::Marker::MODIFY;
 
-                state_marker.pose = obs.pose;
+                state_marker.pose               = obs.pose;
 
                 state_marker.scale.x            = 0.05;
                 state_marker.scale.y            = 0.1;
                 state_marker.scale.z            = 0.1;
                 
                 state_marker.color              = potbot_lib::color::get_msg(obs.id);
-                state_marker.color.a            = 0.5;
+                state_marker.color.a            = 1;
+
+                text_marker = state_marker;
 
                 geometry_msgs::Point p0, p1;
                 p0.x                            = 0;
@@ -668,11 +688,21 @@ namespace potbot_lib{
                 p1.y                            = 0;
                 p1.z                            = 0;
                 state_marker.points.push_back(p0);
-                state_marker.colors.push_back(state_marker.color);
+                // state_marker.colors.push_back(state_marker.color);
                 state_marker.points.push_back(p1);
-                state_marker.colors.push_back(state_marker.color);
+                // state_marker.colors.push_back(state_marker.color);
                 
                 marker_array.markers.push_back(state_marker);
+
+                text_marker.id                 = obs.id + 100000;
+                text_marker.text               = "id:" + std::to_string(obs.id);// + "\nlinear:" + std::to_string(obs.twist.linear.x) + ", angular:" + std::to_string(obs.twist.angular.z);
+                text_marker.type               = visualization_msgs::Marker::TEXT_VIEW_FACING;
+                text_marker.action             = visualization_msgs::Marker::MODIFY;
+                text_marker.pose.position.x    += 0.3;
+                text_marker.scale.x            = 0.2;
+                text_marker.scale.y            = 0.2;
+                text_marker.scale.z            = 0.2;
+                marker_array.markers.push_back(text_marker);
 
             }
         }
@@ -699,6 +729,50 @@ namespace potbot_lib{
 
             // pcl::PointCloud を sensor_msgs::PointCloud2 に変換
             pcl::toROSMsg(*pclPointCloud, pcl_msg);
+        }
+
+        void to_agent(const geometry_msgs::Pose& msg, DiffDriveAgent& agent)
+        {
+            agent.x = msg.position.x;
+            agent.y = msg.position.y;
+            agent.yaw = tf2::getYaw(msg.orientation);
+        }
+
+        void to_agent(const geometry_msgs::PoseStamped& msg, DiffDriveAgent& agent)
+        {
+            to_agent(msg.pose, agent);
+        }
+
+        void to_agent(const geometry_msgs::Twist& msg, DiffDriveAgent& agent)
+        {
+            agent.v = msg.linear.x;
+            agent.omega = msg.angular.z;
+        }
+        
+        void to_agent(const nav_msgs::Odometry& msg, DiffDriveAgent& agent)
+        {
+            to_agent(msg.pose.pose, agent);
+            to_agent(msg.twist.twist, agent);
+        }
+
+        void to_msg(DiffDriveAgent& agent, geometry_msgs::Pose& msg)
+        {
+            msg.position.x = agent.x;
+            msg.position.y = agent.y;
+            msg.orientation = get_Quat(0,0,agent.yaw);
+        }
+
+        void to_msg(DiffDriveAgent& agent, geometry_msgs::Twist& msg)
+        {
+            msg.linear.x = agent.v;
+            msg.angular.z = agent.omega;
+        }
+
+        void to_msg(DiffDriveAgent& agent, nav_msgs::Odometry& msg)
+        {
+            msg.header.stamp           = ros::Time::now();
+            to_msg(agent, msg.pose.pose);
+            to_msg(agent, msg.twist.twist);
         }
 
     }

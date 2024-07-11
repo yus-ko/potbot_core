@@ -1,5 +1,11 @@
 <library path="lib/libpotbot_plugin">
+  <class name="potbot_nav/PID" type="potbot_nav::controller::PID" base_class_type="potbot_base::Controller">
+    <description>This is a potbot_base::Controller plugin.</description>
+  </class>
   <class name="potbot_nav/PurePursuit" type="potbot_nav::controller::PurePursuit" base_class_type="potbot_base::Controller">
+    <description>This is a potbot_base::Controller plugin.</description>
+  </class>
+  <class name="potbot_nav/TimeState" type="potbot_nav::controller::TimeState" base_class_type="potbot_base::Controller">
     <description>This is a potbot_base::Controller plugin.</description>
   </class>
   <class name="potbot_nav/OPF" type="potbot_nav::controller::OptimalPathFollower" base_class_type="potbot_base::Controller">

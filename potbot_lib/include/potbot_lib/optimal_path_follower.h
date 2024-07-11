@@ -20,6 +20,10 @@ namespace potbot_lib
         class OptimalPathFollower : public DiffDriveAgent
         {
             private:
+            
+                double stop_margin_angle_ = 0.1;
+                double stop_margin_distance_ = 0.03;
+
                 std::string optimization_method_ = "gradient";
                 double time_increment_ = 0.1;
                 double time_end_ = 1.0;
@@ -51,14 +55,20 @@ namespace potbot_lib
                 OptimalPathFollower(){};
                 ~OptimalPathFollower(){};
 
+                void setMargin(double angle, double distance){
+                    stop_margin_angle_ = angle;
+                    stop_margin_distance_ = distance;
+                };
+                void setLimit(double linear_min, double linear_max, double angular_min, double angular_max){
+                    linear_velocity_min_ = linear_min;
+                    linear_velocity_max_ = linear_max;
+                    angular_velocity_min_ = angular_min;
+                    angular_velocity_max_ = angular_max;
+                };
                 void setOptimizationMethod(std::string val){optimization_method_ = val;};
                 void setTimeIncrement(double val){time_increment_ = val;};
                 void setTimeEnd(double val){time_end_ = val;};
-                void setLinearVelocityMin(double val){linear_velocity_min_ = val;};
-                void setLinearVelocityMax(double val){linear_velocity_max_ = val;};
                 void setLinearVelocityIncrement(double val){linear_velocity_increment_ = val;};
-                void setAngularVelocityMin(double val){angular_velocity_min_ = val;};
-                void setAngularVelocityMax(double val){angular_velocity_max_ = val;};
                 void setAngularVelocityIncrement(double val){angular_velocity_increment_ = val;};
                 void setIterationMax(size_t val){iteration_max_ = val;};
                 void setLearningRate(double val){learning_rate_ = val;};

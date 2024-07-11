@@ -10,23 +10,6 @@ namespace potbot_lib{
             lookahead_ = &target_path_.front();
         }
 
-        void PurePursuit::setMargin(double angle, double distance)
-        {
-            stop_margin_angle_ = angle;
-            stop_margin_distance_ = distance;
-        }
-
-        void PurePursuit::setLimit(double linear, double angular)
-        {
-            max_linear_velocity_ = linear;
-            max_angular_velocity_ = angular;
-        }
-
-        void PurePursuit::setDistanceToLookaheadPoint(double distance)
-        {
-            distance_to_lookahead_point_ = distance;
-        }
-
         Pose PurePursuit::getLookahead()
         {
             if (lookahead_ == nullptr) return Pose{};
@@ -35,15 +18,16 @@ namespace potbot_lib{
 
         void PurePursuit::applyLimit()
         {
-            if (v > max_linear_velocity_) v = max_linear_velocity_;
-            else if (v < -max_linear_velocity_) v = -max_linear_velocity_;
-            if (omega > max_angular_velocity_) omega = max_angular_velocity_;
-            else if (omega < -max_angular_velocity_) omega = -max_angular_velocity_; 
+            v = std::min(v, max_linear_velocity_);
+            v = std::max(v, -max_linear_velocity_);
+            omega = std::min(omega, max_angular_velocity_);
+            omega = std::max(omega, -max_angular_velocity_);
         }
 
         bool PurePursuit::reachedTarget()
         {
-            return abs(getDistance(target_path_.back())) <= stop_margin_distance_ && abs(getAngle(target_path_.back())) <= stop_margin_angle_;
+            if (target_path_.empty()) return true;
+            return getDistance(target_path_.back()) <= stop_margin_distance_;
         }
 
         void PurePursuit::calculateCommand()
@@ -69,6 +53,7 @@ namespace potbot_lib{
             }
 
             double d_sum = 0;
+            bool got_lookahead = false;
             for (size_t i = target_path_index; i < target_path_size; i++)
             {
                 if (i > 0)
@@ -77,16 +62,34 @@ namespace potbot_lib{
                     if (d_sum > distance_to_lookahead_point_)
                     {
                         lookahead_ = &target_path_[i];
+                        got_lookahead = true;
                         break;
                     }
                 }
             }
+
+            if (!got_lookahead)
+            {
+                v = max_linear_velocity_;
+                return;
+            }
+            
+
             double l_d = getDistance(*lookahead_);
 
             double alpha = getAngle(*lookahead_) - yaw;
-            v = max_linear_velocity_/(abs(alpha)+1.0);
-            double nv = v/max_linear_velocity_;
-            omega = 2.0*nv*sin(alpha)/l_d;
+            if (normalize_)
+            {
+                v = max_linear_velocity_/(abs(alpha)+1.0);
+                double nv = v/max_linear_velocity_;
+                omega = 2.0*nv*sin(alpha)/l_d;
+            }
+            else
+            {
+                v = max_linear_velocity_;
+                omega = 2.0*v*sin(alpha)/l_d;
+            }
+            
             applyLimit();
         }
     }

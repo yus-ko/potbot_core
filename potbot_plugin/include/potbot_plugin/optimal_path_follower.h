@@ -3,10 +3,10 @@
 
 #include <potbot_base/base_controller.h>
 #include <potbot_lib/optimal_path_follower.h>
-
+#include <potbot_lib/utility_ros.h>
 #include <pluginlib/class_list_macros.h>
 #include <dynamic_reconfigure/server.h>
-#include <potbot_lib/DWAConfig.h>
+#include <potbot_plugin/OptimalPathFollowerConfig.h>
 
 namespace potbot_nav
 {
@@ -18,9 +18,9 @@ namespace potbot_nav
                 potbot_lib::controller::OptimalPathFollower optimizer_;
                 ros::Publisher pub_plans_, pub_best_plan_, pub_split_path_, pub_objective_function_;
                 std::string frame_id_global_ = "map";
-                dynamic_reconfigure::Server<potbot_lib::DWAConfig> *dsrv_;
+                dynamic_reconfigure::Server<potbot_plugin::OptimalPathFollowerConfig> *dsrv_;
 
-                void reconfigureCB(const potbot_lib::DWAConfig& param, uint32_t level);
+                void reconfigureCB(const potbot_plugin::OptimalPathFollowerConfig& param, uint32_t level);
 
                 void getPlans(visualization_msgs::MarkerArray& msg);
                 void getSplitPath(nav_msgs::Path& msg);
@@ -35,7 +35,7 @@ namespace potbot_nav
                 OptimalPathFollower(){};
                 ~OptimalPathFollower(){};
 
-                void initialize(std::string name);
+                void initialize(std::string name, tf2_ros::Buffer* tf);
                 
                 void calculateCommand(geometry_msgs::Twist& cmd_vel);
                 void setTargetPath(const std::vector<geometry_msgs::PoseStamped>& path_msg);

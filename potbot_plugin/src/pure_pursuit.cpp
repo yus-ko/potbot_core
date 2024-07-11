@@ -5,38 +5,40 @@ namespace potbot_nav
 {
     namespace controller
     {
-        void PurePursuit::initialize(std::string name)
+        void PurePursuit::initialize(std::string name, tf2_ros::Buffer* tf)
         {
             ros::NodeHandle private_nh("~/" + name);
             private_nh.getParam("frame_id_global",           frame_id_global_);
             pub_lookahead_ = private_nh.advertise<visualization_msgs::Marker>("lookahead", 1);
 
-            dsrv_ = new dynamic_reconfigure::Server<potbot_lib::ControllerConfig>(private_nh);
-            dynamic_reconfigure::Server<potbot_lib::ControllerConfig>::CallbackType cb = boost::bind(&PurePursuit::reconfigureCB, this, _1, _2);
+            dsrv_ = new dynamic_reconfigure::Server<potbot_plugin::PurePursuitConfig>(private_nh);
+            dynamic_reconfigure::Server<potbot_plugin::PurePursuitConfig>::CallbackType cb = boost::bind(&PurePursuit::reconfigureCB, this, _1, _2);
             dsrv_->setCallback(cb);
         }
 
-        void PurePursuit::reconfigureCB(const potbot_lib::ControllerConfig& param, uint32_t level)
+        void PurePursuit::reconfigureCB(const potbot_plugin::PurePursuitConfig& param, uint32_t level)
         {
             pure_pursuit_.setMargin(param.stop_margin_angle, param.stop_margin_distance);
             pure_pursuit_.setLimit(param.max_linear_velocity, param.max_angular_velocity);
             pure_pursuit_.setDistanceToLookaheadPoint(param.distance_to_lookahead_point);
+            pure_pursuit_.setNormalize(param.normalize);
         }
 
         void PurePursuit::calculateCommand(geometry_msgs::Twist& cmd_vel)
         {
-            pure_pursuit_.setMsg(robot_pose_);
+            potbot_lib::utility::to_agent(robot_pose_, pure_pursuit_);
             if (reachedTarget()) return;
             pure_pursuit_.calculateCommand();
             publishLookahead();
-            pure_pursuit_.toMsg(robot_pose_);
+            potbot_lib::utility::to_msg(pure_pursuit_, robot_pose_);
             cmd_vel = robot_pose_.twist.twist;
         }
 
         void PurePursuit::setTargetPath(const std::vector<geometry_msgs::PoseStamped>& path_msg)
         {
+            if (path_msg.empty()) return;
             target_path_ = path_msg;
-            target_pose_ = path_msg.back().pose;
+            target_pose_ = path_msg.back();
             std::vector<potbot_lib::Pose> path;
             for (const auto pose : path_msg)
             {
@@ -80,176 +82,9 @@ namespace potbot_nav
             pub_lookahead_.publish(marker_msg);
         }
 
-        void PurePursuit::purePursuitController()
-        {
-            // v=0;
-            // omega=0;
-
-            // if (target_path_.empty()) return;
-
-            // if (getDistance(target_path_.back().position) <= distance_to_lookahead_point_)
-            // {
-            //     line_following_process_ = potbot_lib::controller::PROCESS_STOP;
-            //     return;
-            // }
-
-            // size_t target_path_size = target_path_.size();
-
-            // potbot_lib::Pose* sub_goal = &target_path_.front();
-            // double l_d;
-            // while(true)
-            // {
-            //     sub_goal = &target_path_[target_path_index_];
-            //     l_d = getDistance(*sub_goal);
-            //     if (l_d <= distance_to_lookahead_point_)
-            //     {
-            //         target_path_index_++;
-            //         if (target_path_index_ > target_path_size-1)
-            //         {
-            //             target_path_index_ = target_path_size-1;
-            //             return;
-            //             // break;
-            //         }
-            //     }
-            //     else
-            //     {
-            //         lookahead_ = sub_goal;
-            //         break;
-            //     }
-            // }
-
-            // ROS_DEBUG("process: %d, index: %d, size: %d", (int)line_following_process_, (int)target_path_index_, (int)target_path_size);
-
-            // if(initialize_pose_ && !done_init_pose_alignment_)
-            // {
-            //     double init_angle = getTargetPathInitAngle();
-
-            //     if (abs(init_angle - yaw) > stop_margin_angle_ || l_d > 2*distance_to_lookahead_point_)
-            //     {
-            //         if (!set_init_pose_)
-            //         {
-            //             set_init_pose_ = true;
-            //             setTarget(lookahead_->position.x, lookahead_->position.y, init_angle);
-            //             line_following_process_ = potbot_lib::controller::RETURN_TO_TARGET_PATH;
-            //         }
-            //     }
-            //     else
-            //     {
-            //         line_following_process_ = potbot_lib::controller::FOLLOWING_PATH;
-            //     }
-
-            //     if (line_following_process_ == potbot_lib::controller::RETURN_TO_TARGET_PATH)
-            //     {
-            //         pidControl();
-            //         applyLimit();
-            //     }
-                
-            // }
-            // else
-            // {
-            //     line_following_process_ = potbot_lib::controller::FOLLOWING_PATH;
-            // }
-
-            // if (line_following_process_ == potbot_lib::controller::FOLLOWING_PATH && target_path_index_ < target_path_size)
-            // {   
-            //     done_init_pose_alignment_ = true;
-            //     double alpha = getAngle(*lookahead_) - yaw;
-            //     v = max_linear_velocity_;
-            //     omega = 2.0*v*sin(alpha)/l_d;
-            //     applyLimit();
-            // }
-        }
-
-        void PurePursuit::normalizedPurePursuit()
-        {
-            // v=0;
-            // omega=0;
-
-            // if (target_path_.empty()) return;
-
-            // size_t target_path_size = target_path_.size();
-
-            // double d_min = 1e100;
-            // for (size_t i = 0; i < target_path_size; i++)
-            // {
-            //     double d = getDistance(target_path_[i]);
-            //     if (d < d_min)
-            //     {
-            //         d_min = d;
-            //         target_path_index_ = i;
-            //     }
-            // }
-
-            // double d_sum = 0;
-            // for (size_t i = target_path_index_; i < target_path_size; i++)
-            // {
-            //     if (i > 0)
-            //     {
-            //         d_sum += hypot(target_path_[i].position.x - target_path_[i-1].position.x,target_path_[i].position.y - target_path_[i-1].position.y);
-            //         if (d_sum > distance_to_lookahead_point_)
-            //         {
-            //             lookahead_ = &target_path_[i];
-            //             break;
-            //         }
-            //     }
-            // }
-            // double l_d = getDistance(*lookahead_);
-
-            // // double l_d;
-            // // while(true)
-            // // {
-            // //     Pose* sub_goal = &target_path_[target_path_index_];
-            // //     l_d = getDistance(*sub_goal);
-            // //     if (l_d <= distance_to_lookahead_point_)
-            // //     {
-            // //         target_path_index_++;
-            // //         if (target_path_index_ > target_path_size-1)
-            // //         {
-            // //             target_path_index_ = target_path_size-1;
-            // //             return;
-            // //         }
-            // //     }
-            // //     else
-            // //     {
-            // //         lookahead_ = sub_goal;
-            // //         break;
-            // //     }
-            // // }
-
-            // ROS_DEBUG("index: %d, size: %d", (int)target_path_index_, (int)target_path_size);
-
-            // double alpha = getAngle(*lookahead_) - yaw;
-            // v = max_linear_velocity_/(abs(alpha)+1.0);
-            // double nv = v/max_linear_velocity_;
-            // omega = 2.0*nv*sin(alpha)/l_d;
-            // applyLimit();
-
-            // // double alpha = getAngle(*lookahead_) - yaw;
-            // // v = max_linear_velocity_;
-            // // omega = 2.0*v*sin(alpha)/l_d;
-            // // applyLimit();
-        }
-
         bool PurePursuit::reachedTarget()
         {
             return pure_pursuit_.reachedTarget();
-            // return abs(getDistance(target_point_)) <= distance_to_lookahead_point_ && target_path_index_ == target_path_.size()-1;
-            // ROS_DEBUG("if reached index: %d, size: %d", target_path_index_, target_path_.size());
-            // ROS_DEBUG_STREAM(bool(target_path_index_ == target_path_.size()-1));
-
-            // if (target_path_index_ == target_path_.size()-1)
-            // {
-            //     ROS_INFO("true");
-            //     return true;
-            // }
-            // else
-            // {
-            //     ROS_INFO("false");
-            //     return false;
-            // }
-            
-
-            // // return bool(target_path_index_ == target_path_.size()-1);
         }
     }
 }

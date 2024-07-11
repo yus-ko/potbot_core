@@ -1,11 +1,13 @@
 #ifndef H_DIFFDRIVEAGENT_
 #define H_DIFFDRIVEAGENT_
 
-#include <potbot_lib/utility_ros.h>
+#include <potbot_lib/utility.h>
 
-namespace potbot_lib{
+namespace potbot_lib
+{
 
-    class DiffDriveAgent{
+    class DiffDriveAgent
+    {
         public:
             double x                            = 0.0;  //x軸位置 [m]
             double y                            = 0.0;  //y軸位置 [m]
@@ -28,10 +30,6 @@ namespace potbot_lib{
                             omega(omega),
                             deltatime(deltatime){};
 
-            void toMsg(nav_msgs::Odometry& odom_msg);
-            void setMsg(const geometry_msgs::Pose& pose_msg);
-            void setMsg(const geometry_msgs::PoseStamped& pose_msg);
-            void setMsg(const nav_msgs::Odometry& odom_msg);
             void update();
 
             double getDistance(const Point& p);

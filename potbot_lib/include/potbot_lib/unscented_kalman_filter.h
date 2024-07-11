@@ -1,10 +1,9 @@
 #ifndef H_UNSCENTEDKALMANFILTER_
 #define H_UNSCENTEDKALMANFILTER_
 
+#include <iostream>
 #include <Eigen/Core>
 #include <Eigen/Geometry>
-#include <ros/ros.h>
-#include <nav_msgs/Odometry.h>
 
 namespace potbot_lib{
 
@@ -21,6 +20,8 @@ namespace potbot_lib{
             Eigen::MatrixXd Q_;          //観測ノイズ共分散行列
             Eigen::MatrixXd R_;          //システムノイズ共分散行列
 
+            double kappa_ = 0;
+
             // U変換(unscented transform)
             std::tuple<bool, Eigen::VectorXd, Eigen::MatrixXd, Eigen::MatrixXd> uTransform(ModelFunction f_ut, Eigen::VectorXd xm, Eigen::MatrixXd Pxx, double dt); 
 
@@ -30,9 +31,9 @@ namespace potbot_lib{
                 Eigen::MatrixXd error_covariance_ini, Eigen::VectorXd estimate_state_ini);
             ~UnscentedKalmanFilter();
 
-            std::tuple<Eigen::VectorXd, Eigen::MatrixXd, Eigen::MatrixXd> update(Eigen::VectorXd y, double dt);
+            void setKappa(double val){kappa_ = val;};
 
-            void getOdomState(nav_msgs::Odometry& odom_msg);
+            std::tuple<Eigen::VectorXd, Eigen::MatrixXd, Eigen::MatrixXd> update(Eigen::VectorXd y, double dt);
 
     };
 }

@@ -1,5 +1,5 @@
-#ifndef H_POTBOT_LIB_PUREPURSUIT_
-#define H_POTBOT_LIB_PUREPURSUIT_
+#ifndef H_POTBOT_LIB_TIMESTATE_
+#define H_POTBOT_LIB_TIMESTATE_
 
 #include <potbot_lib/diff_drive_agent.h>
 
@@ -7,11 +7,12 @@ namespace potbot_lib{
 
     namespace controller{
 
-        class PurePursuit : public DiffDriveAgent{
+        class TimeState : public DiffDriveAgent{
             protected:
                 std::vector<Pose> target_path_;
-                Pose* lookahead_ = &target_path_.front();
-                double distance_to_lookahead_point_ = 0.3;
+
+                double weight_y_ = 1.0;
+                double weight_yaw_ = 1.0;
 
                 double stop_margin_angle_ = 0.1;
                 double stop_margin_distance_ = 0.03;
@@ -19,11 +20,9 @@ namespace potbot_lib{
                 double max_linear_velocity_ = 1.0;
                 double max_angular_velocity_ = M_PI;
 
-                bool normalize_ = true;
-
             public:
-                PurePursuit(){};
-                ~PurePursuit(){};
+                TimeState(){};
+                ~TimeState(){};
 
                 void setTargetPath(const std::vector<Pose>& path);
                 void setMargin(double angle, double distance){
@@ -33,10 +32,10 @@ namespace potbot_lib{
                     max_linear_velocity_ = linear;
                     max_angular_velocity_ = angular;
                 };
-                void setDistanceToLookaheadPoint(double val){distance_to_lookahead_point_ = val;};
-                void setNormalize(bool val){normalize_ = val;};
-
-                Pose getLookahead();
+                void setWeight(double ky, double kyaw){
+                    weight_y_ = ky;
+                    weight_yaw_ = kyaw;
+                };
 
                 void applyLimit();
 
@@ -48,4 +47,4 @@ namespace potbot_lib{
     }
 }
 
-#endif	// H_POTBOT_LIB_PUREPURSUIT_
+#endif	// H_POTBOT_LIB_TIMESTATE_

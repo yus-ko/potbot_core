@@ -3,6 +3,7 @@
 
 #include <potbot_lib/utility.h>
 #include <potbot_lib/field.h>
+#include <potbot_lib/diff_drive_agent.h>
 
 #include <random>
 
@@ -19,13 +20,15 @@
 #include <nav_msgs/OccupancyGrid.h>
 #include <tf2/utils.h>
 #include <tf2_ros/buffer.h>
+#include <tf2_ros/transform_broadcaster.h>
 #include <tf2_ros/transform_listener.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <visualization_msgs/MarkerArray.h>
 
 #include <pcl_conversions/pcl_conversions.h>
 
-namespace potbot_lib{
+namespace potbot_lib
+{
 
     // bool operator==(const Point& p, const geometry_msgs::Point rp) {
     //     return p.x == rp.x && p.y == rp.y && p.x == rp.x;
@@ -41,7 +44,8 @@ namespace potbot_lib{
     //     return pp.position == rp.position && pp.rotation == rp.orientation;
     // }
 
-    namespace color{
+    namespace color
+    {
         const int RED           = 0;
         const int GREEN         = 1;
         const int BLUE          = 2;
@@ -55,7 +59,8 @@ namespace potbot_lib{
         std_msgs::ColorRGBA get_msg(const std::string color_name);
     }
 
-    namespace utility{
+    namespace utility
+    {
         void get_RPY(const geometry_msgs::Quaternion& orientation, double &roll, double &pitch, double &yaw);
         geometry_msgs::Quaternion get_Quat(const double roll = 0, const double pitch = 0, const double yaw = 0);
         geometry_msgs::Quaternion get_Quat(const Point& p);
@@ -76,6 +81,8 @@ namespace potbot_lib{
         void print_Pose(const geometry_msgs::PoseStamped& pose);
         void print_Pose(const nav_msgs::Odometry& pose);
 
+        void broadcast_frame(tf2_ros::TransformBroadcaster& bc, std::string parent_frame_id, std::string child_frame_id, const geometry_msgs::Pose& pose);
+        
         geometry_msgs::PoseStamped get_tf(const tf2_ros::Buffer &buffer, const geometry_msgs::PoseStamped& pose_in, const std::string target_frame_id);
         geometry_msgs::PointStamped get_tf(const tf2_ros::Buffer &buffer, const geometry_msgs::PointStamped& point_in, const std::string target_frame_id);
         geometry_msgs::PoseStamped get_tf(const tf2_ros::Buffer &buffer, const nav_msgs::Odometry& pose_in, const std::string target_frame_id);
@@ -107,6 +114,15 @@ namespace potbot_lib{
         void obstacle_array_to_marker_array(const potbot_msgs::ObstacleArray& obstacle_array, visualization_msgs::MarkerArray& marker_array);
 
         void field_to_pcl2(std::vector<potential::FieldGrid>& field, sensor_msgs::PointCloud2& pcl_msg);
+
+        void to_agent(const geometry_msgs::Pose& msg, class potbot_lib::DiffDriveAgent& agent);
+        void to_agent(const geometry_msgs::PoseStamped& msg, class potbot_lib::DiffDriveAgent& agent);
+        void to_agent(const geometry_msgs::Twist& msg, class potbot_lib::DiffDriveAgent& agent);
+        void to_agent(const nav_msgs::Odometry& msg, class potbot_lib::DiffDriveAgent& agent);
+
+        void to_msg(class potbot_lib::DiffDriveAgent& agent, geometry_msgs::Pose& msg);
+        void to_msg(class potbot_lib::DiffDriveAgent& agent, geometry_msgs::Twist& msg);
+        void to_msg(class potbot_lib::DiffDriveAgent& agent, nav_msgs::Odometry& msg);
 
         typedef struct {
             bool running                = false;

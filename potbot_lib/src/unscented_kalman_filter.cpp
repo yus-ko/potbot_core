@@ -20,7 +20,8 @@ namespace potbot_lib{
     {
         bool result = false;
         double n = xm.rows();
-        double kappa = 3.0-n;
+        // double kappa = 3.0-n;
+        double kappa = kappa_;
 
         Eigen::VectorXd w(2*(int)n+1);
         w.fill(1.0/(2*(n+kappa)));
@@ -110,11 +111,5 @@ namespace potbot_lib{
 
         // std::cout<<"P_new =\n"<<P_new<<"\n"<<std::endl;
         return std::make_tuple(xhat_new, P_new, G);
-    }
-
-    void UnscentedKalmanFilter::getOdomState(nav_msgs::Odometry& odom_msg)
-    {
-        // DiffDriveAgent agent(xhat_[0], xhat_[1], xhat_[2], xhat_[3], xhat_[4]);
-        // agent.to_msg(odom_msg);
     }
 }

@@ -25,6 +25,10 @@ find_package(catkin REQUIRED COMPONENTS
 
 generate_dynamic_reconfigure_options(
   cfg/StatePlugin.cfg
+  cfg/PID.cfg
+  cfg/PurePursuit.cfg
+  cfg/TimeState.cfg
+  cfg/OptimalPathFollower.cfg
 )
 
 catkin_package(
@@ -51,7 +55,9 @@ add_library(${PROJECT_NAME}
   src/potbot_plan.cpp
   src/local_planner.cpp
   src/state_layer.cpp
+  src/pid.cpp
   src/pure_pursuit.cpp
+  src/time_state.cpp
   src/optimal_path_follower.cpp
 )
 add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})

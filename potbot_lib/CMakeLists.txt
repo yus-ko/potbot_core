@@ -19,8 +19,6 @@ add_service_files(
 generate_dynamic_reconfigure_options(
   cfg/APFPathPlanner.cfg
   cfg/PotentialField.cfg
-  cfg/Controller.cfg
-  cfg/DWA.cfg
   cfg/MarkerManager.cfg
 )
 
@@ -57,12 +55,10 @@ add_library(${PROJECT_NAME}
   src/pcl_clustering.cpp
   src/scan_clustering.cpp
   src/diff_drive_agent.cpp
-  src/diff_drive_controller.cpp
-  src/diff_drive_controller_ros.cpp
-  src/dwa_controller_ros.cpp
   src/interactive_marker_manager.cpp
-  # src/base_controller.cpp
+  src/pid.cpp
   src/pure_pursuit.cpp
+  src/time_state.cpp
   src/optimal_path_follower.cpp
 )
 add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})

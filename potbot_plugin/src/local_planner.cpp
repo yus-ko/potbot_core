@@ -105,11 +105,11 @@ namespace potbot_nav
             apf_planner_ = new potbot_lib::path_planner::APFPathPlannerROS("potbot/path_planner", apf_);
             // robot_controller_ = new potbot_lib::controller::DiffDriveControllerROS("potbot/controller");
             std::string plugin_name = "potbot_nav/OPF";
-            // n.getParam("controller_name", plugin_name);
+            private_nh.getParam("controller_name", plugin_name);
             try
             {
                 controller_ = loader_.createInstance(plugin_name);
-                controller_->initialize(name + "/controller");
+                controller_->initialize(name + "/controller", tf);
             }
             catch(pluginlib::PluginlibException& ex)
             {
@@ -201,7 +201,6 @@ namespace potbot_nav
         // robot_controller_->deltatime = 1.0 / 30.0;
 
         // robot_controller_->setTarget(global_plan_.back().pose);
-        // reached_goal_ = robot_controller_->reachedTarget();
         // nav_msgs::Odometry sim_pose;
         if (!reached_goal_)
         {
@@ -238,6 +237,7 @@ namespace potbot_nav
             sim_pose.pose.pose = global_pose.pose;
             controller_->setRobot(sim_pose);
             controller_->calculateCommand(cmd_vel);
+            reached_goal_ = controller_->reachedTarget();
             // controller_->getRobot(sim_pose);
             // cmd_vel = sim_pose.twist.twist;
         }

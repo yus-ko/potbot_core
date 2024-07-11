@@ -93,6 +93,8 @@ namespace potbot_nav
 
         pub_state_marker_			    = nh.advertise<visualization_msgs::MarkerArray>(	"state/marker", 1);
 	    pub_obstacles_scan_estimate_	= nh.advertise<potbot_msgs::ObstacleArray>(			"obstacle/scan/estimate", 1);
+        pub_scan_range_                 = nh.advertise<geometry_msgs::PolygonStamped>(	    "scan_range", 1);
+        pub_scan_clustering_            = nh.advertise<visualization_msgs::MarkerArray>(	"obstacle/scan/clustering", 1);
 
     }
 
@@ -116,6 +118,11 @@ namespace potbot_nav
         max_estimated_linear_velocity_ = config.max_estimated_linear_velocity;
         max_estimated_angular_velocity_ = config.max_estimated_angular_velocity;
         prediction_time_ = config.prediction_time;
+
+        kappa_ = config.kappa;
+        sigma_q_ = config.sigma_q;
+        sigma_r_ = config.sigma_r;
+        sigma_p_ = config.sigma_p;
     }
 
     Eigen::VectorXd f(Eigen::VectorXd x_old, double dt) {
@@ -146,6 +153,22 @@ namespace potbot_nav
 
         sensor_msgs::LaserScan scan_data = *message;
 
+        geometry_msgs::PolygonStamped scan_range;
+        scan_range.header = scan_data.header;
+        for (int i = 0; i < scan_data.ranges.size(); i+=3)
+        {
+            // double r = scan_data.ranges[i];
+            // if (r > scan_data.range_max) r = scan_data.range_max;
+            double r = scan_data.range_max;
+
+            double th = i*scan_data.angle_increment + scan_data.angle_min;
+            geometry_msgs::Point32 p;
+            p.x = r*cos(th);
+            p.y = r*sin(th);
+            scan_range.polygon.points.push_back(p);
+        }
+        pub_scan_range_.publish(scan_range);
+
         // __MedianFilter(scan_);
         // pub_scan_filter_.publish(scan_data);
         // std::vector<SEGMENT> segments;
@@ -171,6 +194,7 @@ namespace potbot_nav
         visualization_msgs::MarkerArray clusters_markerarray;
         scanclus.toMarkerarray(clusters_markerarray);  //クラスタリング結果をvisualization_msgs::MarkerArray型に変換して取得
         for (auto& clus : clusters_markerarray.markers) clus.header = scan_data.header;
+        pub_scan_clustering_.publish(clusters_markerarray);
 
 
 
@@ -201,8 +225,7 @@ namespace potbot_nav
             if (iter != ukf_id.end())
             {
                 int index_ukf = std::distance(ukf_id.begin(), iter);
-                int ny = 2;
-                Eigen::VectorXd observed_data(ny);
+                Eigen::VectorXd observed_data(__NY__);
                 observed_data<< x, y;
                 std::tuple<Eigen::VectorXd, Eigen::MatrixXd, Eigen::MatrixXd> ans = states_ukf_[index_ukf].update(observed_data,dt);
                 Eigen::VectorXd xhat = std::get<0>(ans);
@@ -264,6 +287,7 @@ namespace potbot_nav
                 // xhat.setZero();
                 xhat<< x,y,0,0,0;
                 potbot_lib::UnscentedKalmanFilter estimate(f,h,R,Q,P,xhat);
+                estimate.setKappa(kappa_);
 
                 states_ukf_.push_back(estimate);
                 ukf_id.push_back(id);
@@ -296,9 +320,9 @@ namespace potbot_nav
                 double depth                = wobs.scale.x; //障害物の奥行き
                 double size                 = width + depth;
 
+                ROS_DEBUG("estimated: id:%d, x:%f, y:%f, th:%f, v:%f, w:%f, dt:%f, size:%f/%f", obs.id, wobs.pose.position.x, wobs.pose.position.y, yaw, v, omega, dt, size, apply_cluster_to_localmap_);
                 if (size < apply_cluster_to_localmap_)
                 {
-                    // ROS_INFO("est vel %d: %f, %f, %f, %f, %f", obs.id, wobs.pose.position.x, wobs.pose.position.y, yaw, v, omega);
                     if (abs(v) < max_estimated_linear_velocity_ && abs(omega) < max_estimated_angular_velocity_)
                     {
                         //並進速度と角速度を一定として1秒後までの位置x,yを算出
@@ -312,15 +336,11 @@ namespace potbot_nav
                                 double y            = distance*sin(angle) + p.y;
                                 scan_cloud_.push_back(pcl::PointXYZ(x,y,p.z));
                             }
-                            
                         }
                     }
                 }
-
             }
-            
         }
-        
     }
 
     void StateLayer::updateBounds(double origin_x, double origin_y, double origin_yaw, double* min_x, double* min_y, double* max_x, double* max_y)
@@ -344,6 +364,18 @@ namespace potbot_nav
         // if (footprint_clearing_enabled_)
         // {
         //     setConvexPolygonCost(transformed_footprint_, costmap_2d::FREE_SPACE);
+        // }
+
+        // for (double x = 1; x<= 2; x+=0.05)
+        // {
+        //     for (double y = 0.8; y<= 1.2; y+=0.05)
+        //     {
+        //         unsigned int mx,my;
+        //         if (master_grid.worldToMap(x,y,mx,my))
+        //         {
+        //             master_grid.setCost(mx,my,FREE_SPACE);
+        //         }
+        //     }
         // }
 
         current_ = true;
