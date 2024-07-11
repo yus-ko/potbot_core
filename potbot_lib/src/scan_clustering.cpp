@@ -184,7 +184,7 @@ namespace potbot_lib{
             marker.type = clus.type;
             marker.action = visualization_msgs::Marker::MODIFY;
 
-            marker.pose = potbot_lib::utility::get_Pose(clus.x, clus.y, 0,0,0,0);
+            marker.pose = potbot_lib::utility::get_pose(clus.x, clus.y, 0,0,0,0);
 
             marker.scale.x = clus.width;
             marker.scale.y = clus.height;
@@ -201,7 +201,7 @@ namespace potbot_lib{
             points.lifetime = ros::Duration(1);
             points.type = visualization_msgs::Marker::SPHERE_LIST;
             points.action = visualization_msgs::Marker::ADD;
-            points.pose = potbot_lib::utility::get_Pose(0,0,0,0,0,0);
+            points.pose = potbot_lib::utility::get_pose(0,0,0,0,0,0);
             points.scale.x = 0.01;
             points.scale.y = 0.01;
             points.scale.z = 0.01;
@@ -209,7 +209,7 @@ namespace potbot_lib{
 
             for (const auto& point : clus.points)
             {
-                points.points.push_back(potbot_lib::utility::get_Point(point.x, point.y, 0));
+                points.points.push_back(potbot_lib::utility::get_point(point.x, point.y, 0));
                 points.colors.push_back(points.color);
             }
             ma.markers.push_back(points);
@@ -225,7 +225,7 @@ namespace potbot_lib{
             obstacle.header = oa.header;
             obstacle.id = clus.id;
             obstacle.is_moving = clus.is_moving;
-            obstacle.pose = potbot_lib::utility::get_Pose(clus.x, clus.y, 0,0,0,0);
+            obstacle.pose = potbot_lib::utility::get_pose(clus.x, clus.y, 0,0,0,0);
 
             obstacle.scale.x = clus.width;
             obstacle.scale.y = clus.height;

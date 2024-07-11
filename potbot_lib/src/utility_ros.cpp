@@ -97,14 +97,14 @@ namespace potbot_lib{
 
     namespace utility{
 
-        void get_RPY(const geometry_msgs::Quaternion& orientation, double &roll, double &pitch, double &yaw)
+        void get_rpy(const geometry_msgs::Quaternion& orientation, double &roll, double &pitch, double &yaw)
         {
             tf2::Quaternion quat;
             tf2::convert(orientation, quat);
             tf2::Matrix3x3(quat).getRPY(roll, pitch, yaw);
         }
 
-        geometry_msgs::Quaternion get_Quat(const double roll, const double pitch, const double yaw)
+        geometry_msgs::Quaternion get_quat(const double roll, const double pitch, const double yaw)
         {
             tf2::Quaternion quat;
             quat.setRPY(roll, pitch, yaw);
@@ -113,12 +113,12 @@ namespace potbot_lib{
             return orientation;
         }
 
-        geometry_msgs::Quaternion get_Quat(const Point& p)
+        geometry_msgs::Quaternion get_quat(const Point& p)
         {
-            return get_Quat(p.x, p.y, p.z);
+            return get_quat(p.x, p.y, p.z);
         }
 
-        geometry_msgs::Point get_Point(const double x, const double y, const double z)
+        geometry_msgs::Point get_point(const double x, const double y, const double z)
         {
             geometry_msgs::Point point;
             point.x = x;
@@ -127,12 +127,12 @@ namespace potbot_lib{
             return point;
         }
 
-        geometry_msgs::Point get_Point(const Point& p)
+        geometry_msgs::Point get_point(const Point& p)
         {
-            return get_Point(p.x, p.y, p.z);
+            return get_point(p.x, p.y, p.z);
         }
 
-        void get_Point(const std::vector<geometry_msgs::PoseStamped>& poses, std::vector<geometry_msgs::Point>& points)
+        void get_point(const std::vector<geometry_msgs::PoseStamped>& poses, std::vector<geometry_msgs::Point>& points)
         {
             points.resize(poses.size());
             for (size_t i = 0; i < poses.size(); i++)
@@ -142,68 +142,61 @@ namespace potbot_lib{
             
         }
 
-        geometry_msgs::Pose get_Pose(const double x, const double y, const double z, const double roll, const double pitch, const double yaw)
+        geometry_msgs::Pose get_pose(const double x, const double y, const double z, const double roll, const double pitch, const double yaw)
         {
             geometry_msgs::Pose pose;
-            pose.position = get_Point(x,y,z);
-            pose.orientation = get_Quat(roll,pitch,yaw);
+            pose.position = get_point(x,y,z);
+            pose.orientation = get_quat(roll,pitch,yaw);
             return pose;
         }
 
-        geometry_msgs::Pose get_Pose(const geometry_msgs::Point& p, const double roll, const double pitch, const double yaw)
+        geometry_msgs::Pose get_pose(const geometry_msgs::Point& p, const double roll, const double pitch, const double yaw)
         {
-            return get_Pose(p.x, p.y, p.z, roll,pitch,yaw);
+            return get_pose(p.x, p.y, p.z, roll,pitch,yaw);
         }
 
-        geometry_msgs::Pose get_Pose(const Pose& p)
+        geometry_msgs::Pose get_pose(const Pose& p)
         {
-            return get_Pose(p.position.x, p.position.y, p.position.z, p.rotation.x, p.rotation.y, p.rotation.z);
+            return get_pose(p.position.x, p.position.y, p.position.z, p.rotation.x, p.rotation.y, p.rotation.z);
         }
 
-        double get_Yaw(const geometry_msgs::Quaternion& orientation)
-        {
-            double roll, pitch, yaw;
-            get_RPY(orientation, roll, pitch, yaw);
-            return yaw;
-        }
-
-        double get_Distance(const geometry_msgs::Point& position1, const geometry_msgs::Point& position2)
+        double get_distance(const geometry_msgs::Point& position1, const geometry_msgs::Point& position2)
         {
             return sqrt(pow(position2.x - position1.x,2) + pow(position2.y - position1.y,2) + pow(position2.z - position1.z,2));
         }
 
-        double get_Distance(const geometry_msgs::Pose& position1, const geometry_msgs::Pose& position2)
+        double get_distance(const geometry_msgs::Pose& position1, const geometry_msgs::Pose& position2)
         {
-            return get_Distance(position1.position, position2.position);
+            return get_distance(position1.position, position2.position);
         }
 
-        double get_Distance(const geometry_msgs::PoseStamped& position1, const geometry_msgs::PoseStamped& position2)
+        double get_distance(const geometry_msgs::PoseStamped& position1, const geometry_msgs::PoseStamped& position2)
         {
-            return get_Distance(position1.pose.position, position2.pose.position);
+            return get_distance(position1.pose.position, position2.pose.position);
         }
 
-        double get_Distance(const nav_msgs::Odometry& position1, const nav_msgs::Odometry& position2)
+        double get_distance(const nav_msgs::Odometry& position1, const nav_msgs::Odometry& position2)
         {
-            return get_Distance(position1.pose.pose.position, position2.pose.pose.position);
+            return get_distance(position1.pose.pose.position, position2.pose.pose.position);
         }
 
-        void print_Pose(const geometry_msgs::Pose& pose)
+        void print_pose(const geometry_msgs::Pose& pose)
         {
             double r,p,y;
-            get_RPY(pose.orientation,r,p,y);
+            get_rpy(pose.orientation,r,p,y);
             ROS_INFO("(x,y,z) = (%f, %f, %f) (r,p,y) = (%f, %f, %f)", 
                         pose.position.x, pose.position.y, pose.position.z,
                         r/M_PI*180, p/M_PI*180, y/M_PI*180);
         }
 
-        void print_Pose(const geometry_msgs::PoseStamped& pose)
+        void print_pose(const geometry_msgs::PoseStamped& pose)
         {
-            print_Pose(pose.pose);
+            print_pose(pose.pose);
         }
 
-        void print_Pose(const nav_msgs::Odometry& pose)
+        void print_pose(const nav_msgs::Odometry& pose)
         {
-            print_Pose(pose.pose.pose);
+            print_pose(pose.pose.pose);
         }
 
         void broadcast_frame(tf2_ros::TransformBroadcaster& bc, std::string parent_frame_id, std::string child_frame_id, const geometry_msgs::Pose& pose)
@@ -245,7 +238,7 @@ namespace potbot_lib{
         {
             geometry_msgs::PoseStamped pose_stamped_in;
             pose_stamped_in.header = point_in.header;
-            pose_stamped_in.pose = get_Pose(point_in.point,0,0,0);
+            pose_stamped_in.pose = get_pose(point_in.point,0,0,0);
             geometry_msgs::PoseStamped pose_out = get_tf(buffer, pose_stamped_in, target_frame_id);
             geometry_msgs::PointStamped point_out;
             point_out.header = pose_out.header;
@@ -312,7 +305,7 @@ namespace potbot_lib{
             
         }
 
-        geometry_msgs::PoseStamped get_Pose_from_tf(const tf2_ros::Buffer &buffer, const std::string source_frame_id, const std::string target_frame_id)
+        geometry_msgs::PoseStamped get_frame_pose(const tf2_ros::Buffer &buffer, const std::string source_frame_id, const std::string target_frame_id)
         {
             geometry_msgs::TransformStamped transformStamped;
             try {
@@ -333,31 +326,7 @@ namespace potbot_lib{
             return pose;
         }
 
-        int get_WorldCoordinate(std::string target_frame, ros::Time time, geometry_msgs::PoseStamped &Wcood, tf2_ros::Buffer &buffer)
-        {
-            tf2_ros::TransformListener tf_listener(buffer);
-
-            geometry_msgs::TransformStamped transformStamped;
-            try{
-                transformStamped = buffer.lookupTransform("map", target_frame, time);
-            }
-            catch (tf2::TransformException &ex) {
-                ROS_WARN_STREAM("get_WorldCoordinate TF2 exception: " << ex.what());
-                return FAIL;
-            }
-            // ROS_INFO("x: %f, y: %f, z: %f", transformStamped.transform.translation.x, transformStamped.transform.translation.y, transformStamped.transform.translation.z);
-            Wcood.header = transformStamped.header;
-            Wcood.pose.position.x = transformStamped.transform.translation.x;
-            Wcood.pose.position.y = transformStamped.transform.translation.y;
-            Wcood.pose.position.z = transformStamped.transform.translation.z;
-            Wcood.pose.orientation.x = transformStamped.transform.rotation.x;
-            Wcood.pose.orientation.y = transformStamped.transform.rotation.y;
-            Wcood.pose.orientation.z = transformStamped.transform.rotation.z;
-            Wcood.pose.orientation.w = transformStamped.transform.rotation.w;
-            return SUCCESS;
-        }
-
-        geometry_msgs::Point get_MapCoordinate(int index, nav_msgs::MapMetaData info)
+        geometry_msgs::Point get_map_coordinate(int index, nav_msgs::MapMetaData info)
         {
             geometry_msgs::Point p;
             p.x = (index % info.width) * info.resolution + info.origin.position.x;
@@ -365,7 +334,7 @@ namespace potbot_lib{
             return p;
         }
 
-        int get_MapIndex(const double x, const double y, const nav_msgs::MapMetaData& info)
+        int get_map_index(const double x, const double y, const nav_msgs::MapMetaData& info)
         {
 
             double xmin = info.origin.position.x;
@@ -394,13 +363,13 @@ namespace potbot_lib{
             
         }
 
-        int get_PathIndex(const nav_msgs::Path& path, const geometry_msgs::Point& position)
+        int get_path_index(const nav_msgs::Path& path, const geometry_msgs::Point& position)
         {
             double min_distance = std::numeric_limits<double>::infinity();
             int path_index = 0;
             for (int i = 0; i < path.poses.size(); i++)
             {
-                double distance = get_Distance(path.poses[i].pose.position, position);
+                double distance = get_distance(path.poses[i].pose.position, position);
                 if(distance < min_distance)
                 {
                     min_distance = distance;
@@ -410,27 +379,27 @@ namespace potbot_lib{
             return path_index;
         }
 
-        int get_PathIndex(const nav_msgs::Path& path, const geometry_msgs::Pose& position)
+        int get_path_index(const nav_msgs::Path& path, const geometry_msgs::Pose& position)
         {
-            return get_PathIndex(path, position.position);
+            return get_path_index(path, position.position);
         }
 
-        int get_PathIndex(const nav_msgs::Path& path, const geometry_msgs::PoseStamped& position)
+        int get_path_index(const nav_msgs::Path& path, const geometry_msgs::PoseStamped& position)
         {
-            return get_PathIndex(path, position.pose.position);
+            return get_path_index(path, position.pose.position);
         }
 
-        int get_PathIndex(const nav_msgs::Path& path, const nav_msgs::Odometry& position)
+        int get_path_index(const nav_msgs::Path& path, const nav_msgs::Odometry& position)
         {
-            return get_PathIndex(path, position.pose.pose.position);
+            return get_path_index(path, position.pose.pose.position);
         }
 
-        double get_PathLength(nav_msgs::Path path)
+        double get_path_length(nav_msgs::Path path)
         {
             double total_length = 0;
             for (int i = 1; i < path.poses.size(); i++)
             {
-                total_length += get_Distance(path.poses[i].pose.position, path.poses[i-1].pose.position);
+                total_length += get_distance(path.poses[i].pose.position, path.poses[i-1].pose.position);
             }
             return total_length;
         }
@@ -552,7 +521,7 @@ namespace potbot_lib{
                 int idx = 0;
                 for(int j = 0; j < obstacle_compare.data.size(); j++)
                 {
-                    double distance = get_Distance(obstacle_input_global.data[i].pose, obstacle_compare.data[j].pose);
+                    double distance = get_distance(obstacle_input_global.data[i].pose, obstacle_compare.data[j].pose);
                     if(distance < distance_min)
                     {
                         distance_min = distance;
@@ -581,7 +550,7 @@ namespace potbot_lib{
             for (const auto& p:vectors)
             {
                 geometry_msgs::PoseStamped pose;
-                pose.pose = utility::get_Pose(p(0),p(1),0,0,0,0);
+                pose.pose = utility::get_pose(p(0),p(1),0,0,0,0);
                 msg.push_back(pose);
             }
         }
@@ -759,7 +728,7 @@ namespace potbot_lib{
         {
             msg.position.x = agent.x;
             msg.position.y = agent.y;
-            msg.orientation = get_Quat(0,0,agent.yaw);
+            msg.orientation = get_quat(0,0,agent.yaw);
         }
 
         void to_msg(DiffDriveAgent& agent, geometry_msgs::Twist& msg)
@@ -770,7 +739,7 @@ namespace potbot_lib{
 
         void to_msg(DiffDriveAgent& agent, nav_msgs::Odometry& msg)
         {
-            msg.header.stamp           = ros::Time::now();
+            msg.header.stamp = ros::Time::now();
             to_msg(agent, msg.pose.pose);
             to_msg(agent, msg.twist.twist);
         }

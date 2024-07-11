@@ -45,7 +45,7 @@ namespace potbot_nav
                 potbot_lib::Pose p;
                 p.position.x = pose.pose.position.x;
                 p.position.y = pose.pose.position.y;
-                p.rotation.z = potbot_lib::utility::get_Yaw(pose.pose.orientation);
+                p.rotation.z = tf2::getYaw(pose.pose.orientation);
                 path.push_back(p);
             }
             pure_pursuit_.setTargetPath(path);
@@ -62,7 +62,7 @@ namespace potbot_nav
             marker_msg.type                  = visualization_msgs::Marker::SPHERE;
             marker_msg.action                = visualization_msgs::Marker::MODIFY;
             
-            marker_msg.pose                  = potbot_lib::utility::get_Pose(lookahead.position.x, lookahead.position.y, 0, 0, 0, lookahead.rotation.z);
+            marker_msg.pose                  = potbot_lib::utility::get_pose(lookahead.position.x, lookahead.position.y, 0, 0, 0, lookahead.rotation.z);
 
             marker_msg.scale.x               = 0.08;
             marker_msg.scale.y               = 0.08;

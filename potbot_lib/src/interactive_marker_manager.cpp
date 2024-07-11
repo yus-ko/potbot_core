@@ -36,19 +36,19 @@ namespace potbot_lib{
 		move_marker.color.g = 0.0;
 		move_marker.color.b = 0.7;
 		move_marker.color.a = 1.0;
-		move_marker.pose = potbot_lib::utility::get_Pose(0,0,0,0,0,0);
+		move_marker.pose = potbot_lib::utility::get_pose(0,0,0,0,0,0);
 		// move_marker.pose = potbot_lib::utility::get_Pose(0,0.5,1,0,0,0);
 
 		visualization_msgs::InteractiveMarkerControl move_control;
 		move_control.name = "move_plane";
-		move_control.orientation = potbot_lib::utility::get_Quat(0,-M_PI_2,0);
+		move_control.orientation = potbot_lib::utility::get_quat(0,-M_PI_2,0);
 		move_control.always_visible = true;
 		move_control.markers.push_back(move_marker);
 		move_control.interaction_mode = visualization_msgs::InteractiveMarkerControl::MOVE_PLANE;
 
 		visualization_msgs::InteractiveMarkerControl rotate_control;
 		rotate_control.name = "rotate_yaw";
-		rotate_control.orientation = potbot_lib::utility::get_Quat(0,-M_PI_2,0);
+		rotate_control.orientation = potbot_lib::utility::get_quat(0,-M_PI_2,0);
 		rotate_control.interaction_mode = visualization_msgs::InteractiveMarkerControl::ROTATE_AXIS;
 
 		ros::NodeHandle pnh("~/" + name_space_);
@@ -123,7 +123,7 @@ namespace potbot_lib{
 			visual_markers_[i].marker.color.b = b;
 			visual_markers_[i].marker.color.a = a;
 
-			visual_markers_[i].marker.pose = potbot_lib::utility::get_Pose();
+			visual_markers_[i].marker.pose = potbot_lib::utility::get_pose();
 
 			visualization_msgs::InteractiveMarker int_marker;
 			int_marker.header.frame_id = frame_id_global_;
@@ -131,7 +131,7 @@ namespace potbot_lib{
 			// int_marker.name = "obstacle_" + std::to_string(i);
 			int_marker.name = visual_markers_[i].marker.text;
 			int_marker.description = int_marker.name;
-			int_marker.pose = potbot_lib::utility::get_Pose(x,y,z,roll,pitch,yaw);
+			int_marker.pose = potbot_lib::utility::get_pose(x,y,z,roll,pitch,yaw);
 			// int_marker.pose = potbot_lib::utility::get_Pose(6,0,1,0,0,0);
 
 			move_control.markers[0] = visual_markers_[i].marker;
@@ -288,7 +288,7 @@ namespace potbot_lib{
 			visual_markers_[id].trajectory.push_back(p);
 		}
 		
-		double distance_to_pre = utility::get_Distance(visual_markers_[id].marker.pose, visual_markers_[id].trajectory.back().pose);
+		double distance_to_pre = utility::get_distance(visual_markers_[id].marker.pose, visual_markers_[id].trajectory.back().pose);
 		if (distance_to_pre > 0.01)
 		{
 			geometry_msgs::PoseStamped pose;
@@ -381,11 +381,11 @@ namespace potbot_lib{
 			{
 				visualization_msgs::Marker traj = vismark.marker;
 				traj.type = vismark.trajectory_marker_type;
-				traj.pose = potbot_lib::utility::get_Pose();
+				traj.pose = potbot_lib::utility::get_pose();
 				traj.scale.x = 0.01;
 				traj.scale.y = 0.01;
 				traj.scale.z = 0.01;
-				utility::get_Point(vismark.trajectory, traj.points);
+				utility::get_point(vismark.trajectory, traj.points);
 				traj_marker.markers.push_back(traj);
 			}
 		}
@@ -515,7 +515,7 @@ namespace potbot_lib{
 			for (const auto& p : visual_markers_[id].trajectory) 
 			{
 				double roll,pitch,yaw;
-				utility::get_RPY(p.pose.orientation, roll, pitch, yaw);
+				utility::get_rpy(p.pose.orientation, roll, pitch, yaw);
 
 				csv_file	<< p.pose.position.x 	<< ","
 							<< p.pose.position.y 	<< ","

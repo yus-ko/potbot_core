@@ -30,20 +30,6 @@
 namespace potbot_lib
 {
 
-    // bool operator==(const Point& p, const geometry_msgs::Point rp) {
-    //     return p.x == rp.x && p.y == rp.y && p.x == rp.x;
-    // }
-
-    // bool operator==(const Point& p, const geometry_msgs::Quaternion q) {
-    //     double x,y,z;
-    //     utility::get_RPY(q,x,y,z);
-    //     return p.x == x && p.y == y && p.x == x;
-    // }
-
-    // bool operator==(const Pose& pp, const geometry_msgs::Pose rp) {
-    //     return pp.position == rp.position && pp.rotation == rp.orientation;
-    // }
-
     namespace color
     {
         const int RED           = 0;
@@ -61,25 +47,24 @@ namespace potbot_lib
 
     namespace utility
     {
-        void get_RPY(const geometry_msgs::Quaternion& orientation, double &roll, double &pitch, double &yaw);
-        geometry_msgs::Quaternion get_Quat(const double roll = 0, const double pitch = 0, const double yaw = 0);
-        geometry_msgs::Quaternion get_Quat(const Point& p);
-        geometry_msgs::Point get_Point(const double x = 0, const double y = 0, const double z = 0);
-        geometry_msgs::Point get_Point(const Point& p);
-        void get_Point(const std::vector<geometry_msgs::PoseStamped>& poses, std::vector<geometry_msgs::Point>& points);
-        geometry_msgs::Pose get_Pose(const double x = 0, const double y = 0, const double z = 0, const double roll = 0, const double pitch = 0, const double yaw = 0);
-        geometry_msgs::Pose get_Pose(const geometry_msgs::Point& p, const double roll = 0, const double pitch = 0, const double yaw = 0);
-        geometry_msgs::Pose get_Pose(const Pose& p);
-        double get_Yaw(const geometry_msgs::Quaternion& orientation);
+        void get_rpy(const geometry_msgs::Quaternion& orientation, double &roll, double &pitch, double &yaw);
+        geometry_msgs::Quaternion get_quat(const double roll = 0, const double pitch = 0, const double yaw = 0);
+        geometry_msgs::Quaternion get_quat(const Point& p);
+        geometry_msgs::Point get_point(const double x = 0, const double y = 0, const double z = 0);
+        geometry_msgs::Point get_point(const Point& p);
+        void get_point(const std::vector<geometry_msgs::PoseStamped>& poses, std::vector<geometry_msgs::Point>& points);
+        geometry_msgs::Pose get_pose(const double x = 0, const double y = 0, const double z = 0, const double roll = 0, const double pitch = 0, const double yaw = 0);
+        geometry_msgs::Pose get_pose(const geometry_msgs::Point& p, const double roll = 0, const double pitch = 0, const double yaw = 0);
+        geometry_msgs::Pose get_pose(const Pose& p);
 
-        double get_Distance(const geometry_msgs::Point& position1, const geometry_msgs::Point& position2);
-        double get_Distance(const geometry_msgs::Pose& position1, const geometry_msgs::Pose& position2);
-        double get_Distance(const geometry_msgs::PoseStamped& position1, const geometry_msgs::PoseStamped& position2);
-        double get_Distance(const nav_msgs::Odometry& position1, const nav_msgs::Odometry& position2);
+        double get_distance(const geometry_msgs::Point& position1, const geometry_msgs::Point& position2);
+        double get_distance(const geometry_msgs::Pose& position1, const geometry_msgs::Pose& position2);
+        double get_distance(const geometry_msgs::PoseStamped& position1, const geometry_msgs::PoseStamped& position2);
+        double get_distance(const nav_msgs::Odometry& position1, const nav_msgs::Odometry& position2);
 
-        void print_Pose(const geometry_msgs::Pose& pose);
-        void print_Pose(const geometry_msgs::PoseStamped& pose);
-        void print_Pose(const nav_msgs::Odometry& pose);
+        void print_pose(const geometry_msgs::Pose& pose);
+        void print_pose(const geometry_msgs::PoseStamped& pose);
+        void print_pose(const nav_msgs::Odometry& pose);
 
         void broadcast_frame(tf2_ros::TransformBroadcaster& bc, std::string parent_frame_id, std::string child_frame_id, const geometry_msgs::Pose& pose);
         
@@ -90,16 +75,17 @@ namespace potbot_lib
         void get_tf(const tf2_ros::Buffer &buffer, const potbot_msgs::ObstacleArray& obscales_in, const std::string target_frame_id, potbot_msgs::ObstacleArray& obscales_out);
         void get_tf(const tf2_ros::Buffer &buffer, const nav_msgs::Path& path_in, const std::string target_frame_id, nav_msgs::Path& path_out);
 
-        geometry_msgs::PoseStamped get_Pose_from_tf(const tf2_ros::Buffer &buffer, const std::string source_frame_id, const std::string target_frame_id);
-        int get_WorldCoordinate(std::string target_frame, ros::Time time, geometry_msgs::PoseStamped &Wcood, tf2_ros::Buffer &buffer);
+        geometry_msgs::PoseStamped get_frame_pose(const tf2_ros::Buffer &buffer, const std::string source_frame_id, const std::string target_frame_id);
 
-        geometry_msgs::Point get_MapCoordinate(int index, nav_msgs::MapMetaData info);
-        int get_MapIndex(double x, double y, const nav_msgs::MapMetaData& info);
+        geometry_msgs::Point get_map_coordinate(int index, nav_msgs::MapMetaData info);
+        int get_map_index(double x, double y, const nav_msgs::MapMetaData& info);
 
-        int get_PathIndex(const nav_msgs::Path& path, const geometry_msgs::Point& position);
-        int get_PathIndex(const nav_msgs::Path& path, const geometry_msgs::Pose& position);
-        int get_PathIndex(const nav_msgs::Path& path, const geometry_msgs::PoseStamped& position);
-        int get_PathIndex(const nav_msgs::Path& path, const nav_msgs::Odometry& position);
+        int get_path_index(const nav_msgs::Path& path, const geometry_msgs::Point& position);
+        int get_path_index(const nav_msgs::Path& path, const geometry_msgs::Pose& position);
+        int get_path_index(const nav_msgs::Path& path, const geometry_msgs::PoseStamped& position);
+        int get_path_index(const nav_msgs::Path& path, const nav_msgs::Odometry& position);
+
+        double get_path_length(nav_msgs::Path path);
 
         void associate_obstacle(potbot_msgs::ObstacleArray& obstacle_input, const potbot_msgs::ObstacleArray& obstacle_compare, const tf2_ros::Buffer &buffer);
 

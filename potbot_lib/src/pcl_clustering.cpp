@@ -57,7 +57,7 @@ namespace potbot_lib
             marker_centor.pose.position.y = (maxPt.y - minPt.y)/2 + minPt.y;
             marker_centor.pose.position.z = (maxPt.z - minPt.z)/2 + minPt.z;
 
-            marker_centor.pose.orientation = potbot_lib::utility::get_Quat(0,0,0);
+            marker_centor.pose.orientation = potbot_lib::utility::get_quat(0,0,0);
 
             marker_centor.scale.x = abs(maxPt.x - minPt.x);
             marker_centor.scale.y = abs(maxPt.y - minPt.y);
@@ -111,7 +111,7 @@ namespace potbot_lib
             cluster_msg.pose.position.y = (maxPt.y - minPt.y)/2 + minPt.y;
             cluster_msg.pose.position.z = (maxPt.z - minPt.z)/2 + minPt.z;
 
-            cluster_msg.pose.orientation = potbot_lib::utility::get_Quat(0,0,0);
+            cluster_msg.pose.orientation = potbot_lib::utility::get_quat(0,0,0);
 
             cluster_msg.scale.x = abs(maxPt.x - minPt.x);
             cluster_msg.scale.y = abs(maxPt.y - minPt.y);
@@ -281,7 +281,7 @@ namespace potbot_lib
             marker_centor.lifetime = ros::Duration(0);
             marker_centor.type = visualization_msgs::Marker::CUBE;
             marker_centor.action = visualization_msgs::Marker::ADD;
-            marker_centor.pose.orientation = potbot_lib::utility::get_Quat(0,0,0);
+            marker_centor.pose.orientation = potbot_lib::utility::get_quat(0,0,0);
             pcl::PointXYZ minPt, maxPt;
             pcl::getMinMax3D (adjacent_supervoxel_voxels, minPt, maxPt);
             if(abs(maxPt.x - minPt.x) == 0) marker_centor.scale.x = supervoxel_voxel_resolution_;

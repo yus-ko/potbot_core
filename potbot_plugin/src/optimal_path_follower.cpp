@@ -56,7 +56,7 @@ namespace potbot_nav
                 potbot_lib::Pose p;
                 p.position.x = pose.pose.position.x;
                 p.position.y = pose.pose.position.y;
-                p.rotation.z = potbot_lib::utility::get_Yaw(pose.pose.orientation);
+                p.rotation.z = tf2::getYaw(pose.pose.orientation);
                 path.push_back(p);
             }
             optimizer_.setTargetPath(path);
@@ -71,7 +71,7 @@ namespace potbot_nav
             path_msg.id = 0;
             path_msg.lifetime = ros::Duration(0.1);
             path_msg.type = visualization_msgs::Marker::LINE_STRIP;
-            path_msg.pose = potbot_lib::utility::get_Pose();
+            path_msg.pose = potbot_lib::utility::get_pose();
             path_msg.color.a = 1;
             path_msg.color.g = 0.8;
             path_msg.scale.x = 0.001;
@@ -84,7 +84,7 @@ namespace potbot_nav
                 path_msg.points.clear();
                 for (const auto& p:plan.path)
                 {
-                    path_msg.points.push_back(potbot_lib::utility::get_Point(p(0),p(1)));
+                    path_msg.points.push_back(potbot_lib::utility::get_point(p(0),p(1)));
                 }
                 msg.markers.push_back(path_msg);
             }

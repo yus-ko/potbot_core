@@ -25,7 +25,7 @@ namespace potbot_lib{
                     line_buf[i++] = std::stod(str_conma_buf);
                 }
                 geometry_msgs::PoseStamped pose;
-                pose.pose = potbot_lib::utility::get_Pose(line_buf[0], line_buf[1], 0, 0, 0, line_buf[2]);
+                pose.pose = potbot_lib::utility::get_pose(line_buf[0], line_buf[1], 0, 0, 0, line_buf[2]);
                 path_msg.poses.push_back(pose);
             }
             
@@ -68,11 +68,11 @@ namespace potbot_lib{
                 marker.color = potbot_lib::color::get_msg(marker.id);
                 marker.scale.x = 0.05;
                 marker.lifetime = ros::Duration(0.5);
-                marker.pose = utility::get_Pose();
+                marker.pose = utility::get_pose();
                 marker.ns = std::to_string(marker.id);
                 for (const auto& point:loops)
                 {
-                    geometry_msgs::Point point_msg = utility::get_Point(point.x, point.y);
+                    geometry_msgs::Point point_msg = utility::get_point(point.x, point.y);
                     marker.points.push_back(point_msg);
                 }
                 msg.markers.push_back(marker);
@@ -85,7 +85,7 @@ namespace potbot_lib{
             for (const auto& point : path_)
             {
                 geometry_msgs::PoseStamped pose_msg;
-                pose_msg.pose = potbot_lib::utility::get_Pose(point);
+                pose_msg.pose = potbot_lib::utility::get_pose(point);
                 msg.push_back(pose_msg);
             }
         }

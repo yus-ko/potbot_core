@@ -255,7 +255,7 @@ namespace potbot_nav
 
                 obstacle.pose.position.x = xhat(0);
                 obstacle.pose.position.y = xhat(1);
-                obstacle.pose.orientation  = potbot_lib::utility::get_Quat(0,0,xhat(2));
+                obstacle.pose.orientation  = potbot_lib::utility::get_quat(0,0,xhat(2));
                 obstacle.twist.linear.x = xhat(3);
                 obstacle.twist.angular.z = xhat(4);
             }
@@ -315,7 +315,7 @@ namespace potbot_nav
                 
                 double v                    = wobs.twist.linear.x;  //障害物の並進速度
                 double omega                = fmod(wobs.twist.angular.z, 2*M_PI); //障害物の回転角速度
-                double yaw                  = potbot_lib::utility::get_Yaw(wobs.pose.orientation);  //障害物の姿勢
+                double yaw                  = tf2::getYaw(wobs.pose.orientation);  //障害物の姿勢
                 double width                = wobs.scale.y; //障害物の幅
                 double depth                = wobs.scale.x; //障害物の奥行き
                 double size                 = width + depth;

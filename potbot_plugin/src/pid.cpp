@@ -27,7 +27,7 @@ namespace potbot_nav
             potbot_lib::Pose p;
             p.position.x = pose_msg.pose.position.x;
             p.position.y = pose_msg.pose.position.y;
-            p.rotation.z = potbot_lib::utility::get_Yaw(pose_msg.pose.orientation);
+            p.rotation.z = tf2::getYaw(pose_msg.pose.orientation);
             pid_.setTargetPoint(p);
         }
 
