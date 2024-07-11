@@ -363,13 +363,31 @@ namespace potbot_lib{
             
         }
 
-        int get_path_index(const nav_msgs::Path& path, const geometry_msgs::Point& position)
+        void set_path_orientation(std::vector<geometry_msgs::PoseStamped>& path)
+        {
+            if (path.size() > 1)
+            {
+                for (size_t i = 1; i < path.size(); i++)
+                {
+                    double xi = path[i].pose.position.x;
+                    double yi = path[i].pose.position.y;
+                    double xi_1 = path[i-1].pose.position.x;
+                    double yi_1 = path[i-1].pose.position.y;
+
+                    double yaw = atan2(yi-yi_1,xi-xi_1);
+                    path[i].pose.orientation = get_quat(0,0,yaw);
+                }
+                
+            }
+        }
+
+        int get_path_index(const std::vector<geometry_msgs::PoseStamped>& path, const geometry_msgs::Point& position)
         {
             double min_distance = std::numeric_limits<double>::infinity();
             int path_index = 0;
-            for (int i = 0; i < path.poses.size(); i++)
+            for (int i = 0; i < path.size(); i++)
             {
-                double distance = get_distance(path.poses[i].pose.position, position);
+                double distance = get_distance(path[i].pose.position, position);
                 if(distance < min_distance)
                 {
                     min_distance = distance;
@@ -379,29 +397,54 @@ namespace potbot_lib{
             return path_index;
         }
 
-        int get_path_index(const nav_msgs::Path& path, const geometry_msgs::Pose& position)
+        int get_path_index(const std::vector<geometry_msgs::PoseStamped>& path, const geometry_msgs::Pose& position)
         {
             return get_path_index(path, position.position);
         }
 
-        int get_path_index(const nav_msgs::Path& path, const geometry_msgs::PoseStamped& position)
+        int get_path_index(const std::vector<geometry_msgs::PoseStamped>& path, const geometry_msgs::PoseStamped& position)
         {
             return get_path_index(path, position.pose.position);
         }
 
-        int get_path_index(const nav_msgs::Path& path, const nav_msgs::Odometry& position)
+        int get_path_index(const std::vector<geometry_msgs::PoseStamped>& path, const nav_msgs::Odometry& position)
         {
             return get_path_index(path, position.pose.pose.position);
         }
 
-        double get_path_length(nav_msgs::Path path)
+        int get_path_index(const nav_msgs::Path& path, const geometry_msgs::Point& position)
+        {
+            return get_path_index(path.poses, position);
+        }
+
+        int get_path_index(const nav_msgs::Path& path, const geometry_msgs::Pose& position)
+        {
+            return get_path_index(path.poses, position);
+        }
+
+        int get_path_index(const nav_msgs::Path& path, const geometry_msgs::PoseStamped& position)
+        {
+            return get_path_index(path.poses, position);
+        }
+
+        int get_path_index(const nav_msgs::Path& path, const nav_msgs::Odometry& position)
+        {
+            return get_path_index(path.poses, position);
+        }
+
+        double get_path_length(const std::vector<geometry_msgs::PoseStamped>& path)
         {
             double total_length = 0;
-            for (int i = 1; i < path.poses.size(); i++)
+            for (int i = 1; i < path.size(); i++)
             {
-                total_length += get_distance(path.poses[i].pose.position, path.poses[i-1].pose.position);
+                total_length += get_distance(path[i].pose.position, path[i-1].pose.position);
             }
             return total_length;
+        }
+
+        double get_path_length(const nav_msgs::Path& path)
+        {
+            return get_path_length(path.poses);
         }
 
         void Timer::start(const std::string timer_name, const double time)

@@ -80,12 +80,20 @@ namespace potbot_lib
         geometry_msgs::Point get_map_coordinate(int index, nav_msgs::MapMetaData info);
         int get_map_index(double x, double y, const nav_msgs::MapMetaData& info);
 
+        void set_path_orientation(std::vector<geometry_msgs::PoseStamped>& path);
+
+        int get_path_index(const std::vector<geometry_msgs::PoseStamped>& path, const geometry_msgs::Point& position);
+        int get_path_index(const std::vector<geometry_msgs::PoseStamped>& path, const geometry_msgs::Pose& position);
+        int get_path_index(const std::vector<geometry_msgs::PoseStamped>& path, const geometry_msgs::PoseStamped& position);
+        int get_path_index(const std::vector<geometry_msgs::PoseStamped>& path, const nav_msgs::Odometry& position);
+
         int get_path_index(const nav_msgs::Path& path, const geometry_msgs::Point& position);
         int get_path_index(const nav_msgs::Path& path, const geometry_msgs::Pose& position);
         int get_path_index(const nav_msgs::Path& path, const geometry_msgs::PoseStamped& position);
         int get_path_index(const nav_msgs::Path& path, const nav_msgs::Odometry& position);
 
-        double get_path_length(nav_msgs::Path path);
+        double get_path_length(const std::vector<geometry_msgs::PoseStamped>& path);
+        double get_path_length(const nav_msgs::Path& path);
 
         void associate_obstacle(potbot_msgs::ObstacleArray& obstacle_input, const potbot_msgs::ObstacleArray& obstacle_compare, const tf2_ros::Buffer &buffer);
 

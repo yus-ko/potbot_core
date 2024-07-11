@@ -9,16 +9,6 @@ namespace potbot_lib{
     const int SUCCESS = 1;
     const int FAIL = 0;
 
-    // const int MEGAROVER = 0;
-    // const int TURTLEBOT3 = 1;
-    // const int BEEGO = 2;
-
-    const int DEAD_RECKONING = 0;
-    const int PARTICLE_FILTER = 1;
-
-    const int CSV_PATH = 0;
-    const int POTENTIAL_METHOD = 1;
-
     typedef struct {
         int index=0;
         double x=0;

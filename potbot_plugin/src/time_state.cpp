@@ -28,13 +28,17 @@ namespace potbot_nav
 
         void TimeState::calculateCommand(geometry_msgs::Twist& cmd_vel)
         {
-            broadcast_frame(tf_broadcaster_, frame_id_global_, "target_path", target_pose_.pose);
+            int idx = get_path_index(target_path_, robot_pose_);
+            
+            broadcast_frame(tf_broadcaster_, frame_id_global_, "target_path", target_path_[idx].pose);
             geometry_msgs::PoseStamped p = get_tf(*tf_, robot_pose_, "target_path");
             nav_msgs::Odometry robot_pose_from_path_frame;
             robot_pose_from_path_frame.pose.pose = p.pose;
 
-            to_agent(robot_pose_from_path_frame, controller_);
+            to_agent(robot_pose_, controller_);
             if (reachedTarget()) return;
+
+            to_agent(robot_pose_from_path_frame, controller_);
             controller_.calculateCommand();
             to_msg(controller_, robot_pose_from_path_frame);
             cmd_vel = robot_pose_from_path_frame.twist.twist;
@@ -44,6 +48,7 @@ namespace potbot_nav
         {
             if (path_msg.empty()) return;
             target_path_ = path_msg;
+            set_path_orientation(target_path_);
             target_pose_ = path_msg.back();
             std::vector<potbot_lib::Pose> path;
             for (const auto pose : path_msg)
