@@ -216,6 +216,11 @@ namespace potbot_lib{
             bc.sendTransform(transformStamped);
         }
 
+        void broadcast_frame(tf2_ros::TransformBroadcaster& bc, const nav_msgs::Odometry& odom)
+        {
+            broadcast_frame(bc, odom.header.frame_id, odom.child_frame_id, odom.pose.pose);
+        }
+
         geometry_msgs::PoseStamped get_tf(const tf2_ros::Buffer &buffer, const geometry_msgs::PoseStamped& pose_in, const std::string target_frame_id)
         {
             geometry_msgs::PoseStamped pose_out;

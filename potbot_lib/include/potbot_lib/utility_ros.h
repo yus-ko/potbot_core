@@ -67,6 +67,7 @@ namespace potbot_lib
         void print_pose(const nav_msgs::Odometry& pose);
 
         void broadcast_frame(tf2_ros::TransformBroadcaster& bc, std::string parent_frame_id, std::string child_frame_id, const geometry_msgs::Pose& pose);
+        void broadcast_frame(tf2_ros::TransformBroadcaster& bc, const nav_msgs::Odometry& odom);
         
         geometry_msgs::PoseStamped get_tf(const tf2_ros::Buffer &buffer, const geometry_msgs::PoseStamped& pose_in, const std::string target_frame_id);
         geometry_msgs::PointStamped get_tf(const tf2_ros::Buffer &buffer, const geometry_msgs::PointStamped& point_in, const std::string target_frame_id);
