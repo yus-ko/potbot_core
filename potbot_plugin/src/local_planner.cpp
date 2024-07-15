@@ -177,69 +177,28 @@ namespace potbot_nav
         const geometry_msgs::PoseStamped &goal_point = transformed_plan.back();
 
         apf_->initPotentialField(costmap_ros_);
-
         apf_->setGoal(transformed_plan.back());
-
         apf_->createPotentialField();
+        apf_->publishPotentialField();
 
         double init_yaw = tf2::getYaw(global_pose.pose.orientation);
-
         ROS_DEBUG("status: create path");
         apf_planner_->createPath(init_yaw);
-
         ROS_DEBUG("status: interpolate");
         apf_planner_->bezier();
-
         apf_planner_->publishPath();
 
         nav_msgs::Path path_msg_interpolated;
         apf_planner_->getPath(path_msg_interpolated);
-
-        apf_->publishPotentialField();
-
-        // robot_controller_->setMsg(global_pose);
-        // robot_controller_->deltatime = 1.0 / 30.0;
-
-        // robot_controller_->setTarget(global_plan_.back().pose);
-        // nav_msgs::Odometry sim_pose;
         if (!reached_goal_)
         {
-            potbot_lib::Point p;
-            p.x = goal_point.pose.position.x;
-            p.y = goal_point.pose.position.y;
-            // if (robot_controller_->getDistance(p) < 0.6)
-            // {
-            //     robot_controller_->pidControl();
-            //     robot_controller_->toMsg(sim_pose);
-            // }
-            // else
-            // {
-
-            //     // potbot_lib::controller::DWAControllerROS dwa;
-            //     // dwa.setMsg(global_pose);
-            //     // dwa.setDwaTargetPath(path_msg_interpolated);
-            //     // robot_controller_->initPID();
-            //     // dwa.calculateCommand();
-            //     // dwa.toMsg(sim_pose);
-
-
-            //     // robot_controller_->set_target_path(path_msg_interpolated);
-            //     // robot_controller_->initPID();
-            //     // robot_controller_->normalized_pure_pursuit();
-            //     // // robot_controller_.pure_pursuit();
-            //     // robot_controller_->publishLookahead();
-                
-            //     // robot_controller_->to_msg(sim_pose);
-                
-            // }
             controller_->setTargetPath(path_msg_interpolated.poses);
+            // controller_->setTargetPose(global_plan_.back());
             nav_msgs::Odometry sim_pose;
             sim_pose.pose.pose = global_pose.pose;
             controller_->setRobot(sim_pose);
             controller_->calculateCommand(cmd_vel);
             reached_goal_ = controller_->reachedTarget();
-            // controller_->getRobot(sim_pose);
-            // cmd_vel = sim_pose.twist.twist;
         }
         else
         {

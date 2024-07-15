@@ -11,4 +11,7 @@
   <class name="potbot_nav/OPF" type="potbot_nav::controller::OptimalPathFollower" base_class_type="potbot_base::Controller">
     <description>This is a potbot_base::Controller plugin.</description>
   </class>
+  <class name="potbot_nav/TAPF" type="potbot_nav::controller::TraditionalAPF" base_class_type="potbot_base::Controller">
+    <description>This is a potbot_base::Controller plugin.</description>
+  </class>
 </library>

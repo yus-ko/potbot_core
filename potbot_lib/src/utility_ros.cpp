@@ -132,6 +132,11 @@ namespace potbot_lib{
             return get_point(p.x, p.y, p.z);
         }
 
+        geometry_msgs::Point get_point(const Eigen::Vector2d& vec)
+        {
+            return get_point(vec[0], vec[1]);
+        }
+
         void get_point(const std::vector<geometry_msgs::PoseStamped>& poses, std::vector<geometry_msgs::Point>& points)
         {
             points.resize(poses.size());
@@ -158,6 +163,11 @@ namespace potbot_lib{
         geometry_msgs::Pose get_pose(const Pose& p)
         {
             return get_pose(p.position.x, p.position.y, p.position.z, p.rotation.x, p.rotation.y, p.rotation.z);
+        }
+
+        Eigen::Vector2d get_vector(const geometry_msgs::Point& p)
+        {
+            return Eigen::Vector2d{p.x, p.y};
         }
 
         double get_distance(const geometry_msgs::Point& position1, const geometry_msgs::Point& position2)
