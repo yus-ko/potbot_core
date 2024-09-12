@@ -209,21 +209,29 @@ namespace potbot_lib{
             print_pose(pose.pose.pose);
         }
 
-        void broadcast_frame(tf2_ros::TransformBroadcaster& bc, std::string parent_frame_id, std::string child_frame_id, const geometry_msgs::Pose& pose)
+        void broadcast_frame(tf2_ros::TransformBroadcaster& bc, std::string child_frame_id, const geometry_msgs::PoseStamped& pose_stamp)
         {
             geometry_msgs::TransformStamped transformStamped;
-            transformStamped.header.frame_id = parent_frame_id; // 親フレーム
+            transformStamped.header = pose_stamp.header; // 親フレーム
             transformStamped.child_frame_id = child_frame_id; // 新しいフレーム
-            transformStamped.transform.translation.x = pose.position.x; // x座標
-            transformStamped.transform.translation.y = pose.position.y; // y座標
-            transformStamped.transform.translation.z = pose.position.z; // z座標
-            transformStamped.transform.rotation.x = pose.orientation.x; // 回転クォータニオンのx成分
-            transformStamped.transform.rotation.y = pose.orientation.y; // 回転クォータニオンのy成分
-            transformStamped.transform.rotation.z = pose.orientation.z; // 回転クォータニオンのz成分
-            transformStamped.transform.rotation.w = pose.orientation.w; // 回転クォータニオンのw成分
+            transformStamped.transform.translation.x = pose_stamp.pose.position.x; // x座標
+            transformStamped.transform.translation.y = pose_stamp.pose.position.y; // y座標
+            transformStamped.transform.translation.z = pose_stamp.pose.position.z; // z座標
+            transformStamped.transform.rotation.x = pose_stamp.pose.orientation.x; // 回転クォータニオンのx成分
+            transformStamped.transform.rotation.y = pose_stamp.pose.orientation.y; // 回転クォータニオンのy成分
+            transformStamped.transform.rotation.z = pose_stamp.pose.orientation.z; // 回転クォータニオンのz成分
+            transformStamped.transform.rotation.w = pose_stamp.pose.orientation.w; // 回転クォータニオンのw成分
 
-            transformStamped.header.stamp = ros::Time::now();
             bc.sendTransform(transformStamped);
+        }
+
+        void broadcast_frame(tf2_ros::TransformBroadcaster& bc, std::string parent_frame_id, std::string child_frame_id, const geometry_msgs::Pose& pose)
+        {
+            geometry_msgs::PoseStamped pose_stamp;
+            pose_stamp.header.frame_id = parent_frame_id;
+            pose_stamp.header.stamp = ros::Time::now();
+            pose_stamp.pose = pose;
+            broadcast_frame(bc, child_frame_id, pose_stamp);
         }
 
         void broadcast_frame(tf2_ros::TransformBroadcaster& bc, const nav_msgs::Odometry& odom)
