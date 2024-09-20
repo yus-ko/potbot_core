@@ -1,4 +1,5 @@
 #include <potbot_lib/pure_pursuit.h>
+#include <iostream>
 
 namespace potbot_lib{
 
@@ -73,7 +74,6 @@ namespace potbot_lib{
                 v = max_linear_velocity_;
                 return;
             }
-            
 
             double l_d = getDistance(*lookahead_);
 

@@ -37,6 +37,7 @@
 #ifndef POTBOT_LOCAL_PLANNER_H_
 #define POTBOT_LOCAL_PLANNER_H_
 
+#include <potbot_lib/utility_ros.h>
 #include <potbot_base/base_controller.h>
 #include <potbot_lib/apf_path_planner_ros.h>
 // #include <potbot_lib/diff_drive_controller_ros.h>
@@ -143,6 +144,8 @@ namespace potbot_nav {
         return initialized_;
       }
 
+      void createPathThread();
+
     private:
 
       costmap_2d::Costmap2DROS* costmap_ros_; ///< @brief The ROS wrapper for the costmap the controller will use
@@ -173,6 +176,8 @@ namespace potbot_nav {
       bool setup_;
 
       bool initialized_;
+
+      boost::thread* path_planner_thread_;
 
       std::vector<geometry_msgs::Point> footprint_spec_;
 

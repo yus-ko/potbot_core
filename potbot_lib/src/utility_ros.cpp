@@ -211,9 +211,11 @@ namespace potbot_lib{
 
         void broadcast_frame(tf2_ros::TransformBroadcaster& bc, std::string child_frame_id, const geometry_msgs::PoseStamped& pose_stamp)
         {
+            
             geometry_msgs::TransformStamped transformStamped;
             transformStamped.header = pose_stamp.header; // 親フレーム
             transformStamped.child_frame_id = child_frame_id; // 新しいフレーム
+            // tf2::fromMsg(transformStamped.transform, pose_stamp.pose);
             transformStamped.transform.translation.x = pose_stamp.pose.position.x; // x座標
             transformStamped.transform.translation.y = pose_stamp.pose.position.y; // y座標
             transformStamped.transform.translation.z = pose_stamp.pose.position.z; // z座標

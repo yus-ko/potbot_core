@@ -27,7 +27,7 @@ namespace potbot_nav
         void PurePursuit::calculateCommand(geometry_msgs::Twist& cmd_vel)
         {
             potbot_lib::utility::to_agent(robot_pose_, pure_pursuit_);
-            if (reachedTarget()) return;
+            if (reachedTarget()) return; 
             pure_pursuit_.calculateCommand();
             publishLookahead();
             potbot_lib::utility::to_msg(pure_pursuit_, robot_pose_);

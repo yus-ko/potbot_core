@@ -95,7 +95,8 @@ namespace potbot_nav
             private_nh.param("prune_plan", prune_plan_, true);
 
             reached_goal_ = false;
-            
+
+            path_planner_thread_ = new boost::thread(boost::bind(&PotbotLocalPlanner::createPathThread, this));
 
             // dsrv_ = new dynamic_reconfigure::Server<BaseLocalPlannerConfig>(private_nh);
             // dynamic_reconfigure::Server<BaseLocalPlannerConfig>::CallbackType cb = [this](auto& config, auto level){ reconfigureCB(config, level); };
@@ -110,6 +111,7 @@ namespace potbot_nav
             {
                 controller_ = loader_.createInstance(plugin_name);
                 controller_->initialize(name + "/controller", tf);
+                ROS_INFO("\t%s initialized", plugin_name.c_str());
             }
             catch(pluginlib::PluginlibException& ex)
             {
@@ -143,18 +145,75 @@ namespace potbot_nav
         return true;
     }
 
-    bool PotbotLocalPlanner::computeVelocityCommands(geometry_msgs::Twist &cmd_vel)
+    void PotbotLocalPlanner::createPathThread()
     {
+        while (ros::ok())
+        {
+            if (!initialized_)
+            {
+                ROS_WARN("not initialized");
+                ros::Duration(1).sleep();
+                continue;
+            }
+
+            std::vector<geometry_msgs::PoseStamped> local_plan;
+            geometry_msgs::PoseStamped global_pose;
+            if (!costmap_ros_->getRobotPose(global_pose))
+            {
+                // return false;
+                continue;
+            }
+
+            std::vector<geometry_msgs::PoseStamped> transformed_plan;
+            // get the global plan in our frame
+            if (!global_plan_.empty() && !transformGlobalPlan(*tf_, global_plan_, global_pose, *costmap_, global_frame_, transformed_plan))
+            {
+                ROS_WARN("Could not transform the global plan to the frame of the controller");
+                // return false;
+                continue;
+            }
+
+            // now we'll prune the plan based on the position of the robot
+            if (prune_plan_)
+                prunePlan(global_pose, transformed_plan, global_plan_);
+
+            // if the global plan passed in is empty... we won't do anything
+            if (transformed_plan.empty())
+                // return false;
+                continue;
+
+            const geometry_msgs::PoseStamped &goal_point = transformed_plan.back();
+
+            apf_->initPotentialField(costmap_ros_);
+            apf_->setGoal(transformed_plan.back());
+            apf_->createPotentialField();
+            apf_->publishPotentialField();
+
+            double init_yaw = tf2::getYaw(global_pose.pose.orientation);
+            ROS_DEBUG("status: create path");
+            apf_planner_->createPath(init_yaw);
+            ROS_DEBUG("status: interpolate");
+            apf_planner_->bezier();
+            apf_planner_->publishPath();
+            publishPlan(transformed_plan, g_plan_pub_);
+
+            // ROS_INFO("create path");
+            // ros::Duration(0.5).sleep();
+        }
+    }
+
+    bool PotbotLocalPlanner::computeVelocityCommands(geometry_msgs::Twist &cmd_vel)
+    { 
         if (!isInitialized())
         {
             ROS_ERROR("This planner has not been initialized, please call initialize() before using this planner");
             return false;
         }
 
-        std::vector<geometry_msgs::PoseStamped> local_plan;
         geometry_msgs::PoseStamped global_pose;
         if (!costmap_ros_->getRobotPose(global_pose))
         {
+            ROS_INFO("return code: false global_pose");
             return false;
         }
 
@@ -166,47 +225,42 @@ namespace potbot_nav
             return false;
         }
 
-        // now we'll prune the plan based on the position of the robot
-        if (prune_plan_)
-            prunePlan(global_pose, transformed_plan, global_plan_);
+        double d = potbot_lib::utility::get_distance(global_pose.pose, transformed_plan.back().pose);
+        // if (d < 0.1)
+        // {
+        //     ROS_INFO("reached goal");
+        // }
 
-        // if the global plan passed in is empty... we won't do anything
-        if (transformed_plan.empty())
-            return false;
+        reached_goal_ = (d < 0.1);
+        ROS_INFO_STREAM(reached_goal_);
 
-        const geometry_msgs::PoseStamped &goal_point = transformed_plan.back();
-
-        apf_->initPotentialField(costmap_ros_);
-        apf_->setGoal(transformed_plan.back());
-        apf_->createPotentialField();
-        apf_->publishPotentialField();
-
-        double init_yaw = tf2::getYaw(global_pose.pose.orientation);
-        ROS_DEBUG("status: create path");
-        apf_planner_->createPath(init_yaw);
-        ROS_DEBUG("status: interpolate");
-        apf_planner_->bezier();
-        apf_planner_->publishPath();
-
-        nav_msgs::Path path_msg_interpolated;
-        apf_planner_->getPath(path_msg_interpolated);
         if (!reached_goal_)
         {
-            controller_->setTargetPath(path_msg_interpolated.poses);
-            // controller_->setTargetPose(global_plan_.back());
+            nav_msgs::Path path_msg_interpolated;
+            apf_planner_->getPath(path_msg_interpolated);
+            if (path_msg_interpolated.poses.size() > 1)
+            {
+                controller_->setTargetPath(path_msg_interpolated.poses);
+                // controller_->setTargetPath(global_plan_);
+                // controller_->setTargetPose(global_plan_.back());
+                
+            }
             nav_msgs::Odometry sim_pose;
             sim_pose.pose.pose = global_pose.pose;
             controller_->setRobot(sim_pose);
             controller_->calculateCommand(cmd_vel);
-            reached_goal_ = controller_->reachedTarget();
+            // ROS_INFO_STREAM(reached_goal_);
+            // reached_goal_ = controller_->reachedTarget();
+            // ROS_INFO_STREAM(reached_goal_);
+            ROS_INFO("%d, %f, %f",path_msg_interpolated.poses.size(), cmd_vel.linear.x, cmd_vel.angular.z);
         }
         else
         {
             ROS_INFO("reached target");
         }
 
-        // //publish information to the visualizer
-        publishPlan(transformed_plan, g_plan_pub_);
+        //publish information to the visualizer
+        // publishPlan(transformed_plan, g_plan_pub_);
         // publishPlan(local_plan, l_plan_pub_);
         return true;
     }
