@@ -165,6 +165,12 @@ namespace potbot_lib{
             return get_pose(p.position.x, p.position.y, p.position.z, p.rotation.x, p.rotation.y, p.rotation.z);
         }
 
+        geometry_msgs::Pose get_pose(const Eigen::Affine3d& p)
+        {
+            Eigen::Vector3d rpy = p.rotation().eulerAngles(2, 1, 0);    // (Yaw, Pitch, Roll)
+            return get_pose(p.translation()[0], p.translation()[1], p.translation()[2], rpy[2], rpy[1], rpy[0]);
+        }
+
         Eigen::Vector2d get_vector(const geometry_msgs::Point& p)
         {
             return Eigen::Vector2d{p.x, p.y};

@@ -57,6 +57,7 @@ namespace potbot_lib
         geometry_msgs::Pose get_pose(const double x = 0, const double y = 0, const double z = 0, const double roll = 0, const double pitch = 0, const double yaw = 0);
         geometry_msgs::Pose get_pose(const geometry_msgs::Point& p, const double roll = 0, const double pitch = 0, const double yaw = 0);
         geometry_msgs::Pose get_pose(const Pose& p);
+        geometry_msgs::Pose get_pose(const Eigen::Affine3d& p);
 
         Eigen::Vector2d get_vector(const geometry_msgs::Point& p);
 
