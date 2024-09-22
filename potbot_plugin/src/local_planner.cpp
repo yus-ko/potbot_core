@@ -232,7 +232,6 @@ namespace potbot_nav
         // }
 
         reached_goal_ = (d < 0.1);
-        ROS_INFO_STREAM(reached_goal_);
 
         if (!reached_goal_)
         {
@@ -252,7 +251,7 @@ namespace potbot_nav
             // ROS_INFO_STREAM(reached_goal_);
             // reached_goal_ = controller_->reachedTarget();
             // ROS_INFO_STREAM(reached_goal_);
-            ROS_INFO("%d, %f, %f",path_msg_interpolated.poses.size(), cmd_vel.linear.x, cmd_vel.angular.z);
+            // ROS_INFO("%d, %f, %f",path_msg_interpolated.poses.size(), cmd_vel.linear.x, cmd_vel.angular.z);
         }
         else
         {
