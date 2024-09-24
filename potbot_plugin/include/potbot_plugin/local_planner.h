@@ -186,6 +186,7 @@ namespace potbot_nav {
       // potbot_lib::controller::DiffDriveControllerROS* robot_controller_ = nullptr;
 
       boost::shared_ptr<potbot_base::Controller> controller_;
+      boost::shared_ptr<potbot_base::Controller> recover_;
       pluginlib::ClassLoader<potbot_base::Controller> loader_;
   };
 };

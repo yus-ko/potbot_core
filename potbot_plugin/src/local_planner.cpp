@@ -117,6 +117,11 @@ namespace potbot_nav
             {
                 ROS_ERROR("failed to load plugin. Error: %s", ex.what());
             }
+            
+            std::string recover_plugin_name = "potbot_nav/PID";
+            recover_ = loader_.createInstance(recover_plugin_name);
+            recover_->initialize(name + "/recover", tf);
+            ROS_INFO("\t%s initialized", recover_plugin_name.c_str());
 
             initialized_ = true;
         }
@@ -137,6 +142,9 @@ namespace potbot_nav
         // reset the global plan
         global_plan_.clear();
         global_plan_ = orig_global_plan;
+        // ROS_INFO("setPlan");
+        // potbot_lib::utility::print_pose(global_plan_.back().pose);
+        recover_->setTargetPose(global_plan_.back());
 
         // when we get a new plan, we also want to clear any latch we may have on goal tolerances
         xy_tolerance_latch_ = false;
@@ -225,15 +233,21 @@ namespace potbot_nav
             return false;
         }
 
-        double d = potbot_lib::utility::get_distance(global_pose.pose, transformed_plan.back().pose);
-        // if (d < 0.1)
-        // {
-        //     ROS_INFO("reached goal");
-        // }
+        double distance_to_goal = potbot_lib::utility::get_distance(global_pose.pose, transformed_plan.back().pose);
 
-        reached_goal_ = (d < 0.1);
-
-        if (!reached_goal_)
+        if (distance_to_goal < 0.1)
+        {
+            reached_goal_ = true;
+            ROS_INFO("reached target 0");
+        }
+        else if (distance_to_goal < 0.3)
+        {
+            nav_msgs::Odometry sim_pose;
+            sim_pose.pose.pose = global_pose.pose;
+            recover_->setRobot(sim_pose);
+            recover_->calculateCommand(cmd_vel);
+        }
+        else
         {
             nav_msgs::Path path_msg_interpolated;
             apf_planner_->getPath(path_msg_interpolated);
@@ -252,10 +266,6 @@ namespace potbot_nav
             // reached_goal_ = controller_->reachedTarget();
             // ROS_INFO_STREAM(reached_goal_);
             // ROS_INFO("%d, %f, %f",path_msg_interpolated.poses.size(), cmd_vel.linear.x, cmd_vel.angular.z);
-        }
-        else
-        {
-            ROS_INFO("reached target");
         }
 
         //publish information to the visualizer
