@@ -18,9 +18,24 @@ namespace potbot_lib{
     } ScanPoint;
 
     struct Point{
-        double x = 0;
-        double y = 0;
-        double z = 0;
+        double x,y,z;
+
+        Point(double x_val = 0, double y_val = 0, double z_val = 0) : x(x_val), y(y_val), z(z_val){}
+        Point(Eigen::Vector3d vec) : Point(vec.x(), vec.y(), vec.z()){}
+        Point(Eigen::Matrix3d rotmat) : Point((Eigen::Vector3d)rotmat.eulerAngles(0, 1, 2)){}
+
+        Eigen::Vector3d to_translation() const {
+            return Eigen::Vector3d{x,y,z};
+        }
+
+        Eigen::Matrix3d to_rotation() const {
+            Eigen::Matrix3d rotation_matrix;
+            rotation_matrix = 
+                    Eigen::AngleAxisd(x, Eigen::Vector3d::UnitX())*
+                    Eigen::AngleAxisd(y, Eigen::Vector3d::UnitY())*
+                    Eigen::AngleAxisd(z, Eigen::Vector3d::UnitZ());
+            return rotation_matrix;
+        }
 
         double norm() const {
             return sqrt(pow(x,2)+pow(y,2)+pow(z,2));
@@ -38,13 +53,17 @@ namespace potbot_lib{
     struct Pose{
         Point position;
         Point rotation;
+        
+        Pose(double x_val = 0, double y_val = 0, double z_val = 0,
+            double roll = 0, double pitch = 0, double yaw = 0) : 
+            position(x_val, y_val, z_val), rotation(roll, pitch, yaw){}
+        Pose(Eigen::Affine3d aff) : position((Eigen::Vector3d)aff.translation()), rotation((Eigen::Matrix3d)aff.rotation()) {}
 
         Eigen::Affine3d to_affine() const {
             Eigen::Affine3d aff = Eigen::Affine3d::Identity();
-            aff.translation() << position.x, position.y, position.z;
-            aff.rotate( Eigen::AngleAxisd(rotation.x, Eigen::Vector3d::UnitX())*
-                        Eigen::AngleAxisd(rotation.y, Eigen::Vector3d::UnitY())*
-                        Eigen::AngleAxisd(rotation.z, Eigen::Vector3d::UnitZ()));
+            aff.translation() = position.to_translation();
+            // aff.linear() = rotation.to_rotation();
+            aff.rotate(rotation.to_rotation());
             return aff;
         }
 

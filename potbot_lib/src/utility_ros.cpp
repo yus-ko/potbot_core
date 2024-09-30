@@ -200,7 +200,7 @@ namespace potbot_lib{
         {
             double r,p,y;
             get_rpy(pose.orientation,r,p,y);
-            ROS_INFO("(x,y,z) = (%f, %f, %f) (r,p,y) = (%f, %f, %f)", 
+            ROS_INFO("\n\t(x,y,z) = (%.2f, %.2f, %.2f)\n\t(r,p,y) = (%.1f, %.1f, %.1f)", 
                         pose.position.x, pose.position.y, pose.position.z,
                         r/M_PI*180, p/M_PI*180, y/M_PI*180);
         }
