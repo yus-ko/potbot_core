@@ -48,6 +48,14 @@ namespace potbot_lib{
         bool operator!=(const Point& other) const {
             return !(*this == other);
         }
+
+        Point operator+(const Point& other) const {
+            return Point(x+other.x, y+other.y, z+other.z);
+        }
+
+        Point operator-(const Point& other) const {
+            return Point(x-other.x, y-other.y, z-other.z);
+        }
     };
 
     struct Pose{
@@ -57,7 +65,12 @@ namespace potbot_lib{
         Pose(double x_val = 0, double y_val = 0, double z_val = 0,
             double roll = 0, double pitch = 0, double yaw = 0) : 
             position(x_val, y_val, z_val), rotation(roll, pitch, yaw){}
-        Pose(Eigen::Affine3d aff) : position((Eigen::Vector3d)aff.translation()), rotation((Eigen::Matrix3d)aff.rotation()) {}
+        Pose(Eigen::Affine3d aff) : 
+            position((Eigen::Vector3d)aff.translation()), 
+            rotation((Eigen::Matrix3d)aff.rotation()) {}
+        Pose(Point ini_position, Point ini_rotation) : 
+            position(ini_position.x, ini_position.y, ini_position.z), 
+            rotation(ini_rotation.x, ini_rotation.y, ini_rotation.z) {}
 
         Eigen::Affine3d to_affine() const {
             Eigen::Affine3d aff = Eigen::Affine3d::Identity();
@@ -73,6 +86,14 @@ namespace potbot_lib{
 
         bool operator!=(const Pose& other) const {
             return !(*this == other);
+        }
+
+        Pose operator+(const Pose& other) const {
+            return Pose(position + other.position, rotation + other.rotation);
+        }
+
+        Pose operator-(const Pose& other) const {
+            return Pose(position - other.position, rotation - other.rotation);
         }
     };
 

@@ -38,6 +38,35 @@ namespace potbot_lib
                 void setData(Pose pose);
                 Pose mean();
         };
+
+        class LowPass
+        {
+            protected:
+                double filter_coefficient_ = 0.5;
+                std::vector<double> data_; 
+
+            public:
+                LowPass(double filter_coefficient = 0.5);
+                ~LowPass(){};
+
+                void setFilterCoefficient(double val);
+                void setData(double data);
+                double filter();
+        };
+
+        class LowPassPose : private LowPass
+        {
+            protected:
+                std::vector<LowPass> data_vector_; 
+
+            public:
+                LowPassPose(double filter_coefficient = 0.5);
+                ~LowPassPose(){};
+
+                void setFilterCoefficient(double val);
+                void setData(Pose pose);
+                Pose filter();
+        };
     }
 }
 
