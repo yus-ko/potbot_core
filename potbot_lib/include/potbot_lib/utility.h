@@ -56,6 +56,23 @@ namespace potbot_lib{
         Point operator-(const Point& other) const {
             return Point(x-other.x, y-other.y, z-other.z);
         }
+
+        Point operator*(const Point& other) const {
+            return Point(x*other.x, y*other.y, z*other.z);
+        }
+
+        Point operator/(const Point& other) const {
+            return Point(x/other.x, y/other.y, z/other.z);
+        }
+
+        Point operator*(const double& other) const {
+            return *this*Point(other,other,other);
+        }
+
+        Point operator/(const double& other) const {
+            return *this/Point(other,other,other);
+        }
+
     };
 
     struct Pose{
@@ -94,6 +111,22 @@ namespace potbot_lib{
 
         Pose operator-(const Pose& other) const {
             return Pose(position - other.position, rotation - other.rotation);
+        }
+
+        Pose operator*(const Pose& other) const {
+            return Pose(position * other.position, rotation * other.rotation);
+        }
+
+        Pose operator/(const Pose& other) const {
+            return Pose(position / other.position, rotation / other.rotation);
+        }
+
+        Pose operator*(const double& other) const {
+            return Pose(position * other, rotation * other);
+        }
+
+        Pose operator/(const double& other) const {
+            return Pose(position / other, rotation / other);
         }
     };
 
