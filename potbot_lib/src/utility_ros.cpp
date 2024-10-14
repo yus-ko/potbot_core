@@ -215,6 +215,11 @@ namespace potbot_lib{
             print_pose(pose.pose.pose);
         }
 
+        void print_pose(const Pose& p)
+        {
+            print_pose(get_pose(p));
+        }
+
         void broadcast_frame(tf2_ros::TransformBroadcaster& bc, std::string child_frame_id, const geometry_msgs::PoseStamped& pose_stamp)
         {
             
