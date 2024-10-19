@@ -32,9 +32,21 @@ namespace potbot_lib{
     {
         frame_id_global_ = costmap_ros->getGlobalFrameID();
         initPotentialField(costmap_ros->getCostmap());
-        geometry_msgs::PoseStamped p;
-        costmap_ros->getRobotPose(p);
-        setRobot(p);
+        geometry_msgs::PoseStamped ps;
+
+        #if defined(ROS_VERSION_KINETIC)
+
+            tf::Stamped<tf::Pose> tfp;
+            costmap_ros->getRobotPose(tfp);
+            tf::poseTFToMsg(tfp, ps.pose);
+
+        #else  // Kinetic以前のバージョン
+            
+            costmap_ros->getRobotPose(ps);
+
+        #endif
+
+        setRobot(ps);
         clearObstacles();
         setObstacle(costmap_ros->getCostmap());
     }

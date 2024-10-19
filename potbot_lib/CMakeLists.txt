@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 3.0.2)
 project(potbot_lib)
 
+if($ENV{ROS_DISTRO} STREQUAL "kinetic")
+  add_definitions(-DROS_VERSION_KINETIC)
+endif()
+
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   dynamic_reconfigure
