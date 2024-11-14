@@ -55,6 +55,7 @@ add_library(${PROJECT_NAME}
   src/artificial_potential_field_ros.cpp
   src/apf_path_planner.cpp
   src/apf_path_planner_ros.cpp
+  src/kalman_filter.cpp
   src/unscented_kalman_filter.cpp
   src/pcl_clustering.cpp
   src/scan_clustering.cpp

@@ -732,8 +732,15 @@ namespace potbot_lib{
                 p0.x                            = 0;
                 p0.y                            = 0;
                 p0.z                            = 0;
+
+                //ukf
+                // p1.x                            = obs.twist.linear.x;
+                // p1.y                            = 0;
+
+                //kf
                 p1.x                            = obs.twist.linear.x;
-                p1.y                            = 0;
+                p1.y                            = obs.twist.linear.y;
+
                 p1.z                            = 0;
                 state_marker.points.push_back(p0);
                 // state_marker.colors.push_back(state_marker.color);

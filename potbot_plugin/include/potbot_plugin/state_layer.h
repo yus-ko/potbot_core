@@ -64,6 +64,7 @@
 #include <potbot_plugin/StatePluginConfig.h>
 #include <potbot_msgs/StateArray.h>
 #include <potbot_lib/scan_clustering.h>
+#include <potbot_lib/kalman_filter.h>
 #include <potbot_lib/unscented_kalman_filter.h>
 
 using namespace costmap_2d;
@@ -97,6 +98,7 @@ namespace potbot_nav
 
         ros::Subscriber sub_scan_;
         ros::Publisher pub_scan_clustering_, pub_state_marker_, pub_obstacles_scan_estimate_, pub_scan_range_;
+        std::vector<potbot_lib::KalmanFilter> states_kf_;
         std::vector<potbot_lib::UnscentedKalmanFilter> states_ukf_;
 
         double kappa_ = -2;
