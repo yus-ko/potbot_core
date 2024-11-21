@@ -709,6 +709,7 @@ namespace potbot_lib{
                 visualization_msgs::Marker text_marker;
 
                 state_marker.header             = obs.header;
+                std::cout<<state_marker.header.frame_id<<std::endl;
 
                 state_marker.ns                 = "segments/centor";
                 state_marker.id                 = obs.id;
@@ -727,24 +728,36 @@ namespace potbot_lib{
                 state_marker.color.a            = 1;
 
                 text_marker = state_marker;
+                
+                //ukf
+                // geometry_msgs::Point p0, p1;
+                // p0.x                            = 0;
+                // p0.y                            = 0;
+                // p0.z                            = 0;
+                // p1.x                            = obs.twist.linear.x;
+                // p1.y                            = 0;
+                // p1.z                            = 0;
+                // state_marker.points.push_back(p0);
+                // state_marker.points.push_back(p1);
 
-                geometry_msgs::Point p0, p1;
+                //kf
+                geometry_msgs::Point p0, p1, p2, p3;
                 p0.x                            = 0;
                 p0.y                            = 0;
                 p0.z                            = 0;
-
-                //ukf
-                // p1.x                            = obs.twist.linear.x;
-                // p1.y                            = 0;
-
-                //kf
-                p1.x                            = obs.twist.linear.x;
-                p1.y                            = obs.twist.linear.y;
-
+                p1.x                            = obs.twist.linear.x+0.3;
+                p1.y                            = 0;
                 p1.z                            = 0;
+                p2.x                            = 0;
+                p2.y                            = obs.twist.linear.y+0.5;
+                p2.z                            = 0;
+                p3.x                            = 1;
+                p3.y                            = 2;
+                p3.z                            = 0;
                 state_marker.points.push_back(p0);
+                state_marker.points.push_back(p3);
+
                 // state_marker.colors.push_back(state_marker.color);
-                state_marker.points.push_back(p1);
                 // state_marker.colors.push_back(state_marker.color);
                 
                 marker_array.markers.push_back(state_marker);
