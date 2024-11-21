@@ -230,6 +230,7 @@ namespace potbot_nav
                 observed_data<< x, y;
                 Eigen::MatrixXd od(4,1);
                 od<< x, y,0,0;
+                ROS_INFO_STREAM(od.transpose());
                 std::tuple<Eigen::VectorXd, Eigen::MatrixXd, Eigen::MatrixXd> ans = states_kf_[index_ukf].update(od,dt);
                 Eigen::VectorXd xhat = std::get<0>(ans);
                 Eigen::MatrixXd P = std::get<1>(ans);
@@ -360,7 +361,7 @@ namespace potbot_nav
                 double depth                = wobs.scale.x; //障害物の奥行き
                 double size                 = width + depth;
 
-                ROS_INFO("estimated: id:%d, x:%f, y:%f, vx:%f, vy:%f, dt:%f, size:%f/%f", obs.id, wobs.pose.position.x, wobs.pose.position.y, vx, vy, dt, size, apply_cluster_to_localmap_);
+                // ROS_INFO("estimated: id:%d, x:%f, y:%f, vx:%f, vy:%f, dt:%f, size:%f/%f", obs.id, wobs.pose.position.x, wobs.pose.position.y, vx, vy, dt, size, apply_cluster_to_localmap_);
                 if (size < apply_cluster_to_localmap_)
                 {
                     if (abs(vx) < max_estimated_linear_velocity_ && abs(vy) < max_estimated_angular_velocity_)
