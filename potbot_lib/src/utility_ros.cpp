@@ -709,7 +709,8 @@ namespace potbot_lib{
                 visualization_msgs::Marker text_marker;
 
                 state_marker.header             = obs.header;
-                std::cout<<state_marker.header.frame_id<<std::endl;
+                // std::cout<<state_marker.header.frame_id<<std::endl;
+                ROS_INFO("id: %d, th: %.2f, vx: %.2f, vy: %.2f", tf2::getYaw(obs.pose.orientation), obs.id, obs.twist.linear.x, obs.twist.linear.y);
 
                 state_marker.ns                 = "segments/centor";
                 state_marker.id                 = obs.id;
@@ -729,18 +730,6 @@ namespace potbot_lib{
 
                 text_marker = state_marker;
                 
-                //ukf
-                // geometry_msgs::Point p0, p1;
-                // p0.x                            = 0;
-                // p0.y                            = 0;
-                // p0.z                            = 0;
-                // p1.x                            = obs.twist.linear.x;
-                // p1.y                            = 0;
-                // p1.z                            = 0;
-                // state_marker.points.push_back(p0);
-                // state_marker.points.push_back(p1);
-
-                //kf
                 geometry_msgs::Point p0, p1;
                 p0.x                            = 0;
                 p0.y                            = 0;

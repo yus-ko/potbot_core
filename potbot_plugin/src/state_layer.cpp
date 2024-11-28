@@ -7,6 +7,10 @@ PLUGINLIB_EXPORT_CLASS(potbot_nav::StateLayer, costmap_2d::Layer)
 #define __NX__ 5
 #define __NY__ 2
 
+#define KALMAN_FILTER 0
+#define EXTENDED_KALMAN_FILTER 1
+#define UNSCENTED_KALMAN_FILTER 2
+
 namespace potbot_nav
 {
 
@@ -146,6 +150,9 @@ namespace potbot_nav
 
     void StateLayer::laserScanCallback(const sensor_msgs::LaserScanConstPtr &message)
     {
+        
+        int state_estimator = EXTENDED_KALMAN_FILTER;
+        
 
         // ROS_INFO("laserScanCallback");
         // project the laser into a point cloud
@@ -225,50 +232,132 @@ namespace potbot_nav
             auto iter = std::find(ukf_id.begin(), ukf_id.end(), id);
             if (iter != ukf_id.end())
             {
-                int index_ukf = std::distance(ukf_id.begin(), iter);
-                Eigen::VectorXd observed_data(__NY__);
-                observed_data<< x, y;
-                Eigen::MatrixXd od(4,1);
-                od<< x, y,0,0;
-                ROS_INFO_STREAM(od.transpose());
-                std::tuple<Eigen::VectorXd, Eigen::MatrixXd, Eigen::MatrixXd> ans = states_kf_[index_ukf].update(od,dt);
-                Eigen::VectorXd xhat = std::get<0>(ans);
-                Eigen::MatrixXd P = std::get<1>(ans);
-                Eigen::MatrixXd K = std::get<2>(ans);
+                if (state_estimator == KALMAN_FILTER)
+                {
+                    int index_ukf = std::distance(ukf_id.begin(), iter);
+                    Eigen::MatrixXd od(4,1);
+                    od<< x, y,0,0;
+                    ROS_INFO_STREAM(od.transpose());
+                    std::tuple<Eigen::VectorXd, Eigen::MatrixXd, Eigen::MatrixXd> ans = states_kf_[index_ukf].update(od,dt);
+                    Eigen::VectorXd xhat = std::get<0>(ans);
+                    Eigen::MatrixXd P = std::get<1>(ans);
+                    Eigen::MatrixXd K = std::get<2>(ans);
 
-                potbot_msgs::State state_msg;
-                state_msg.header = obstacle.header;
-                state_msg.id = id;
+                    potbot_msgs::State state_msg;
+                    state_msg.header = obstacle.header;
+                    state_msg.id = id;
 
-                state_msg.state.resize(4);
+                    state_msg.state.resize(4);
 
-                state_msg.state[0].label = "z";
-                state_msg.state[0].matrix = potbot_lib::utility::matrix_to_multiarray(observed_data);
+                    state_msg.state[0].label = "z";
+                    state_msg.state[0].matrix = potbot_lib::utility::matrix_to_multiarray(od);
 
-                state_msg.state[1].label = "xhat";
-                state_msg.state[1].matrix = potbot_lib::utility::matrix_to_multiarray(xhat);
+                    state_msg.state[1].label = "xhat";
+                    state_msg.state[1].matrix = potbot_lib::utility::matrix_to_multiarray(xhat);
 
-                state_msg.state[2].label = "P";
-                state_msg.state[2].matrix = potbot_lib::utility::matrix_to_multiarray(P);
+                    state_msg.state[2].label = "P";
+                    state_msg.state[2].matrix = potbot_lib::utility::matrix_to_multiarray(P);
 
-                state_msg.state[3].label = "K";
-                state_msg.state[3].matrix = potbot_lib::utility::matrix_to_multiarray(K);
+                    state_msg.state[3].label = "K";
+                    state_msg.state[3].matrix = potbot_lib::utility::matrix_to_multiarray(K);
+                    
+                    //std::cout<<xhat.transpose()<<std::endl;
+                    state_array_msg.data.push_back(state_msg);
+
+                    obstacle.pose.position.x = xhat(0);
+                    obstacle.pose.position.y = xhat(1);
+                    obstacle.twist.linear.x = xhat(2);
+                    obstacle.twist.linear.y = xhat(3);
+                }
+                else if (state_estimator == EXTENDED_KALMAN_FILTER)
+                {
+                    double v = obstacle.twist.linear.x;
+                    double theta = tf2::getYaw(obstacle.pose.orientation);
+                    Eigen::MatrixXd A(5,5);
+                    A<< 1, 0, -v*sin(theta)*dt, cos(theta)*dt, 0,
+                        0, 1, v*cos(theta)*dt, sin(theta)*dt, 0,
+                        0,0,1,0,dt,
+                        0,0,0,1,0,
+                        0,0,0,0,1;
+
+                    Eigen::MatrixXd C(2,5);
+                    C<< 1,0,0,0,0,
+                        0,1,0,0,0;
+
+                    int index_ukf = std::distance(ukf_id.begin(), iter);
+                    Eigen::MatrixXd observed_data(2,1);
+                    observed_data<< x, y;
+                    states_kf_[index_ukf].setA(A);
+                    states_kf_[index_ukf].setC(C);
+                    std::tuple<Eigen::VectorXd, Eigen::MatrixXd, Eigen::MatrixXd> ans = states_kf_[index_ukf].update(observed_data,dt);
+                    Eigen::VectorXd xhat = std::get<0>(ans);
+                    Eigen::MatrixXd P = std::get<1>(ans);
+                    Eigen::MatrixXd K = std::get<2>(ans);
+
+                    potbot_msgs::State state_msg;
+                    state_msg.header = obstacle.header;
+                    state_msg.id = id;
+
+                    state_msg.state.resize(4);
+
+                    state_msg.state[0].label = "z";
+                    state_msg.state[0].matrix = potbot_lib::utility::matrix_to_multiarray(observed_data);
+
+                    state_msg.state[1].label = "xhat";
+                    state_msg.state[1].matrix = potbot_lib::utility::matrix_to_multiarray(xhat);
+
+                    state_msg.state[2].label = "P";
+                    state_msg.state[2].matrix = potbot_lib::utility::matrix_to_multiarray(P);
+
+                    state_msg.state[3].label = "K";
+                    state_msg.state[3].matrix = potbot_lib::utility::matrix_to_multiarray(K);
+                    
+                    //std::cout<<xhat.transpose()<<std::endl;
+                    state_array_msg.data.push_back(state_msg);
+
+                    obstacle.pose.position.x = xhat(0);
+                    obstacle.pose.position.y = xhat(1);
+                    obstacle.pose.orientation  = potbot_lib::utility::get_quat(0,0,xhat(2));
+                    obstacle.twist.linear.x = xhat(3);
+                    obstacle.twist.angular.z = xhat(4);
+                }
+                else if (state_estimator == UNSCENTED_KALMAN_FILTER)
+                {
+                    int index_ukf = std::distance(ukf_id.begin(), iter);
+                    Eigen::VectorXd observed_data(__NY__);
+                    observed_data<< x, y;
+                    std::tuple<Eigen::VectorXd, Eigen::MatrixXd, Eigen::MatrixXd> ans = states_ukf_[index_ukf].update(observed_data,dt);
+                    Eigen::VectorXd xhat = std::get<0>(ans);
+                    Eigen::MatrixXd P = std::get<1>(ans);
+                    Eigen::MatrixXd K = std::get<2>(ans);
+
+                    potbot_msgs::State state_msg;
+                    state_msg.header = obstacle.header;
+                    state_msg.id = id;
+
+                    state_msg.state.resize(4);
+
+                    state_msg.state[0].label = "z";
+                    state_msg.state[0].matrix = potbot_lib::utility::matrix_to_multiarray(observed_data);
+
+                    state_msg.state[1].label = "xhat";
+                    state_msg.state[1].matrix = potbot_lib::utility::matrix_to_multiarray(xhat);
+
+                    state_msg.state[2].label = "P";
+                    state_msg.state[2].matrix = potbot_lib::utility::matrix_to_multiarray(P);
+
+                    state_msg.state[3].label = "K";
+                    state_msg.state[3].matrix = potbot_lib::utility::matrix_to_multiarray(K);
+                    
+                    state_array_msg.data.push_back(state_msg);
+
+                    obstacle.pose.position.x = xhat(0);
+                    obstacle.pose.position.y = xhat(1);
+                    obstacle.pose.orientation  = potbot_lib::utility::get_quat(0,0,xhat(2));
+                    obstacle.twist.linear.x = xhat(3);
+                    obstacle.twist.angular.z = xhat(4);
+                }
                 
-                //std::cout<<xhat.transpose()<<std::endl;
-                state_array_msg.data.push_back(state_msg);
-
-                //ukf
-                // obstacle.pose.position.x = xhat(0);
-                // obstacle.pose.position.y = xhat(1);
-                // obstacle.pose.orientation  = potbot_lib::utility::get_quat(0,0,xhat(2));
-                // obstacle.twist.linear.x = xhat(3);
-                // obstacle.twist.angular.z = xhat(4);
-
-                //kf
-                obstacle.pose.position.x = xhat(0);
-                obstacle.pose.position.y = xhat(1);
-                obstacle.twist.linear.x = xhat(2);
-                obstacle.twist.linear.y = xhat(3);
             }
             else
             {
@@ -294,15 +383,23 @@ namespace potbot_nav
                     0, 0, 0, sigma_p_, 0,
                     0, 0, 0, 0, sigma_p_;
 
-                Eigen::VectorXd xhat(__NX__);
-                // xhat.setZero();
-                xhat<< x,y,0,0,0;
-                // potbot_lib::UnscentedKalmanFilter estimate(f,h,R,Q,P,xhat);
-                // estimate.setKappa(kappa_);
+                
 
-                potbot_lib::KalmanFilter estimate;
-
-                states_kf_.push_back(estimate);
+                if (state_estimator == KALMAN_FILTER || state_estimator == EXTENDED_KALMAN_FILTER)
+                {
+                    potbot_lib::KalmanFilter estimate;
+                    states_kf_.push_back(estimate);
+                }
+                else if (state_estimator == UNSCENTED_KALMAN_FILTER)
+                {
+                    Eigen::VectorXd xhat(__NX__);
+                    // xhat.setZero();
+                    xhat<< x,y,0,0,0;
+                    potbot_lib::UnscentedKalmanFilter estimate(f,h,R,Q,P,xhat);
+                    estimate.setKappa(kappa_);
+                    states_ukf_.push_back(estimate);
+                }
+                
                 ukf_id.push_back(id);
             }
 
@@ -325,57 +422,60 @@ namespace potbot_nav
 
                 potbot_msgs::Obstacle wobs;
                 potbot_lib::utility::get_tf(*tf_, obs, global_frame_, wobs);
-                
-                //ukf
-                // double v                    = wobs.twist.linear.x;  //障害物の並進速度
-                // double omega                = fmod(wobs.twist.angular.z, 2*M_PI); //障害物の回転角速度
-                // double yaw                  = tf2::getYaw(wobs.pose.orientation);  //障害物の姿勢
-                // double width                = wobs.scale.y; //障害物の幅
-                // double depth                = wobs.scale.x; //障害物の奥行き
-                // double size                 = width + depth;
 
-                // ROS_DEBUG("estimated: id:%d, x:%f, y:%f, th:%f, v:%f, w:%f, dt:%f, size:%f/%f", obs.id, wobs.pose.position.x, wobs.pose.position.y, yaw, v, omega, dt, size, apply_cluster_to_localmap_);
-                // if (size < apply_cluster_to_localmap_)
-                // {
-                //     if (abs(v) < max_estimated_linear_velocity_ && abs(omega) < max_estimated_angular_velocity_)
-                //     {
-                //         //並進速度と角速度を一定として1秒後までの位置x,yを算出
-                //         for (double t = 0; t < prediction_time_; t += dt)
-                //         {
-                //             double distance = v*t;
-                //             double angle = omega*t + yaw;
-                //             for (const auto& p : wobs.points)
-                //             {
-                //                 double x            = distance*cos(angle) + p.x;
-                //                 double y            = distance*sin(angle) + p.y;
-                //                 scan_cloud_.push_back(pcl::PointXYZ(x,y,p.z));
-                //             }
-                //         }
-                //     }
-                // }
-
-                //kf
-                double vx                   = wobs.twist.linear.x;  //障害物の並進速度
-                double vy                   = wobs.twist.linear.y;  //障害物の並進速度
-                double width                = wobs.scale.y; //障害物の幅
-                double depth                = wobs.scale.x; //障害物の奥行き
-                double size                 = width + depth;
-
-                // ROS_INFO("estimated: id:%d, x:%f, y:%f, vx:%f, vy:%f, dt:%f, size:%f/%f", obs.id, wobs.pose.position.x, wobs.pose.position.y, vx, vy, dt, size, apply_cluster_to_localmap_);
-                if (size < apply_cluster_to_localmap_)
+                if (state_estimator == KALMAN_FILTER)
                 {
-                    if (abs(vx) < max_estimated_linear_velocity_ && abs(vy) < max_estimated_angular_velocity_)
+                    double vx                   = wobs.twist.linear.x;  //障害物の並進速度
+                    double vy                   = wobs.twist.linear.y;  //障害物の並進速度
+                    double width                = wobs.scale.y; //障害物の幅
+                    double depth                = wobs.scale.x; //障害物の奥行き
+                    double size                 = width + depth;
+
+                    // ROS_INFO("estimated: id:%d, x:%f, y:%f, vx:%f, vy:%f, dt:%f, size:%f/%f", obs.id, wobs.pose.position.x, wobs.pose.position.y, vx, vy, dt, size, apply_cluster_to_localmap_);
+                    if (size < apply_cluster_to_localmap_)
                     {
-                        //並進速度と角速度を一定として1秒後までの位置x,yを算出
-                        for (double t = 0; t < prediction_time_; t += dt)
+                        if (abs(vx) < max_estimated_linear_velocity_ && abs(vy) < max_estimated_angular_velocity_)
                         {
-                            double dx = vx*t;
-                            double dy = vy*t;
-                            for (const auto& p : wobs.points)
+                            //並進速度と角速度を一定として1秒後までの位置x,yを算出
+                            for (double t = 0; t < prediction_time_; t += dt)
                             {
-                                double x            = dx + p.x;
-                                double y            = dy + p.y;
-                                scan_cloud_.push_back(pcl::PointXYZ(x,y,p.z));
+                                double dx = vx*t;
+                                double dy = vy*t;
+                                for (const auto& p : wobs.points)
+                                {
+                                    double x            = dx + p.x;
+                                    double y            = dy + p.y;
+                                    scan_cloud_.push_back(pcl::PointXYZ(x,y,p.z));
+                                }
+                            }
+                        }
+                    }
+                }
+                else if (state_estimator == UNSCENTED_KALMAN_FILTER || state_estimator == EXTENDED_KALMAN_FILTER)
+                {
+                    double v                    = wobs.twist.linear.x;  //障害物の並進速度
+                    double omega                = fmod(wobs.twist.angular.z, 2*M_PI); //障害物の回転角速度
+                    double yaw                  = tf2::getYaw(wobs.pose.orientation);  //障害物の姿勢
+                    double width                = wobs.scale.y; //障害物の幅
+                    double depth                = wobs.scale.x; //障害物の奥行き
+                    double size                 = width + depth;
+
+                    ROS_DEBUG("estimated: id:%d, x:%f, y:%f, th:%f, v:%f, w:%f, dt:%f, size:%f/%f", obs.id, wobs.pose.position.x, wobs.pose.position.y, yaw, v, omega, dt, size, apply_cluster_to_localmap_);
+                    if (size < apply_cluster_to_localmap_)
+                    {
+                        if (abs(v) < max_estimated_linear_velocity_ && abs(omega) < max_estimated_angular_velocity_)
+                        {
+                            //並進速度と角速度を一定として1秒後までの位置x,yを算出
+                            for (double t = 0; t < prediction_time_; t += dt)
+                            {
+                                double distance = v*t;
+                                double angle = omega*t + yaw;
+                                for (const auto& p : wobs.points)
+                                {
+                                    double x            = distance*cos(angle) + p.x;
+                                    double y            = distance*sin(angle) + p.y;
+                                    scan_cloud_.push_back(pcl::PointXYZ(x,y,p.z));
+                                }
                             }
                         }
                     }

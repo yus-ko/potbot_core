@@ -9,10 +9,11 @@ namespace potbot_lib
 {
 	class KalmanFilter{
 		private:
-			Eigen::MatrixXd Phat, Ptilde, xtilde,
+			Eigen::MatrixXd Phat, Ptilde, xtilde, ytilde,
 			xhat,			//推定状態
 			z,				//観測データ
 			An,				//障害物の移動モデル
+			C,				//センサの観測モデル
 			obse_sigma,		//観測誤差共分散
 			model_sigma,	//モデル化誤差共分散
 			K,				//カルマンゲイン
@@ -25,6 +26,9 @@ namespace potbot_lib
 			~KalmanFilter(){};
 
 			std::tuple<Eigen::VectorXd, Eigen::MatrixXd, Eigen::MatrixXd> update(Eigen::MatrixXd data, double dt);
+
+			void setA(Eigen::MatrixXd mat);
+			void setC(Eigen::MatrixXd mat);
 
 			inline Eigen::MatrixXd get_xhat()
 			{
