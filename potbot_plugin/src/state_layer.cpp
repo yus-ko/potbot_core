@@ -273,6 +273,7 @@ namespace potbot_nav
                 {
                     double v = obstacle.twist.linear.x;
                     double theta = tf2::getYaw(obstacle.pose.orientation);
+                    // ROS_INFO("estimated: id:%d, th:%f, dt:%f", id, theta, dt);
                     Eigen::MatrixXd A(5,5);
                     A<< 1, 0, -v*sin(theta)*dt, cos(theta)*dt, 0,
                         0, 1, v*cos(theta)*dt, sin(theta)*dt, 0,

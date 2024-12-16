@@ -55,6 +55,7 @@ namespace potbot_lib{
         xtilde.resize(c,1);
         xtilde.setZero();
 
+        //Aが変更されるたびにPも初期化されてしまう
         Phat.resize(c,c);
         Phat.setZero();
         for (int i = 0; i < c; i++)
@@ -62,6 +63,7 @@ namespace potbot_lib{
             Phat(i,i) = 10000;
         }
 
+        //パラメータ値要確認
         model_sigma.resize(c,c);
         model_sigma.setZero();
         for (int i = 0; i < c; i++)
@@ -85,6 +87,7 @@ namespace potbot_lib{
         ytilde.resize(r,1);
         ytilde.setZero();
 
+        //パラメータ値要確認
         obse_sigma.resize(r,r);
         obse_sigma.setZero();
         for (int i = 0; i < r; i++)
