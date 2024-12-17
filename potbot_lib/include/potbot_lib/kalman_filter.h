@@ -25,6 +25,8 @@ namespace potbot_lib
 			KalmanFilter();
 			~KalmanFilter(){};
 
+			void initialize();
+
 			std::tuple<Eigen::VectorXd, Eigen::MatrixXd, Eigen::MatrixXd> update(Eigen::MatrixXd data, double dt);
 
 			void setA(Eigen::MatrixXd mat);

@@ -389,6 +389,10 @@ namespace potbot_nav
                 if (state_estimator == KALMAN_FILTER || state_estimator == EXTENDED_KALMAN_FILTER)
                 {
                     potbot_lib::KalmanFilter estimate;
+                    Eigen::MatrixXd A(5,5), C(2,5);
+                    A.setZero(); C.setZero();
+                    estimate.setA(A); estimate.setC(C);
+                    estimate.initialize();
                     states_kf_.push_back(estimate);
                 }
                 else if (state_estimator == UNSCENTED_KALMAN_FILTER)

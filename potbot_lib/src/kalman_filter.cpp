@@ -47,6 +47,16 @@ namespace potbot_lib{
     {
         An.resize(mat.rows(), mat.cols());
         An = mat;
+    }
+
+    void KalmanFilter::setC(Eigen::MatrixXd mat)
+    {
+        C.resize(mat.rows(), mat.cols());
+        C = mat;
+    }
+
+    void KalmanFilter::initialize()
+    {
         int r = An.rows();
         int c = An.cols();
 
@@ -55,7 +65,6 @@ namespace potbot_lib{
         xtilde.resize(c,1);
         xtilde.setZero();
 
-        //Aが変更されるたびにPも初期化されてしまう
         Phat.resize(c,c);
         Phat.setZero();
         for (int i = 0; i < c; i++)
@@ -71,29 +80,23 @@ namespace potbot_lib{
             model_sigma(i,i) = 0.01;
         }
 
-        K.resize(c,c);
-        K.setZero(c,c);
-    }
-
-    void KalmanFilter::setC(Eigen::MatrixXd mat)
-    {
-        C.resize(mat.rows(), mat.cols());
-        C = mat;
-        int r = C.rows();
-        int c = C.cols();
-
-        z.resize(r,1);
-        z.setZero();
-        ytilde.resize(r,1);
-        ytilde.setZero();
-
-        //パラメータ値要確認
         obse_sigma.resize(r,r);
         obse_sigma.setZero();
         for (int i = 0; i < r; i++)
         {
             obse_sigma(i,i) = 0.01;
         }
+
+        int cr = C.rows();
+        int cc = C.cols();
+
+        z.resize(cr,1);
+        z.setZero();
+        ytilde.resize(cr,1);
+        ytilde.setZero();
+
+        K.resize(c,c);
+        K.setZero(c,c);
     }
 
     std::tuple<Eigen::VectorXd, Eigen::MatrixXd, Eigen::MatrixXd> KalmanFilter::update(Eigen::MatrixXd data, double dt)
