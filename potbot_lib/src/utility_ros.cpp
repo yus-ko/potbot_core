@@ -260,6 +260,7 @@ namespace potbot_lib{
             try
             {
                 transformStamped = buffer.lookupTransform(target_frame_id, pose_in.header.frame_id, pose_in.header.stamp, ros::Duration(1.0));
+                // ROS_INFO("%s to %s", pose_in.header.frame_id.c_str(), transformStamped.header.frame_id.c_str());
             }
             catch (tf2::TransformException &ex) 
             {
@@ -291,7 +292,7 @@ namespace potbot_lib{
             return get_tf(buffer, ps, target_frame_id);
         }
 
-        void get_tf(const tf2_ros::Buffer &buffer,const potbot_msgs::Obstacle& obstacle_in,const std::string target_frame_id, potbot_msgs::Obstacle& obstacle_out)
+        void get_tf(const tf2_ros::Buffer &buffer, const potbot_msgs::Obstacle& obstacle_in, const std::string target_frame_id, potbot_msgs::Obstacle& obstacle_out)
         {
             obstacle_out = obstacle_in;
 
@@ -313,13 +314,14 @@ namespace potbot_lib{
             }
         }
 
-        void get_tf(const tf2_ros::Buffer &buffer, const potbot_msgs::ObstacleArray& obscales_in,const std::string target_frame_id, potbot_msgs::ObstacleArray& obscales_out)
+        void get_tf(const tf2_ros::Buffer &buffer, const potbot_msgs::ObstacleArray& obscales_in, const std::string target_frame_id, potbot_msgs::ObstacleArray& obscales_out)
         {
             obscales_out = obscales_in;
             obscales_out.header.frame_id = target_frame_id;
             for (size_t i = 0; i < obscales_in.data.size(); i++)
             {
                 get_tf(buffer, obscales_in.data[i], target_frame_id, obscales_out.data[i]);
+                // ROS_INFO("%s", obscales_out.data[i].header.frame_id.c_str());
             }
         }
 
@@ -710,7 +712,7 @@ namespace potbot_lib{
 
                 state_marker.header             = obs.header;
                 // std::cout<<state_marker.header.frame_id<<std::endl;
-                ROS_INFO("id: %d, th: %.2f, vx: %.2f, vy: %.2f", tf2::getYaw(obs.pose.orientation), obs.id, obs.twist.linear.x, obs.twist.linear.y);
+                // ROS_INFO("id: %d, th: %.2f, vx: %.2f, vy: %.2f", tf2::getYaw(obs.pose.orientation), obs.id, obs.twist.linear.x, obs.twist.linear.y);
 
                 state_marker.ns                 = "segments/centor";
                 state_marker.id                 = obs.id;

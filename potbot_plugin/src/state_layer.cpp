@@ -206,7 +206,17 @@ namespace potbot_nav
 
 
 
-        potbot_msgs::ObstacleArray obstacle_array = clusters_obstaclearray_scan;
+        potbot_msgs::ObstacleArray obstacle_array = clusters_obstaclearray_pre;
+        //obstacle_arrayを世界座標系に変換する
+        // for(auto& obstacle : obstacle_array.data)
+        // {
+        //     double x = obstacle.pose.position.x;
+        //     double y = obstacle.pose.position.y;
+        //     int id = obstacle.id;
+        //     std::string frame = obstacle.header.frame_id;
+        //     ROS_INFO("id: %d, %s, x: %.2f, y: %.2f", id,frame.c_str(),x,y);
+        // }
+
         static std::vector<int> ukf_id;
         
         if (obstacle_array.data.empty())
@@ -273,13 +283,13 @@ namespace potbot_nav
                 {
                     double v = obstacle.twist.linear.x;
                     double theta = tf2::getYaw(obstacle.pose.orientation);
-                    // ROS_INFO("estimated: id:%d, th:%f, dt:%f", id, theta, dt);
                     Eigen::MatrixXd A(5,5);
                     A<< 1, 0, -v*sin(theta)*dt, cos(theta)*dt, 0,
                         0, 1, v*cos(theta)*dt, sin(theta)*dt, 0,
                         0,0,1,0,dt,
                         0,0,0,1,0,
                         0,0,0,0,1;
+                    // ROS_INFO_STREAM("\n"<<A);
 
                     Eigen::MatrixXd C(2,5);
                     C<< 1,0,0,0,0,
@@ -288,6 +298,7 @@ namespace potbot_nav
                     int index_ukf = std::distance(ukf_id.begin(), iter);
                     Eigen::MatrixXd observed_data(2,1);
                     observed_data<< x, y;
+                    // ROS_INFO("x: %.2f, y: %.2f", x,y);
                     states_kf_[index_ukf].setA(A);
                     states_kf_[index_ukf].setC(C);
                     std::tuple<Eigen::VectorXd, Eigen::MatrixXd, Eigen::MatrixXd> ans = states_kf_[index_ukf].update(observed_data,dt);
@@ -313,12 +324,13 @@ namespace potbot_nav
                     state_msg.state[3].label = "K";
                     state_msg.state[3].matrix = potbot_lib::utility::matrix_to_multiarray(K);
                     
-                    //std::cout<<xhat.transpose()<<std::endl;
+                    // std::cout<<xhat.transpose()<<std::endl;
                     state_array_msg.data.push_back(state_msg);
 
                     obstacle.pose.position.x = xhat(0);
                     obstacle.pose.position.y = xhat(1);
                     obstacle.pose.orientation  = potbot_lib::utility::get_quat(0,0,xhat(2));
+                    // ROS_INFO("estimated: id:%d, th:%3f,%3f, dt:%f", id, theta, tf2::getYaw(obstacle.pose.orientation), dt);
                     obstacle.twist.linear.x = xhat(3);
                     obstacle.twist.angular.z = xhat(4);
                 }

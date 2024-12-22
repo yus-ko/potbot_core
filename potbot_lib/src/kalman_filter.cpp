@@ -11,7 +11,7 @@ namespace potbot_lib{
             0,0,0,1;
 
         xhat.resize(4,1);
-        xtilde.resize(4,1);
+        xtilde.resize(4);
         ytilde.resize(4,1);
         z.resize(4,1);
         xhat<<	0,
@@ -60,16 +60,16 @@ namespace potbot_lib{
         int r = An.rows();
         int c = An.cols();
 
-        xhat.resize(c,1);
+        xhat.resize(c);
         xhat.setZero();
-        xtilde.resize(c,1);
+        xtilde.resize(c);
         xtilde.setZero();
 
         Phat.resize(c,c);
         Phat.setZero();
         for (int i = 0; i < c; i++)
         {
-            Phat(i,i) = 10000;
+            Phat(i,i) = 10;
         }
 
         //パラメータ値要確認
@@ -79,27 +79,33 @@ namespace potbot_lib{
         {
             model_sigma(i,i) = 0.01;
         }
-
-        obse_sigma.resize(r,r);
-        obse_sigma.setZero();
-        for (int i = 0; i < r; i++)
-        {
-            obse_sigma(i,i) = 0.01;
-        }
+        model_sigma<<
+            0.01*0.01, 0, 0, 0, 0,
+			0, 0.01*0.01, 0, 0, 0,
+			0,0,0.01,0,0,
+			0,0,0,0.01,0,
+			0,0,0,0,0.01;
 
         int cr = C.rows();
         int cc = C.cols();
 
-        z.resize(cr,1);
+        obse_sigma.resize(cr,cr);
+        obse_sigma.setZero();
+        for (int i = 0; i < cr; i++)
+        {
+            obse_sigma(i,i) = 0.01;
+        }
+
+        z.resize(cr);
         z.setZero();
-        ytilde.resize(cr,1);
+        ytilde.resize(cr);
         ytilde.setZero();
 
         K.resize(c,c);
         K.setZero(c,c);
     }
 
-    std::tuple<Eigen::VectorXd, Eigen::MatrixXd, Eigen::MatrixXd> KalmanFilter::update(Eigen::MatrixXd data, double dt)
+    std::tuple<Eigen::VectorXd, Eigen::MatrixXd, Eigen::MatrixXd> KalmanFilter::update(Eigen::VectorXd data, double dt)
     {
         I = Eigen::MatrixXd::Identity(K.rows(),C.cols());
 
