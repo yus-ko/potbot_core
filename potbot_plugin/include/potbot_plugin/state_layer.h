@@ -69,6 +69,10 @@
 
 using namespace costmap_2d;
 
+#define KALMAN_FILTER 0
+#define EXTENDED_KALMAN_FILTER 1
+#define UNSCENTED_KALMAN_FILTER 2
+
 namespace potbot_nav
 {
     class StateLayer : public costmap_2d::Layer
@@ -98,6 +102,7 @@ namespace potbot_nav
 
         ros::Subscriber sub_scan_;
         ros::Publisher pub_scan_clustering_, pub_state_marker_, pub_obstacles_scan_estimate_, pub_scan_range_;
+        std::vector<int> ukf_id_;
         std::vector<potbot_lib::KalmanFilter> states_kf_;
         std::vector<potbot_lib::UnscentedKalmanFilter> states_ukf_;
 
@@ -109,6 +114,7 @@ namespace potbot_nav
         double max_estimated_linear_velocity_ = 100;
         double max_estimated_angular_velocity_ = 100;
         double prediction_time_ = 2;
+        int state_estimator_ = UNSCENTED_KALMAN_FILTER;
 
         pcl::PointCloud<pcl::PointXYZ> scan_cloud_;
 

@@ -7,10 +7,6 @@ PLUGINLIB_EXPORT_CLASS(potbot_nav::StateLayer, costmap_2d::Layer)
 #define __NX__ 5
 #define __NY__ 2
 
-#define KALMAN_FILTER 0
-#define EXTENDED_KALMAN_FILTER 1
-#define UNSCENTED_KALMAN_FILTER 2
-
 namespace potbot_nav
 {
 
@@ -123,6 +119,27 @@ namespace potbot_nav
         max_estimated_angular_velocity_ = config.max_estimated_angular_velocity;
         prediction_time_ = config.prediction_time;
 
+        static std::string estimator_name = config.state_estimator;
+        if (config.state_estimator != estimator_name)
+        {
+            ukf_id_.clear();
+            states_kf_.clear();
+            states_ukf_.clear();
+        }
+        estimator_name = config.state_estimator;
+        if (estimator_name == "Kalman Filter")
+        {
+            state_estimator_ = KALMAN_FILTER;
+        }
+        else if (estimator_name == "Extended Kalman Filter")
+        {
+            state_estimator_ = EXTENDED_KALMAN_FILTER;
+        }
+        else if (estimator_name == "Unscented Kalman Filter")
+        {
+            state_estimator_ = UNSCENTED_KALMAN_FILTER;
+        }
+
         kappa_ = config.kappa;
         sigma_q_ = config.sigma_q;
         sigma_r_ = config.sigma_r;
@@ -149,11 +166,7 @@ namespace potbot_nav
     }
 
     void StateLayer::laserScanCallback(const sensor_msgs::LaserScanConstPtr &message)
-    {
-        
-        int state_estimator = EXTENDED_KALMAN_FILTER;
-        
-
+    {   
         // ROS_INFO("laserScanCallback");
         // project the laser into a point cloud
         sensor_msgs::PointCloud2 cloud;
@@ -216,8 +229,6 @@ namespace potbot_nav
         //     std::string frame = obstacle.header.frame_id;
         //     ROS_INFO("id: %d, %s, x: %.2f, y: %.2f", id,frame.c_str(),x,y);
         // }
-
-        static std::vector<int> ukf_id;
         
         if (obstacle_array.data.empty())
         {
@@ -239,12 +250,12 @@ namespace potbot_nav
             double y = obstacle.pose.position.y;
             int id = obstacle.id;
 
-            auto iter = std::find(ukf_id.begin(), ukf_id.end(), id);
-            if (iter != ukf_id.end())
+            auto iter = std::find(ukf_id_.begin(), ukf_id_.end(), id);
+            if (iter != ukf_id_.end())
             {
-                if (state_estimator == KALMAN_FILTER)
+                if (state_estimator_ == KALMAN_FILTER)
                 {
-                    int index_ukf = std::distance(ukf_id.begin(), iter);
+                    int index_ukf = std::distance(ukf_id_.begin(), iter);
                     Eigen::MatrixXd od(4,1);
                     od<< x, y,0,0;
                     ROS_INFO_STREAM(od.transpose());
@@ -279,7 +290,7 @@ namespace potbot_nav
                     obstacle.twist.linear.x = xhat(2);
                     obstacle.twist.linear.y = xhat(3);
                 }
-                else if (state_estimator == EXTENDED_KALMAN_FILTER)
+                else if (state_estimator_ == EXTENDED_KALMAN_FILTER)
                 {
                     double v = obstacle.twist.linear.x;
                     double theta = tf2::getYaw(obstacle.pose.orientation);
@@ -295,7 +306,7 @@ namespace potbot_nav
                     C<< 1,0,0,0,0,
                         0,1,0,0,0;
 
-                    int index_ukf = std::distance(ukf_id.begin(), iter);
+                    int index_ukf = std::distance(ukf_id_.begin(), iter);
                     Eigen::MatrixXd observed_data(2,1);
                     observed_data<< x, y;
                     // ROS_INFO("x: %.2f, y: %.2f", x,y);
@@ -334,9 +345,9 @@ namespace potbot_nav
                     obstacle.twist.linear.x = xhat(3);
                     obstacle.twist.angular.z = xhat(4);
                 }
-                else if (state_estimator == UNSCENTED_KALMAN_FILTER)
+                else if (state_estimator_ == UNSCENTED_KALMAN_FILTER)
                 {
-                    int index_ukf = std::distance(ukf_id.begin(), iter);
+                    int index_ukf = std::distance(ukf_id_.begin(), iter);
                     Eigen::VectorXd observed_data(__NY__);
                     observed_data<< x, y;
                     std::tuple<Eigen::VectorXd, Eigen::MatrixXd, Eigen::MatrixXd> ans = states_ukf_[index_ukf].update(observed_data,dt);
@@ -398,7 +409,7 @@ namespace potbot_nav
 
                 
 
-                if (state_estimator == KALMAN_FILTER || state_estimator == EXTENDED_KALMAN_FILTER)
+                if (state_estimator_ == KALMAN_FILTER || state_estimator_ == EXTENDED_KALMAN_FILTER)
                 {
                     potbot_lib::KalmanFilter estimate;
                     Eigen::MatrixXd A(5,5), C(2,5);
@@ -407,7 +418,7 @@ namespace potbot_nav
                     estimate.initialize();
                     states_kf_.push_back(estimate);
                 }
-                else if (state_estimator == UNSCENTED_KALMAN_FILTER)
+                else if (state_estimator_ == UNSCENTED_KALMAN_FILTER)
                 {
                     Eigen::VectorXd xhat(__NX__);
                     // xhat.setZero();
@@ -417,7 +428,7 @@ namespace potbot_nav
                     states_ukf_.push_back(estimate);
                 }
                 
-                ukf_id.push_back(id);
+                ukf_id_.push_back(id);
             }
 
         }
@@ -440,7 +451,7 @@ namespace potbot_nav
                 potbot_msgs::Obstacle wobs;
                 potbot_lib::utility::get_tf(*tf_, obs, global_frame_, wobs);
 
-                if (state_estimator == KALMAN_FILTER)
+                if (state_estimator_ == KALMAN_FILTER)
                 {
                     double vx                   = wobs.twist.linear.x;  //障害物の並進速度
                     double vy                   = wobs.twist.linear.y;  //障害物の並進速度
@@ -468,7 +479,7 @@ namespace potbot_nav
                         }
                     }
                 }
-                else if (state_estimator == UNSCENTED_KALMAN_FILTER || state_estimator == EXTENDED_KALMAN_FILTER)
+                else if (state_estimator_ == UNSCENTED_KALMAN_FILTER || state_estimator_ == EXTENDED_KALMAN_FILTER)
                 {
                     double v                    = wobs.twist.linear.x;  //障害物の並進速度
                     double omega                = fmod(wobs.twist.angular.z, 2*M_PI); //障害物の回転角速度
