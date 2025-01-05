@@ -91,6 +91,8 @@ namespace potbot_nav
         dsrv_ = NULL;
         setupDynamicReconfigure(nh);
 
+        sub_model_states_ = nh.subscribe("/gazebo/model_states",1, &StateLayer::modelStatesCallback, this);
+
         pub_state_marker_			    = nh.advertise<visualization_msgs::MarkerArray>(	"state/marker", 1);
 	    pub_obstacles_scan_estimate_	= nh.advertise<potbot_msgs::ObstacleArray>(			"obstacle/scan/estimate", 1);
         pub_scan_range_                 = nh.advertise<geometry_msgs::PolygonStamped>(	    "scan_range", 1);
@@ -165,6 +167,21 @@ namespace potbot_nav
         return y;
     }
 
+    int getId(std::string str)
+    {
+        std::regex re("\\d+"); // 数字を表す正規表現
+        std::smatch match;
+        std::vector<int> numbers;
+
+        // 数字をすべて抽出
+        while (std::regex_search(str, match, re)) {
+            numbers.push_back(std::stoi(match.str()));
+            str = match.suffix(); // 次の検索のために文字列を更新
+        }
+
+        return numbers.front();
+    }
+
     void StateLayer::laserScanCallback(const sensor_msgs::LaserScanConstPtr &message)
     {   
         // ROS_INFO("laserScanCallback");
@@ -219,7 +236,7 @@ namespace potbot_nav
 
 
 
-        potbot_msgs::ObstacleArray obstacle_array = clusters_obstaclearray_pre;
+        // potbot_msgs::ObstacleArray obstacle_array = clusters_obstaclearray_pre;
         //obstacle_arrayを世界座標系に変換する
         // for(auto& obstacle : obstacle_array.data)
         // {
@@ -229,6 +246,22 @@ namespace potbot_nav
         //     std::string frame = obstacle.header.frame_id;
         //     ROS_INFO("id: %d, %s, x: %.2f, y: %.2f", id,frame.c_str(),x,y);
         // }
+
+        potbot_msgs::ObstacleArray obstacle_array;
+        obstacle_array.header.frame_id = global_frame_;
+        obstacle_array.header.stamp = ros::Time::now();
+        for (int i=0;i<model_states_.name.size();i++)
+        {
+            if (model_states_.name[i].find("actor") != std::string::npos)
+            {
+                potbot_msgs::Obstacle obstacle;
+                obstacle.header = obstacle_array.header;
+                obstacle.id = getId(model_states_.name[i]);
+                obstacle.pose = model_states_.pose[i];
+                obstacle.is_moving = true;
+                obstacle_array.data.push_back(obstacle);
+            }
+        }
         
         if (obstacle_array.data.empty())
         {
@@ -434,7 +467,7 @@ namespace potbot_nav
         }
         t_pre = t_now;
 
-        if (!obstacle_array.data.empty())
+        if (!obstacle_array.data.empty() && dt>0)
         {
             scan_cloud_.clear();
             // pcl::fromROSMsg(cloud, cloudxyz);
@@ -510,6 +543,11 @@ namespace potbot_nav
                 }
             }
         }
+    }
+
+    void StateLayer::modelStatesCallback(const gazebo_msgs::ModelStatesConstPtr &message)
+    {
+        model_states_ = *message;
     }
 
     void StateLayer::updateBounds(double origin_x, double origin_y, double origin_yaw, double* min_x, double* min_y, double* max_x, double* max_y)

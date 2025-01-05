@@ -38,6 +38,8 @@
 #ifndef POTBOT_NAV_STATE_LAYER_H_
 #define POTBOT_NAV_STATE_LAYER_H_
 
+#include <regex>
+
 #include <ros/ros.h>
 #include <costmap_2d/obstacle_layer.h>
 #include <costmap_2d/costmap_layer.h>
@@ -61,6 +63,7 @@
 
 #include <geometry_msgs/Polygon.h>
 
+#include <gazebo_msgs/ModelStates.h>
 #include <potbot_plugin/StatePluginConfig.h>
 #include <potbot_msgs/StateArray.h>
 #include <potbot_lib/scan_clustering.h>
@@ -94,17 +97,20 @@ namespace potbot_nav
          */
         void laserScanCallback(const sensor_msgs::LaserScanConstPtr &message);
 
+        void modelStatesCallback(const gazebo_msgs::ModelStatesConstPtr &message);
+
     protected:
         virtual void setupDynamicReconfigure(ros::NodeHandle &nh);
 
     private:
         std::string global_frame_;
 
-        ros::Subscriber sub_scan_;
+        ros::Subscriber sub_scan_, sub_model_states_;
         ros::Publisher pub_scan_clustering_, pub_state_marker_, pub_obstacles_scan_estimate_, pub_scan_range_;
         std::vector<int> ukf_id_;
         std::vector<potbot_lib::KalmanFilter> states_kf_;
         std::vector<potbot_lib::UnscentedKalmanFilter> states_ukf_;
+        gazebo_msgs::ModelStates model_states_;
 
         double kappa_ = -2;
         double sigma_q_ = 0.00001;
