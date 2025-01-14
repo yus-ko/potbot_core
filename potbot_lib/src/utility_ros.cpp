@@ -137,6 +137,11 @@ namespace potbot_lib{
             return get_point(vec[0], vec[1]);
         }
 
+        geometry_msgs::Point get_point(const Eigen::Vector3d& vec)
+        {
+            return get_point(vec[0], vec[1], vec[2]);
+        }
+
         void get_point(const std::vector<geometry_msgs::PoseStamped>& poses, std::vector<geometry_msgs::Point>& points)
         {
             points.resize(poses.size());

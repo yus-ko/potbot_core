@@ -22,6 +22,7 @@ add_service_files(
 
 generate_dynamic_reconfigure_options(
   cfg/APFPathPlanner.cfg
+  cfg/PSOPathPlanner.cfg
   cfg/PotentialField.cfg
   cfg/MarkerManager.cfg
 )
@@ -55,6 +56,8 @@ add_library(${PROJECT_NAME}
   src/artificial_potential_field_ros.cpp
   src/apf_path_planner.cpp
   src/apf_path_planner_ros.cpp
+  src/particle_swarm_optimization.cpp
+  # src/pso_path_planner_ros.cpp
   src/kalman_filter.cpp
   src/unscented_kalman_filter.cpp
   src/pcl_clustering.cpp

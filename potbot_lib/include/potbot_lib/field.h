@@ -60,7 +60,11 @@ namespace potbot_lib{
                 // Field(costmap_2d::Costmap2D* costmap);
                 ~Field(){};
 
-                void initField(size_t rows = 3, size_t cols = 3, double resolution = 1.0, double origin_x = 0.0, double origin_y = 0.0);
+                void initField();
+                void initField(size_t rows, size_t cols, double resolution, double origin_x, double origin_y);
+
+                void setOrigin(double origin_x, double origin_y);
+                void setHeader(size_t rows, size_t cols, double resolution);
 
                 void setValues(std::vector<FieldGrid>& values);
                 void setValue(FieldGrid value);

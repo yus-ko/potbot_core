@@ -39,9 +39,7 @@
 
 #include <potbot_lib/utility_ros.h>
 #include <potbot_base/base_controller.h>
-#include <potbot_lib/apf_path_planner_ros.h>
-// #include <potbot_lib/diff_drive_controller_ros.h>
-// #include <potbot_lib/dwa_controller_ros.h>
+#include <potbot_base/base_path_planner.h>
 
 #include <ros/ros.h>
 #include <costmap_2d/costmap_2d.h>
@@ -181,13 +179,11 @@ namespace potbot_nav {
 
       std::vector<geometry_msgs::Point> footprint_spec_;
 
-      potbot_lib::ArtificialPotentialFieldROS* apf_ = nullptr;
-      potbot_lib::path_planner::APFPathPlannerROS* apf_planner_ = nullptr;
-      // potbot_lib::controller::DiffDriveControllerROS* robot_controller_ = nullptr;
-
       boost::shared_ptr<potbot_base::Controller> controller_;
       boost::shared_ptr<potbot_base::Controller> recover_;
-      pluginlib::ClassLoader<potbot_base::Controller> loader_;
+      pluginlib::ClassLoader<potbot_base::Controller> controller_loader_;
+      boost::shared_ptr<potbot_base::PathPlanner> planner_;
+		  pluginlib::ClassLoader<potbot_base::PathPlanner> planner_loader_;
   };
 };
 #endif

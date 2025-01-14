@@ -38,6 +38,7 @@ namespace potbot_lib{
             void initNode(std::string name);
             void initPotentialField(costmap_2d::Costmap2D* costmap);
             void initPotentialField(costmap_2d::Costmap2DROS* costmap_ros);
+            void initPotentialField();
 
             ArtificialPotentialField* getApf();
 

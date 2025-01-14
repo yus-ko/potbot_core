@@ -61,11 +61,10 @@ PLUGINLIB_EXPORT_CLASS(potbot_nav::PotbotLocalPlanner, nav_core::BaseLocalPlanne
 namespace potbot_nav
 {
 
-    PotbotLocalPlanner::PotbotLocalPlanner() : costmap_ros_(NULL), tf_(NULL), initialized_(false), loader_("potbot_base", "potbot_base::Controller") {}
+    PotbotLocalPlanner::PotbotLocalPlanner() : costmap_ros_(NULL), tf_(NULL), initialized_(false), controller_loader_("potbot_base", "potbot_base::Controller"), planner_loader_("potbot_base", "potbot_base::PathPlanner") {}
 
-    PotbotLocalPlanner::PotbotLocalPlanner(std::string name, tf2_ros::Buffer *tf, costmap_2d::Costmap2DROS *costmap_ros) : costmap_ros_(NULL), tf_(NULL), initialized_(false), loader_("potbot_base", "potbot_base::Controller")
+    PotbotLocalPlanner::PotbotLocalPlanner(std::string name, tf2_ros::Buffer *tf, costmap_2d::Costmap2DROS *costmap_ros) : costmap_ros_(NULL), tf_(NULL), initialized_(false), controller_loader_("potbot_base", "potbot_base::Controller"), planner_loader_("potbot_base", "potbot_base::PathPlanner")
     {
-
         // initialize the planner
         initialize(name, tf, costmap_ros);
     }
@@ -101,15 +100,13 @@ namespace potbot_nav
             // dsrv_ = new dynamic_reconfigure::Server<BaseLocalPlannerConfig>(private_nh);
             // dynamic_reconfigure::Server<BaseLocalPlannerConfig>::CallbackType cb = [this](auto& config, auto level){ reconfigureCB(config, level); };
             // dsrv_->setCallback(cb);
-
-            apf_ = new potbot_lib::ArtificialPotentialFieldROS("potbot/potential_field");
-            apf_planner_ = new potbot_lib::path_planner::APFPathPlannerROS("potbot/path_planner", apf_);
+            
             // robot_controller_ = new potbot_lib::controller::DiffDriveControllerROS("potbot/controller");
             std::string plugin_name = "potbot_nav/OPF";
             private_nh.getParam("controller_name", plugin_name);
             try
             {
-                controller_ = loader_.createInstance(plugin_name);
+                controller_ = controller_loader_.createInstance(plugin_name);
                 controller_->initialize(name + "/controller", tf);
                 ROS_INFO("\t%s initialized", plugin_name.c_str());
             }
@@ -117,9 +114,22 @@ namespace potbot_nav
             {
                 ROS_ERROR("failed to load plugin. Error: %s", ex.what());
             }
+
+            std::string planner_plugin_name = "potbot_nav/APF";
+            private_nh.getParam("path_planner_name", planner_plugin_name);
+            try
+            {
+                planner_ = planner_loader_.createInstance(planner_plugin_name);
+                planner_->initialize(name + "/path_planner", tf);
+                ROS_INFO("\t%s initialized", planner_plugin_name.c_str());
+            }
+            catch(pluginlib::PluginlibException& ex)
+            {
+                ROS_ERROR("failed to load plugin. Error: %s", ex.what());
+            }
             
             std::string recover_plugin_name = "potbot_nav/PID";
-            recover_ = loader_.createInstance(recover_plugin_name);
+            recover_ = controller_loader_.createInstance(recover_plugin_name);
             recover_->initialize(name + "/recover", tf);
             ROS_INFO("\t%s initialized", recover_plugin_name.c_str());
 
@@ -151,6 +161,25 @@ namespace potbot_nav
         // reset the at goal flag
         reached_goal_ = false;
         return true;
+    }
+
+    void costmapToObstacles(const costmap_2d::Costmap2D* costmap, std::vector<geometry_msgs::Point>& obstacle_vec)
+    {
+        obstacle_vec.clear();
+        unsigned char* costs = costmap->getCharMap();
+        unsigned int map_size = costmap->getSizeInCellsX()*costmap->getSizeInCellsY();
+        for (unsigned int i = 0; i < map_size; i++)
+        {
+            int cost = costs[i];
+            if (cost == 254)
+            {
+                unsigned int xi,yi;
+                costmap->indexToCells(i,xi,yi);
+                double x,y;
+                costmap->mapToWorld(xi,yi,x,y);
+                obstacle_vec.push_back(potbot_lib::utility::get_point(x, y));
+            }
+        }
     }
 
     void PotbotLocalPlanner::createPathThread()
@@ -192,21 +221,36 @@ namespace potbot_nav
 
             const geometry_msgs::PoseStamped &goal_point = transformed_plan.back();
 
-            apf_->initPotentialField(costmap_ros_);
-            apf_->setGoal(transformed_plan.back());
-            apf_->createPotentialField();
-            apf_->publishPotentialField();
+            // apf_->initPotentialField(costmap_ros_);
+            // apf_->setGoal(transformed_plan.back());
+            // apf_->createPotentialField();
+            // apf_->publishPotentialField();
 
-            double init_yaw = tf2::getYaw(global_pose.pose.orientation);
-            ROS_DEBUG("status: create path");
-            apf_planner_->createPath(init_yaw);
-            ROS_DEBUG("status: interpolate");
-            apf_planner_->bezier();
-            apf_planner_->publishPath();
-            publishPlan(transformed_plan, g_plan_pub_);
+            // double init_yaw = tf2::getYaw(global_pose.pose.orientation);
+            // ROS_DEBUG("status: create path");
+            // apf_planner_->createPath(init_yaw);
+            // ROS_DEBUG("status: interpolate");
+            // apf_planner_->bezier();
+            // apf_planner_->publishPath();
 
-            // ROS_INFO("create path");
-            // ros::Duration(0.5).sleep();
+            nav_msgs::Odometry nav_robot;
+            nav_robot.pose.pose = global_pose.pose;
+            planner_->setRobot(nav_robot);
+            planner_->setTargetPose(transformed_plan.back());
+            std::vector<geometry_msgs::Point> obs;
+            costmapToObstacles(costmap_, obs);
+            // ROS_INFO("obstacles size: %d", obs.size());
+            planner_->clearObstacles();
+            planner_->setObstacles(obs);
+            planner_->planPath();
+
+            nav_msgs::Path path_msg;
+            planner_->getPath(path_msg.poses);
+            path_msg.header.frame_id = global_frame_;
+            path_msg.header.stamp = ros::Time::now();
+            l_plan_pub_.publish(path_msg);
+            path_msg.poses = transformed_plan;
+            g_plan_pub_.publish(path_msg);
         }
     }
 
@@ -250,7 +294,7 @@ namespace potbot_nav
         else
         {
             nav_msgs::Path path_msg_interpolated;
-            apf_planner_->getPath(path_msg_interpolated);
+            planner_->getPath(path_msg_interpolated.poses);
             if (path_msg_interpolated.poses.size() > 1)
             {
                 controller_->setTargetPath(path_msg_interpolated.poses);

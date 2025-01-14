@@ -14,4 +14,10 @@
   <class name="potbot_nav/TAPF" type="potbot_nav::controller::TraditionalAPF" base_class_type="potbot_base::Controller">
     <description>This is a potbot_base::Controller plugin.</description>
   </class>
+  <class name="potbot_nav/APF" type="potbot_nav::path_planner::APFPP" base_class_type="potbot_base::PathPlanner">
+    <description>This is a potbot_base::PathPlanner plugin.</description>
+  </class>
+  <class name="potbot_nav/PSO" type="potbot_nav::path_planner::ParticleSwarmOptimization" base_class_type="potbot_base::PathPlanner">
+    <description>This is a potbot_base::PathPlanner plugin.</description>
+  </class>
 </library>

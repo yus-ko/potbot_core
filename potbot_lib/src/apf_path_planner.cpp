@@ -7,6 +7,9 @@ namespace potbot_lib{
         // void get_search_index_APF(Field& field, std::vector<size_t>, )
         APFPathPlanner::APFPathPlanner(ArtificialPotentialField *apf) : apf_(NULL)
         {
+            std::random_device rd;
+            random_engine_ = new std::default_random_engine(rd());
+            random_generator_double_ = new std::uniform_real_distribution<double>(0,1.0);
             apf_ = apf;
         }
 
@@ -30,6 +33,8 @@ namespace potbot_lib{
             double P_min;
             double path_length  = 0;
             size_t range        = path_search_range_;
+            double weight_potential = path_weight_potential_;
+            double weight_pose = path_weight_pose_;
             std::vector<potential::FieldGrid>* field_values;
             field_values = apf_->getValues();
             double scale = std::pow(10, 3);
@@ -51,7 +56,7 @@ namespace potbot_lib{
             path_.push_back(Pose{center_x, center_y});
             (*field_values)[pf_idx_min].states[potential::GridInfo::IS_PLANNED_PATH] = true;
 
-            sortRepulsionEdges();
+            // sortRepulsionEdges();
 
             double theta_pre = init_robot_pose;
             double x_pre     = path_.back().position.x;
@@ -78,7 +83,7 @@ namespace potbot_lib{
                     {
                         if ((*field_values)[idx].states[potential::GridInfo::IS_PLANNED_PATH] == true) continue;
 
-                        double PotentialValue   = (*field_values)[idx].value;
+                        double PotentialValue = (*field_values)[idx].value;
                         if (PotentialValue < P_min) 
                         {
                             solving_local_minimum       = false;
@@ -103,31 +108,49 @@ namespace potbot_lib{
                 }
                 else
                 {
-                        
-                    for (auto idx : search_indexes)
+                    bool break_flag = false;
+                    double j1,j2;
+                    int random_range = range;
+                    double wu               = weight_potential;
+                    double w_theta          = weight_pose;
+                    for (size_t i = 0; i < 100; i++)
                     {
-                        if ((*field_values)[idx].states[potential::GridInfo::IS_PLANNED_PATH] == true) continue;
-
-                        double PotentialValue   = (*field_values)[idx].value;
-                        double x                = (*field_values)[idx].x;
-                        double y                = (*field_values)[idx].y;
+                        apf_->getSquareIndex(search_indexes, center_row, center_col, random_range);
+                        if (search_indexes.empty()) break;
                         
-                        double theta            = atan2(y-y_pre,x-x_pre);
-                        double posediff         = abs(theta - theta_pre);
+                        for (auto idx : search_indexes)
+                        {
+                            if ((*field_values)[idx].states[potential::GridInfo::IS_PLANNED_PATH] == true) continue;
+
+                            double PotentialValue   = (*field_values)[idx].value;
+                            double x                = (*field_values)[idx].x;
+                            double y                = (*field_values)[idx].y;
+                            
+                            double theta            = atan2(y-y_pre,x-x_pre);
+                            double posediff         = abs(theta - theta_pre);
                                 posediff         = std::floor(posediff * scale) / scale;
 
-                        double wu               = path_weight_potential_;
-                        double w_theta          = path_weight_pose_;
-                        double J                = wu*PotentialValue + w_theta*posediff;
+                            double sum;
+                            // sum = hypot(PotentialValue,posediff);
+                            sum = PotentialValue+posediff;
+                            j1               = wu*PotentialValue/sum;
+                            j2               = w_theta*posediff/sum;
+                            double J                = j1 + j2;
 
-                        if (J <= J_min) 
-                        {
-                            solving_local_minimum       = false;
-                            J_min                       = J;
-                            pf_idx_min                  = idx;
+                            if (J <= J_min) 
+                            {
+                                solving_local_minimum       = false;
+                                J_min                       = J;
+                                pf_idx_min                  = idx;
+                                break_flag                  = true;
+                            }
                         }
+                        if (break_flag) break;
+                        wu                      = (*random_generator_double_)((*random_engine_));
+                        w_theta                 = 1.0-wu;
+                        random_range = (*random_generator_double_)((*random_engine_))*10+1;
                     }
-                    
+                    ROS_INFO("[apfpp] pot: %f, pos: %f range: %d", w_theta, j2, random_range);
                 }
                 
                 double px   = (*field_values)[pf_idx_min].x;

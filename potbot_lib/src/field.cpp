@@ -15,33 +15,10 @@ namespace potbot_lib{
         //                 costmap->getOriginX() + costmap->getSizeInMetersX()/2, costmap->getOriginY() + costmap->getSizeInMetersY()/2);
         // }
 
-        void Field::initField(size_t rows, size_t cols, double resolution, double origin_x, double origin_y)
+        void Field::initField()
         {
             values_.clear();
-            origin_.x = origin_x;
-            origin_.y = origin_y;
-
-
-            header_.rows            = rows;
-            header_.cols            = cols;
-
-            header_.width           = resolution*(double)cols;
-            header_.height          = resolution*(double)rows;
-            header_.resolution      = resolution;
-            
             size_t field_index      = 0;
-
-            // header_.x_shift    = -header_.resolution/2.0 - header_.width/2.0;
-            // header_.y_shift    = -header_.resolution/2.0 - header_.height/2.0;
-
-            header_.x_shift         = -header_.width/2.0 + origin_.x;
-            header_.y_shift         = -header_.height/2.0 + origin_.y;
-
-            header_.x_min           = -header_.width/2.0 + origin_.x;
-            header_.x_max           = header_.width/2.0 + origin_.x;
-            header_.y_min           = -header_.height/2.0 + origin_.y;
-            header_.y_max           = header_.height/2.0 + origin_.y;
-
             for (size_t row = 0; row < header_.rows; row++)
             {
                 double y            = (double)row*header_.resolution + header_.y_shift;
@@ -59,6 +36,40 @@ namespace potbot_lib{
                     field_index++;
                 }
             }
+        }
+
+        void Field::initField(size_t rows, size_t cols, double resolution, double origin_x, double origin_y)
+        {
+            setOrigin(origin_x, origin_y);
+            setHeader(rows, cols, resolution);
+            initField();
+        }
+
+        void Field::setOrigin(double origin_x, double origin_y)
+        {
+            origin_.x = origin_x;
+            origin_.y = origin_y;
+        }
+
+        void Field::setHeader(size_t rows, size_t cols, double resolution)
+        {
+            header_.rows            = rows;
+            header_.cols            = cols;
+
+            header_.width           = resolution*(double)cols;
+            header_.height          = resolution*(double)rows;
+            header_.resolution      = resolution;
+            
+            // header_.x_shift    = -header_.resolution/2.0 - header_.width/2.0;
+            // header_.y_shift    = -header_.resolution/2.0 - header_.height/2.0;
+
+            header_.x_shift         = -header_.width/2.0 + origin_.x;
+            header_.y_shift         = -header_.height/2.0 + origin_.y;
+
+            header_.x_min           = -header_.width/2.0 + origin_.x;
+            header_.x_max           = header_.width/2.0 + origin_.x;
+            header_.y_min           = -header_.height/2.0 + origin_.y;
+            header_.y_max           = header_.height/2.0 + origin_.y;
         }
 
         void Field::setValues(std::vector<FieldGrid>& values)

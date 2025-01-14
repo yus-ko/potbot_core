@@ -51,11 +51,19 @@ namespace potbot_lib{
         setObstacle(costmap_ros->getCostmap());
     }
 
+    void ArtificialPotentialFieldROS::initPotentialField()
+    {
+        apf_->initField();
+    }
+
     void ArtificialPotentialFieldROS::reconfigureCB(const potbot_lib::PotentialFieldConfig& param, uint32_t level)
     {
         Point o = apf_->getOrigin();
         // apf_->initPotentialField(param.potential_field_rows, param.potential_field_cols, param.potential_field_resolution, o.x, o.y);
+        ROS_INFO("apf, %f, %f, %f", param.weight_attraction_field, param.weight_repulsion_field, param.distance_threshold_repulsion_field);
         apf_->setParams(param.weight_attraction_field, param.weight_repulsion_field, param.distance_threshold_repulsion_field);
+        apf_->setHeader(param.potential_field_rows, param.potential_field_cols, param.potential_field_resolution);
+        apf_->initField();
     }
 
     ArtificialPotentialField* ArtificialPotentialFieldROS::getApf()

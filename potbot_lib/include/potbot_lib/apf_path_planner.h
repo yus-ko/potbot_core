@@ -1,6 +1,7 @@
 #ifndef H_APF_PATH_PLANNER_
 #define H_APF_PATH_PLANNER_
 
+#include <random>
 #include <potbot_lib/utility.h>
 #include <potbot_lib/artificial_potential_field.h>
 
@@ -13,6 +14,9 @@ namespace potbot_lib{
                 ArtificialPotentialField *apf_;
                 std::vector<std::vector<potential::FieldGrid>> loop_edges_;
                 std::vector<Pose> path_;
+
+                std::default_random_engine *random_engine_;
+                std::uniform_real_distribution<double> *random_generator_double_;
 
                 double max_path_length_ = 6.0;
                 size_t path_search_range_ = 1;

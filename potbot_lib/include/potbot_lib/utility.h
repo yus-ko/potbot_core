@@ -145,6 +145,9 @@ namespace potbot_lib{
         {
             return std::find(vec.begin(), vec.end(), element) != vec.end();
         };
+
+        void vec_to_path(const std::vector<Eigen::VectorXd>& vectors, std::vector<Pose>& path);
+        bool bezier(const std::vector<Pose> path_raw, std::vector<Pose>& path_interpolated);
     }
 }
 
