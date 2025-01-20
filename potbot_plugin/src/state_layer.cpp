@@ -234,20 +234,9 @@ namespace potbot_nav
         for (auto& clus : clusters_markerarray.markers) clus.header = scan_data.header;
         pub_scan_clustering_.publish(clusters_markerarray);
 
+        potbot_msgs::ObstacleArray obstacle_array = clusters_obstaclearray_pre;
 
-
-        // potbot_msgs::ObstacleArray obstacle_array = clusters_obstaclearray_pre;
-        //obstacle_arrayを世界座標系に変換する
-        // for(auto& obstacle : obstacle_array.data)
-        // {
-        //     double x = obstacle.pose.position.x;
-        //     double y = obstacle.pose.position.y;
-        //     int id = obstacle.id;
-        //     std::string frame = obstacle.header.frame_id;
-        //     ROS_INFO("id: %d, %s, x: %.2f, y: %.2f", id,frame.c_str(),x,y);
-        // }
-
-        potbot_msgs::ObstacleArray obstacle_array;
+        // potbot_msgs::ObstacleArray obstacle_array;
         obstacle_array.header.frame_id = global_frame_;
         obstacle_array.header.stamp = ros::Time::now();
         for (int i=0;i<model_states_.name.size();i++)
@@ -256,8 +245,9 @@ namespace potbot_nav
             {
                 potbot_msgs::Obstacle obstacle;
                 obstacle.header = obstacle_array.header;
-                obstacle.id = getId(model_states_.name[i]);
+                obstacle.id = 10000+getId(model_states_.name[i]);
                 obstacle.pose = model_states_.pose[i];
+                obstacle.points.push_back(obstacle.pose.position);
                 obstacle.is_moving = true;
                 obstacle_array.data.push_back(obstacle);
             }
@@ -466,7 +456,7 @@ namespace potbot_nav
 
         }
         t_pre = t_now;
-
+        
         if (!obstacle_array.data.empty() && dt>0)
         {
             scan_cloud_.clear();
@@ -479,10 +469,15 @@ namespace potbot_nav
 
             for (const auto& obs:obstacle_array.data)
             {
-                if (!obs.is_moving) continue;
 
                 potbot_msgs::Obstacle wobs;
                 potbot_lib::utility::get_tf(*tf_, obs, global_frame_, wobs);
+                for (const auto& p:wobs.points)
+                {
+                    scan_cloud_.push_back(pcl::PointXYZ(p.x,p.y,p.z));
+                }
+
+                if (!obs.is_moving) continue;
 
                 if (state_estimator_ == KALMAN_FILTER)
                 {
@@ -531,6 +526,11 @@ namespace potbot_nav
                             {
                                 double distance = v*t;
                                 double angle = omega*t + yaw;
+
+                                // double x            = distance*cos(angle) + wobs.pose.position.x;
+                                // double y            = distance*sin(angle) + wobs.pose.position.y;
+                                // scan_cloud_.push_back(pcl::PointXYZ(x,y,wobs.pose.position.z));
+
                                 for (const auto& p : wobs.points)
                                 {
                                     double x            = distance*cos(angle) + p.x;
@@ -573,14 +573,14 @@ namespace potbot_nav
         //     setConvexPolygonCost(transformed_footprint_, costmap_2d::FREE_SPACE);
         // }
 
-        // for (double x = 1; x<= 2; x+=0.05)
+        // for (double x = 0; x<= 4; x+=0.05)
         // {
-        //     for (double y = 0.8; y<= 1.2; y+=0.05)
+        //     for (double y = 7; y<= 9; y+=0.05)
         //     {
         //         unsigned int mx,my;
         //         if (master_grid.worldToMap(x,y,mx,my))
         //         {
-        //             master_grid.setCost(mx,my,FREE_SPACE);
+        //             master_grid.setCost(mx,my,LETHAL_OBSTACLE);
         //         }
         //     }
         // }
