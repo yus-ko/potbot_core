@@ -71,6 +71,11 @@ namespace potbot_lib{
         return apf_;
     }
 
+    void ArtificialPotentialFieldROS::setFrameIdGlobal(std::string frame_id)
+    {
+        frame_id_global_ = frame_id;
+    }
+
     std::string ArtificialPotentialFieldROS::getFrameIdGlobal()
     {
         return frame_id_global_;

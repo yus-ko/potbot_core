@@ -44,6 +44,7 @@ namespace potbot_nav
                 apf_->getApf()->getHeader().resolution, 
                 robot_pose_.pose.pose.position.x, 
                 robot_pose_.pose.pose.position.y);
+            apf_->setFrameIdGlobal(robot_pose_.header.frame_id);
 			apf_->setRobot(robot_pose_.pose.pose);
 			apf_->setGoal(target_pose_);
 			apf_->clearObstacles();
