@@ -42,8 +42,9 @@ namespace potbot_lib
             void set_plane_removal_distance_threshold(double value) { plane_removal_distance_threshold_ = value; };
 
             void set_euclidean_cluster_tolerance(double value) { euclidean_cluster_tolerance_ = value; };
-            void set_euclidean_min_cluster_size(double value) { euclidean_min_cluster_size_ = value; };
-            
+            void set_euclidean_min_cluster_size(int value) { euclidean_min_cluster_size_ = value; };
+
+            // void get_clusters(pcl::PointCloud<pcl::PointXYZ>::Ptr pcl, size_t index = 0); 
             void get_clusters(pcl::PCLPointCloud2& pointcloud2, size_t index = 0);
             void get_clusters(sensor_msgs::PointCloud2& cloud_ros, size_t index = 0);
             void get_clusters(visualization_msgs::MarkerArray& cloud_markers);

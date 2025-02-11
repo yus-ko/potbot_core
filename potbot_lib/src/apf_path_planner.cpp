@@ -188,19 +188,29 @@ namespace potbot_lib{
             std::vector<potential::FieldGrid>* field_values;
             field_values = apf_->getValues();
 
-            for (auto value : (*field_values))
+            double distance_threshold_repulsion_field = apf_->getDistanceThresholdRepulsionField();
+
+            Point robot = apf_->getRobot();
+            Point goal = apf_->getGoal();
+            potbot_lib::potential::FieldGrid robot_grid = apf_->getValue(robot.x,robot.y);
+            pf_idx_min  = robot_grid.index;
+            center_x    = robot_grid.x;
+            center_y    = robot_grid.y;
+            J_min_pre   = robot_grid.value;
+            center_row  = robot_grid.row;
+            center_col  = robot_grid.col;
+
+            bool goal_inside_repulsion = false;
+            try
             {
-                if (value.states[potential::GridInfo::IS_ROBOT])
+                potbot_lib::potential::FieldGrid goal_grid = apf_->getValue(goal.x,goal.y);
+                if (goal_grid.states[potential::GridInfo::IS_REPULSION_FIELD_INSIDE])
                 {
-                    pf_idx_min  = value.index;
-                    center_x    = value.x;
-                    center_y    = value.y;
-                    J_min_pre   = value.value;
-                    center_row  = value.row;
-                    center_col  = value.col;
-                    break;
+                    goal_inside_repulsion = true;
                 }
             }
+            catch (...){}
+            
             path_.push_back(Pose{center_x, center_y});
             (*field_values)[pf_idx_min].states[potential::GridInfo::IS_PLANNED_PATH] = true;
 
@@ -336,6 +346,17 @@ namespace potbot_lib{
                 //経路点が2連続で同じ場所の場合処理を終わらせる
                 Pose p{px,py};
                 if ((p == path_.end()[-1] && p == path_.end()[-2])) break;
+
+                if ((p.position - path_.back().position).norm()>0.1)
+                {
+                    ROS_INFO("over distance");
+                    break;
+                }
+
+                if (goal_inside_repulsion && (goal-p.position).norm()<distance_threshold_repulsion_field+0.1)
+                {
+                    break;
+                }
 
                 path_.push_back(Pose{px, py});
                 (*field_values)[pf_idx_min].states[potential::GridInfo::IS_PLANNED_PATH] = true;

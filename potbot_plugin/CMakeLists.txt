@@ -18,10 +18,16 @@ find_package(catkin REQUIRED COMPONENTS
   pluginlib
   roscpp
   tf2_ros
+  sensor_msgs
+  cv_bridge
   potbot_lib
   potbot_msgs
   potbot_base
 )
+
+find_package(OpenCV REQUIRED)
+find_package(PkgConfig)
+pkg_check_modules(OpenCV REQUIRED opencv)
 
 generate_dynamic_reconfigure_options(
   cfg/StatePlugin.cfg
@@ -51,6 +57,7 @@ catkin_package(
 include_directories(
   include
   ${catkin_INCLUDE_DIRS}
+  ${OpenCV_INCLUDE_DIRS}
 )
 
 add_library(${PROJECT_NAME}
@@ -66,6 +73,6 @@ add_library(${PROJECT_NAME}
   src/particle_swarm_optimization.cpp
 )
 add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
 
 add_definitions(-std=c++14)

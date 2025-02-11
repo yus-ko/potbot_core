@@ -42,6 +42,7 @@ namespace potbot_lib{
             ros::NodeHandle private_nh("~/" + name);
             // private_nh.getParam("frame_id_global",           frame_id_global_);
             pub_path_ = private_nh.advertise<nav_msgs::Path>("path", 1);
+            pub_raw_path_ = private_nh.advertise<nav_msgs::Path>("debug/raw_path", 1);
 
             dsrv_ = new dynamic_reconfigure::Server<potbot_lib::APFPathPlannerConfig>(private_nh);
             dynamic_reconfigure::Server<potbot_lib::APFPathPlannerConfig>::CallbackType cb = boost::bind(&APFPathPlannerROS::reconfigureCB, this, _1, _2);
@@ -102,6 +103,15 @@ namespace potbot_lib{
             path_msg.header.frame_id = frame_id_global_;
             path_msg.header.stamp = ros::Time::now();
             pub_path_.publish(path_msg);
+        }
+
+        void APFPathPlannerROS::publishRawPath()
+        {
+            nav_msgs::Path path_msg;
+            getPath(path_msg);
+            path_msg.header.frame_id = frame_id_global_;
+            path_msg.header.stamp = ros::Time::now();
+            pub_raw_path_.publish(path_msg);
         }
     }
 }

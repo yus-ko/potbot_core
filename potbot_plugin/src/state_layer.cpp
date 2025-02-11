@@ -38,7 +38,6 @@ namespace potbot_nav
 
             source_node.param("topic", topic, source);
             source_node.param("sensor_frame", sensor_frame, std::string(""));
-            ROS_INFO_STREAM(sensor_frame);
             source_node.param("observation_persistence", observation_keep_time, 0.0);
             source_node.param("expected_update_rate", expected_update_rate, 0.0);
             source_node.param("data_type", data_type, std::string("PointCloud"));
@@ -86,6 +85,10 @@ namespace potbot_nav
                 // filter->registerCallback(boost::bind(&StateLayer::laserScanCallback, this, _1));
 
             }
+            else if (data_type == "PointCloud2")
+            {
+                sub_pcl2_ = nh.subscribe(topic,1, &StateLayer::pointCloud2Callback, this);
+            }
         }
         
         dsrv_ = NULL;
@@ -93,10 +96,21 @@ namespace potbot_nav
 
         sub_model_states_ = nh.subscribe("/gazebo/model_states",1, &StateLayer::modelStatesCallback, this);
 
+        sub_rgb_.subscribe(nh, "/robot_0/camera/rgb/image_raw", 1);
+		sub_depth_.subscribe(nh, "/robot_0/camera/depth/image_raw", 1);
+		sub_info_.subscribe(nh, "/robot_0/camera/rgb/camera_info", 1);
+
+		sync_.reset(new message_filters::Synchronizer<MySyncPolicy>(MySyncPolicy(10), sub_rgb_, sub_depth_, sub_info_));
+		sync_->registerCallback(boost::bind(&StateLayer::imageCallback, this, _1, _2, _3));
+        // sub_image_ = nh.subscribe("/robot_0/camera/rgb/image_raw",1, &StateLayer::imageCallback, this);
+
         pub_state_marker_			    = nh.advertise<visualization_msgs::MarkerArray>(	"state/marker", 1);
 	    pub_obstacles_scan_estimate_	= nh.advertise<potbot_msgs::ObstacleArray>(			"obstacle/scan/estimate", 1);
         pub_scan_range_                 = nh.advertise<geometry_msgs::PolygonStamped>(	    "scan_range", 1);
         pub_scan_clustering_            = nh.advertise<visualization_msgs::MarkerArray>(	"obstacle/scan/clustering", 1);
+        pub_pcl_clustering_             = nh.advertise<visualization_msgs::MarkerArray>(	"obstacle/pcl/clustering", 1);
+        pub_camera_points_              = nh.advertise<visualization_msgs::MarkerArray>(	"debug/camera/points", 1);
+        pub_camera_image_               = nh.advertise<sensor_msgs::Image>(                 "debug/camera/image", 1);
 
     }
 
@@ -113,6 +127,7 @@ namespace potbot_nav
         if (dsrv_)
             delete dsrv_;
     }
+
     void StateLayer::reconfigureCB(potbot_plugin::StatePluginConfig &config, uint32_t level)
     {
         enabled_ = config.enabled;
@@ -146,6 +161,9 @@ namespace potbot_nav
         sigma_q_ = config.sigma_q;
         sigma_r_ = config.sigma_r;
         sigma_p_ = config.sigma_p;
+
+        euclidean_cluster_tolerance_ = config.euclidean_cluster_tolerance;
+        euclidean_min_cluster_size_ = config.euclidean_min_cluster_size;
     }
 
     Eigen::VectorXd f(Eigen::VectorXd x_old, double dt) {
@@ -185,9 +203,6 @@ namespace potbot_nav
     void StateLayer::laserScanCallback(const sensor_msgs::LaserScanConstPtr &message)
     {   
         // ROS_INFO("laserScanCallback");
-        // project the laser into a point cloud
-        sensor_msgs::PointCloud2 cloud;
-        cloud.header = message->header;
 
         sensor_msgs::LaserScan scan_data = *message;
 
@@ -548,6 +563,189 @@ namespace potbot_nav
     void StateLayer::modelStatesCallback(const gazebo_msgs::ModelStatesConstPtr &message)
     {
         model_states_ = *message;
+    }
+
+    void StateLayer::pointCloud2Callback(const sensor_msgs::PointCloud2ConstPtr& message)
+    {
+        // ROS_INFO("pointCloud2Callback");
+        std::string pcl_frame = message->header.frame_id;
+        // project the laser into a point cloud
+        // sensor_msgs::PointCloud2 cloud;
+        // cloud.header = message->header;
+
+        pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
+        pcl::fromROSMsg(*message, *cloud);
+        int size_raw = cloud->size();
+        potbot_lib::PCLClustering cluster;
+        cluster.set_clusters(cloud,0);
+        cluster.set_euclidean_cluster_tolerance(euclidean_cluster_tolerance_);
+        cluster.set_euclidean_min_cluster_size(euclidean_min_cluster_size_);
+        cluster.euclidean_clustering();
+        visualization_msgs::MarkerArray pcl_markers;
+        cluster.get_clusters(pcl_markers);
+        pub_pcl_clustering_.publish(pcl_markers);
+        // int size_ds = markers_ds.markers[1].points.size();
+        // ROS_INFO("size raw: %d downsampled: %d", size_raw, size_ds);
+
+        // PCL から PointCloud2 に戻す
+        // sensor_msgs::PointCloud2 output;
+        // pcl::toROSMsg(*clustered_cloud, output);
+        // output.header = cloud_msg->header;
+
+    }
+
+    void StateLayer::imageCallback(const sensor_msgs::Image::ConstPtr& rgb_msg, const sensor_msgs::Image::ConstPtr& depth_msg, const sensor_msgs::CameraInfo::ConstPtr& info_msg)
+    {
+        // ROS_INFO("imageCallback");
+        std::string camera_image_frame = rgb_msg->header.frame_id;
+        ros::Time time_now = ros::Time::now();
+        static ros::Time time_pre = time_now;
+
+        //人物検出手法
+        cv::HOGDescriptor hog;
+        hog.setSVMDetector(cv::HOGDescriptor::getDefaultPeopleDetector());
+
+        cv_bridge::CvImagePtr bridge_image_rgb, bridge_image_depth;
+		
+		try
+		{
+			bridge_image_rgb=cv_bridge::toCvCopy(rgb_msg, sensor_msgs::image_encodings::BGR8);
+		}
+		catch(cv_bridge::Exception& e)
+		{
+			std::cout<<"depth_image_callback Error \n";
+			ROS_ERROR("Could not convert from '%s' to 'BGR8'.",rgb_msg->encoding.c_str());
+			return;
+		}
+
+        try
+		{
+			bridge_image_depth=cv_bridge::toCvCopy(depth_msg, sensor_msgs::image_encodings::TYPE_32FC1);
+		}
+		catch(cv_bridge::Exception& e)
+		{
+			std::cout<<"depth_image_callback Error \n";
+			ROS_ERROR("Could not convert from '%s' to '32FC1'.",depth_msg->encoding.c_str());
+			return;
+		}
+
+		cv::Mat image_rgb = bridge_image_rgb->image.clone();
+        cv::Mat image_depth = bridge_image_depth->image.clone();
+
+		cv::Mat distCoeffs = cv::Mat(info_msg->D.size(), 1, CV_64F);
+		for (size_t i = 0; i < info_msg->D.size(); ++i) {
+			distCoeffs.at<double>(i, 0) = info_msg->D[i];
+		}
+
+		// カメラ行列 K (3x3行列)
+		cv::Mat cameraMatrix = cv::Mat(3, 3, CV_64F, (void*)info_msg->K.data()).clone();
+
+		// 回転行列 R (3x3行列)
+		cv::Mat R = cv::Mat(3, 3, CV_64F, (void*)info_msg->R.data()).clone();
+
+		// 投影行列 P (3x4行列)
+		cv::Mat projectionMatrix = cv::Mat(3, 4, CV_64F, (void*)info_msg->P.data()).clone();
+
+		double cx = cameraMatrix.at<double>(0,2);
+		double cy = cameraMatrix.at<double>(1,2);
+		double fx = cameraMatrix.at<double>(0,0);
+		double fy = cameraMatrix.at<double>(1,1);
+		double tx = projectionMatrix.at<double>(0,3);
+		double ty = projectionMatrix.at<double>(1,3);
+		double tz = projectionMatrix.at<double>(2,3);
+
+        std::vector<cv::Rect> detections;
+        hog.detectMultiScale(image_rgb, detections);
+
+        visualization_msgs::MarkerArray depth_points_msgs;
+        for (const auto& rect : detections) {
+            cv::rectangle(image_rgb, rect, cv::Scalar(0, 255, 0), 2);
+            
+            int px = rect.x + rect.width/2;
+            int py = rect.y + rect.height/2;
+            float depth = image_depth.at<float>(cv::Point(px,py));
+
+            double x = (px - cx) / fx;
+            double y = (py - cy) / fy;
+
+            double width = rect.width / fx;
+            double height = rect.height / fy;
+
+            potbot_lib::Point depth_point(depth*x, depth*y, depth);
+
+            visualization_msgs::Marker depth_point_msg;
+            depth_point_msg.ns = "peds/centor";
+            depth_point_msg.header.frame_id = camera_image_frame;
+            depth_point_msg.header.stamp = time_now;
+            depth_point_msg.id = depth_points_msgs.markers.size();
+            depth_point_msg.lifetime = ros::Duration(time_now-time_pre);
+            depth_point_msg.type = visualization_msgs::Marker::CUBE;
+            depth_point_msg.pose = potbot_lib::utility::get_pose(depth_point.x, depth_point.y, depth_point.z);
+            depth_point_msg.scale.x = width;
+            depth_point_msg.scale.y = height;
+            depth_point_msg.scale.z = 0.05;
+            depth_point_msg.color = potbot_lib::color::get_msg(depth_point_msg.id);
+            depth_points_msgs.markers.push_back(depth_point_msg);
+
+            if (debug_)
+            {
+                depth_point_msg.ns = "peds/points/raw";
+                depth_point_msg.id = depth_points_msgs.markers.size();
+                depth_point_msg.type = visualization_msgs::Marker::POINTS;
+                depth_point_msg.pose = potbot_lib::utility::get_pose();
+                // depth_point_msg.scale.x = 1.0/fx;
+                // depth_point_msg.scale.y = 1.0/fy;
+                depth_point_msg.scale.x = 0.01;
+                depth_point_msg.scale.y = 0.01;
+                depth_point_msg.scale.z = 0.0;
+                depth_point_msg.color = potbot_lib::color::get_msg(depth_point_msg.id);
+                potbot_lib::Point mean_point(0,0,0);
+                for (int py = rect.y; py < rect.y + rect.height; py++)
+                {
+                    for (int px = rect.x; px < rect.x + rect.width; px++)
+                    {
+                        float depth = image_depth.at<float>(cv::Point(px,py));
+                        double x = (px - cx) / fx;
+                        double y = (py - cy) / fy;
+                        if (isfinite(x) && isfinite(y) && isfinite(depth))
+                        {
+                            potbot_lib::Point depth_point(depth*x, depth*y, depth);
+                            mean_point=mean_point+depth_point;
+                            depth_point_msg.points.push_back(potbot_lib::utility::get_point(depth_point));
+                        }
+                        else
+                        {
+                            // ROS_INFO("%f, %f, %f",x,y,depth);
+                        }
+                    }
+                }
+                depth_points_msgs.markers.push_back(depth_point_msg);
+
+                mean_point=mean_point/double(depth_point_msg.points.size());
+                depth_point_msg.points.clear();
+                depth_point_msg.ns = "peds/points/mean";
+                depth_point_msg.id = depth_points_msgs.markers.size();
+                depth_point_msg.type = visualization_msgs::Marker::CUBE;
+                depth_point_msg.pose = potbot_lib::utility::get_pose(mean_point.x, mean_point.y, mean_point.z);
+                depth_point_msg.scale.x = width;
+                depth_point_msg.scale.y = height;
+                depth_point_msg.scale.z = 0.05;
+                depth_point_msg.color = potbot_lib::color::get_msg(depth_point_msg.id);
+                depth_points_msgs.markers.push_back(depth_point_msg);
+            }
+        }
+
+        pub_camera_points_.publish(depth_points_msgs);
+
+        std_msgs::Header header = rgb_msg->header;
+        header.stamp = ros::Time::now();
+        cv_bridge::CvImage cv_img_dst(header, "bgr8", image_rgb);
+        pub_camera_image_.publish(cv_img_dst.toImageMsg());
+
+        // cv::imshow("Person Detection", image_rgb);
+        // cv::waitKey(1);
+        
+        time_pre = time_now;
     }
 
     void StateLayer::updateBounds(double origin_x, double origin_y, double origin_yaw, double* min_x, double* min_y, double* max_x, double* max_y)

@@ -19,7 +19,7 @@ namespace potbot_lib{
 
         class APFPathPlannerROS : public APFPathPlanner{
             private:
-                ros::Publisher pub_path_;
+                ros::Publisher pub_path_, pub_raw_path_;
                 std::string frame_id_global_ = "map";
                 dynamic_reconfigure::Server<potbot_lib::APFPathPlannerConfig> *dsrv_;
 
@@ -36,6 +36,7 @@ namespace potbot_lib{
                 void getPath(nav_msgs::Path &msg);
 
                 void publishPath();
+                void publishRawPath();
         };
 
     }
