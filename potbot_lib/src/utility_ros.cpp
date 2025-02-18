@@ -352,7 +352,7 @@ namespace potbot_lib{
         {
             geometry_msgs::TransformStamped transformStamped;
             try {
-                transformStamped = buffer.lookupTransform(source_frame_id, target_frame_id, ros::Time(0));
+                transformStamped = buffer.lookupTransform(source_frame_id, target_frame_id, ros::Time(0), ros::Duration(1.0));
             } catch (tf2::TransformException &ex) 
             {
                 ROS_WARN("%s",ex.what());
