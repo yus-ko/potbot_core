@@ -125,6 +125,8 @@ namespace potbot_lib
         void to_msg(class potbot_lib::DiffDriveAgent& agent, geometry_msgs::Pose& msg);
         void to_msg(class potbot_lib::DiffDriveAgent& agent, geometry_msgs::Twist& msg);
         void to_msg(class potbot_lib::DiffDriveAgent& agent, nav_msgs::Odometry& msg);
+        void to_msg(const potbot_msgs::Obstacle& obs, visualization_msgs::Marker& msg);
+        void to_msg(const potbot_msgs::ObstacleArray& obs, visualization_msgs::MarkerArray& msg, double life_time = 0, int type = 0, int action = 0);
 
         typedef struct {
             bool running                = false;

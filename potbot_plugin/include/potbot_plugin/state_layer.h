@@ -87,6 +87,30 @@ using namespace costmap_2d;
 
 namespace potbot_nav
 {
+    class KalmanFilterROS
+    {
+    public:
+        KalmanFilterROS(){};
+        ~KalmanFilterROS(){};
+        void set_state_estimator(int value);
+        void set_ukf_scaling(double value){kappa_=value;};
+        void set_covariances(double q,double r,double p){sigma_q_=q; sigma_r_=r; sigma_p_=p;};
+        void update(potbot_msgs::ObstacleArray& obstacles);
+        
+    private:
+        std::vector<int> ukf_id_;
+        std::vector<potbot_lib::KalmanFilter> states_kf_;
+        std::vector<potbot_lib::UnscentedKalmanFilter> states_ukf_;
+
+        double kappa_ = -2;
+        double sigma_q_ = 0.00001;
+        double sigma_r_ = 0.00001;
+        double sigma_p_ = 1;
+        int state_estimator_ = UNSCENTED_KALMAN_FILTER;
+
+        double time_pre_ = -1;
+    };
+
     class StateLayer : public costmap_2d::Layer
     {
     public:
@@ -111,6 +135,8 @@ namespace potbot_nav
         void pointCloud2Callback(const sensor_msgs::PointCloud2ConstPtr& message);
         void imageCallback(const sensor_msgs::Image::ConstPtr& rgb_msg, const sensor_msgs::Image::ConstPtr& depth_msg, const sensor_msgs::CameraInfo::ConstPtr& info_msg);
 
+        void applyCloud(const potbot_msgs::ObstacleArray& obstacles);
+
     protected:
         virtual void setupDynamicReconfigure(ros::NodeHandle &nh);
 
@@ -122,21 +148,14 @@ namespace potbot_nav
         message_filters::Subscriber<sensor_msgs::Image> sub_rgb_;
         message_filters::Subscriber<sensor_msgs::Image> sub_depth_;
         message_filters::Subscriber<sensor_msgs::CameraInfo> sub_info_;
-        std::vector<int> ukf_id_;
-        std::vector<potbot_lib::KalmanFilter> states_kf_;
-        std::vector<potbot_lib::UnscentedKalmanFilter> states_ukf_;
-        gazebo_msgs::ModelStates model_states_;
+
+        KalmanFilterROS kf_scan_, kf_pcl_, kf_camera_, kf_model_;
 
         bool debug_ = false;
-        double kappa_ = -2;
-        double sigma_q_ = 0.00001;
-        double sigma_r_ = 0.00001;
-        double sigma_p_ = 1;
         double apply_cluster_to_localmap_ = 100;
         double max_estimated_linear_velocity_ = 100;
         double max_estimated_angular_velocity_ = 100;
         double prediction_time_ = 2;
-        int state_estimator_ = UNSCENTED_KALMAN_FILTER;
 
         double euclidean_cluster_tolerance_         = 0.5;
         int euclidean_min_cluster_size_             = 100;

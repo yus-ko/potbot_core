@@ -349,7 +349,7 @@ namespace potbot_lib{
 
                 if ((p.position - path_.back().position).norm()>0.1)
                 {
-                    ROS_INFO("over distance");
+                    // ROS_INFO("over distance");
                     break;
                 }
 
