@@ -25,6 +25,11 @@ namespace potbot_lib
         point_cloud_[index] = point_cloud;
     }
 
+    // void PCLClustering::get_clusters(pcl::PointCloud<pcl::PointXYZ>::Ptr pcl, size_t index)
+    // {
+    //     pcl = point_cloud_[index];
+    // }
+
     void PCLClustering::get_clusters(pcl::PCLPointCloud2& pointcloud2, size_t index)
     {
         pcl::toPCLPointCloud2(*(point_cloud_[index]), pointcloud2);

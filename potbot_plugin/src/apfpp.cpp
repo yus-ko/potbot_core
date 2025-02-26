@@ -44,6 +44,8 @@ namespace potbot_nav
                 apf_->getApf()->getHeader().resolution, 
                 robot_pose_.pose.pose.position.x, 
                 robot_pose_.pose.pose.position.y);
+            frame_id_global_ = robot_pose_.header.frame_id;
+            apf_->setFrameIdGlobal(robot_pose_.header.frame_id);
 			apf_->setRobot(robot_pose_.pose.pose);
 			apf_->setGoal(target_pose_);
 			apf_->clearObstacles();
@@ -60,6 +62,7 @@ namespace potbot_nav
             apfpp_->createPath(init_yaw);
             // apfpp_->createPathWithWeight(init_yaw);
 
+            apfpp_->publishRawPath();
 			apfpp_->bezier();
 			apfpp_->publishPath();
         }

@@ -833,6 +833,52 @@ namespace potbot_lib{
             to_msg(agent, msg.twist.twist);
         }
 
+        void to_msg(const potbot_msgs::Obstacle& obs, visualization_msgs::Marker& msg)
+        {
+        }
+
+        void to_msg(const potbot_msgs::ObstacleArray& obs, visualization_msgs::MarkerArray& msg, double life_time, int type, int action)
+        {
+            for (const auto& o : obs.data)
+            {
+                visualization_msgs::Marker marker;
+                marker.header = o.header;
+                marker.ns = "centor";
+                marker.id = o.id;
+                marker.lifetime = ros::Duration(life_time);
+                marker.type = type;
+                marker.action = action;
+                marker.pose = o.pose;
+                marker.scale = o.scale;
+                marker.color = potbot_lib::color::get_msg(o.id);
+                msg.markers.push_back(marker);
+                
+                if (!o.points.empty())
+                {
+                    visualization_msgs::Marker points = marker;
+                    points.ns = "points";
+                    points.id = 1000000+o.id;
+                    points.type = visualization_msgs::Marker::POINTS;
+                    points.pose = potbot_lib::utility::get_pose(0,0,0,0,0,0);
+                    points.scale.x = 0.01;
+                    points.scale.y = 0.01;
+                    points.scale.z = 0.01;
+                    points.points = o.points;
+                    msg.markers.push_back(points);
+                }
+
+                visualization_msgs::Marker velocity = marker;
+                velocity.ns = "velocity";
+                velocity.id = 2000000+o.id;
+                velocity.type = visualization_msgs::Marker::ARROW;
+                velocity.scale.x = o.twist.linear.x;
+                velocity.scale.y = 0.01;
+                velocity.scale.z = 0.01;
+                msg.markers.push_back(velocity);
+
+            }
+        }
+
     }
 
 }

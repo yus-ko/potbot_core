@@ -234,6 +234,7 @@ namespace potbot_nav
             // apf_planner_->publishPath();
 
             nav_msgs::Odometry nav_robot;
+            nav_robot.header = global_pose.header;
             nav_robot.pose.pose = global_pose.pose;
             planner_->setRobot(nav_robot);
             planner_->setTargetPose(transformed_plan.back());

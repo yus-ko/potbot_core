@@ -53,6 +53,8 @@ namespace potbot_lib{
             Point getRobot();
             void getObstacles(std::vector<Point>& obs);
 
+            double getDistanceThresholdRepulsionField(){return distance_threshold_repulsion_field_;};
+
             void createPotentialField();
     };
 }

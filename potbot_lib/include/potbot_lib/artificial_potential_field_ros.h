@@ -42,6 +42,7 @@ namespace potbot_lib{
 
             ArtificialPotentialField* getApf();
 
+            void setFrameIdGlobal(std::string frame_id);
             std::string getFrameIdGlobal();
 
             void setGoal(const geometry_msgs::PoseStamped& goal);
