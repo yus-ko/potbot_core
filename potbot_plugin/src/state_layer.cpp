@@ -301,10 +301,6 @@ namespace potbot_nav
                 sub_scan_ = nh.subscribe(topic,1, &StateLayer::laserScanCallback, this);
 
             }
-            else if (data_type == "PointCloud2")
-            {
-                sub_pcl2_ = nh.subscribe(topic,1, &StateLayer::pointCloud2Callback, this);
-            }
             else if (data_type == "Image")
             {
                 std::string topic_depth, topic_info;
@@ -456,46 +452,6 @@ namespace potbot_nav
         // estimateState(obstacle_array);
         kf_scan_.update(obstacle_array);
         applyCloud(obstacle_array);
-    }
-
-    void StateLayer::pointCloud2Callback(const sensor_msgs::PointCloud2ConstPtr& message)
-    {
-        // ROS_INFO("pointCloud2Callback");
-        std::string pcl_frame = message->header.frame_id;
-        // project the laser into a point cloud
-        // sensor_msgs::PointCloud2 cloud;
-        // cloud.header = message->header;
-
-        pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
-        pcl::fromROSMsg(*message, *cloud);
-        int size_raw = cloud->size();
-        potbot_lib::PCLClustering cluster;
-        cluster.set_clusters(cloud,0);
-        cluster.set_euclidean_cluster_tolerance(euclidean_cluster_tolerance_);
-        cluster.set_euclidean_min_cluster_size(euclidean_min_cluster_size_);
-        cluster.euclidean_clustering();
-        visualization_msgs::MarkerArray pcl_markers;
-        cluster.get_clusters(pcl_markers);
-        pub_pcl_clustering_.publish(pcl_markers);
-        // int size_ds = markers_ds.markers[1].points.size();
-        // ROS_INFO("size raw: %d downsampled: %d", size_raw, size_ds);
-
-        // PCL から PointCloud2 に戻す
-        // sensor_msgs::PointCloud2 output;
-        // pcl::toROSMsg(*clustered_cloud, output);
-        // output.header = cloud_msg->header;
-        potbot_msgs::ObstacleArray obstacle_array;
-        cluster.get_clusters(obstacle_array);
-        potbot_msgs::ObstacleArray obstacle_array_world;
-        potbot_lib::utility::get_tf(*tf_, obstacle_array, global_frame_, obstacle_array_world);
-        
-        static potbot_msgs::ObstacleArray obstaclearray_pre = obstacle_array_world;
-        potbot_lib::utility::associate_obstacle(obstacle_array_world, obstaclearray_pre, *tf_);
-        // estimateState(obstacle_array_world);
-        kf_pcl_.update(obstacle_array_world);
-        applyCloud(obstacle_array_world);
-        obstaclearray_pre = obstacle_array_world;
-
     }
 
     void StateLayer::imageCallback(const sensor_msgs::Image::ConstPtr& rgb_msg, const sensor_msgs::Image::ConstPtr& depth_msg, const sensor_msgs::CameraInfo::ConstPtr& info_msg)

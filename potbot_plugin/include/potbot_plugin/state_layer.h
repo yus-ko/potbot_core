@@ -61,10 +61,6 @@
 #include <dynamic_reconfigure/server.h>
 #include <costmap_2d/footprint.h>
 
-#include <pcl_conversions/pcl_conversions.h>
-#include <pcl/point_cloud.h>
-#include <pcl/point_types.h>
-
 #include <opencv2/opencv.hpp>
 #include <opencv2/objdetect.hpp>
 #include <cv_bridge/cv_bridge.h>
@@ -77,7 +73,6 @@
 #include <potbot_lib/scan_clustering.h>
 #include <potbot_lib/kalman_filter.h>
 #include <potbot_lib/unscented_kalman_filter.h>
-#include <potbot_lib/pcl_clustering.h>
 
 using namespace costmap_2d;
 
@@ -130,7 +125,6 @@ namespace potbot_nav
          */
         void laserScanCallback(const sensor_msgs::LaserScanConstPtr &message);
 
-        void pointCloud2Callback(const sensor_msgs::PointCloud2ConstPtr& message);
         void imageCallback(const sensor_msgs::Image::ConstPtr& rgb_msg, const sensor_msgs::Image::ConstPtr& depth_msg, const sensor_msgs::CameraInfo::ConstPtr& info_msg);
 
         void applyCloud(const potbot_msgs::ObstacleArray& obstacles);
@@ -141,7 +135,7 @@ namespace potbot_nav
     private:
         std::string global_frame_;
 
-        ros::Subscriber sub_scan_, sub_pcl2_, sub_image_;
+        ros::Subscriber sub_scan_, sub_image_;
         ros::Publisher pub_scan_clustering_, pub_state_marker_, pub_obstacles_scan_estimate_, pub_scan_range_, pub_pcl_clustering_, pub_camera_image_, pub_camera_points_;
         message_filters::Subscriber<sensor_msgs::Image> sub_rgb_;
         message_filters::Subscriber<sensor_msgs::Image> sub_depth_;
