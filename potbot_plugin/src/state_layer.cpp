@@ -318,10 +318,6 @@ namespace potbot_nav
                 sync_.reset(new message_filters::Synchronizer<MySyncPolicy>(MySyncPolicy(10), sub_rgb_, sub_depth_, sub_info_));
                 sync_->registerCallback(boost::bind(&StateLayer::imageCallback, this, _1, _2, _3));
             }
-            else if (data_type == "ModelStates")
-            {
-                sub_model_states_ = nh.subscribe("/gazebo/model_states",1, &StateLayer::modelStatesCallback, this);
-            }
         }
         
         dsrv_ = NULL;
@@ -378,7 +374,6 @@ namespace potbot_nav
             kf_scan_.set_state_estimator(state_estimator);
             kf_pcl_.set_state_estimator(state_estimator);
             kf_camera_.set_state_estimator(state_estimator);
-            kf_model_.set_state_estimator(state_estimator);
         }
         estimator_name = config.state_estimator;
 
@@ -388,8 +383,6 @@ namespace potbot_nav
         kf_pcl_.set_covariances(config.sigma_q, config.sigma_r, config.sigma_p);
         kf_camera_.set_ukf_scaling(config.kappa);
         kf_camera_.set_covariances(config.sigma_q, config.sigma_r, config.sigma_p);
-        kf_model_.set_ukf_scaling(config.kappa);
-        kf_model_.set_covariances(config.sigma_q, config.sigma_r, config.sigma_p);
 
         euclidean_cluster_tolerance_ = config.euclidean_cluster_tolerance;
         euclidean_min_cluster_size_ = config.euclidean_min_cluster_size;
@@ -462,30 +455,6 @@ namespace potbot_nav
         potbot_msgs::ObstacleArray obstacle_array = clusters_obstaclearray_pre;
         // estimateState(obstacle_array);
         kf_scan_.update(obstacle_array);
-        applyCloud(obstacle_array);
-    }
-
-    void StateLayer::modelStatesCallback(const gazebo_msgs::ModelStatesConstPtr &message)
-    {
-        gazebo_msgs::ModelStates model_states = *message;
-        potbot_msgs::ObstacleArray obstacle_array;
-        obstacle_array.header.frame_id = global_frame_;
-        obstacle_array.header.stamp = ros::Time::now();
-        for (int i=0;i<model_states.name.size();i++)
-        {
-            if (model_states.name[i].find("actor") != std::string::npos)
-            {
-                potbot_msgs::Obstacle obstacle;
-                obstacle.header = obstacle_array.header;
-                obstacle.id = getId(model_states.name[i]);
-                obstacle.pose = model_states.pose[i];
-                obstacle.points.push_back(obstacle.pose.position);
-                obstacle.is_moving = true;
-                obstacle_array.data.push_back(obstacle);
-            }
-        }
-        // estimateState(obstacle_array);
-        kf_model_.update(obstacle_array);
         applyCloud(obstacle_array);
     }
 

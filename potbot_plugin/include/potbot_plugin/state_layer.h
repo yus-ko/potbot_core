@@ -130,8 +130,6 @@ namespace potbot_nav
          */
         void laserScanCallback(const sensor_msgs::LaserScanConstPtr &message);
 
-        void modelStatesCallback(const gazebo_msgs::ModelStatesConstPtr &message);
-
         void pointCloud2Callback(const sensor_msgs::PointCloud2ConstPtr& message);
         void imageCallback(const sensor_msgs::Image::ConstPtr& rgb_msg, const sensor_msgs::Image::ConstPtr& depth_msg, const sensor_msgs::CameraInfo::ConstPtr& info_msg);
 
@@ -143,13 +141,13 @@ namespace potbot_nav
     private:
         std::string global_frame_;
 
-        ros::Subscriber sub_scan_, sub_model_states_, sub_pcl2_, sub_image_;
+        ros::Subscriber sub_scan_, sub_pcl2_, sub_image_;
         ros::Publisher pub_scan_clustering_, pub_state_marker_, pub_obstacles_scan_estimate_, pub_scan_range_, pub_pcl_clustering_, pub_camera_image_, pub_camera_points_;
         message_filters::Subscriber<sensor_msgs::Image> sub_rgb_;
         message_filters::Subscriber<sensor_msgs::Image> sub_depth_;
         message_filters::Subscriber<sensor_msgs::CameraInfo> sub_info_;
 
-        KalmanFilterROS kf_scan_, kf_pcl_, kf_camera_, kf_model_;
+        KalmanFilterROS kf_scan_, kf_pcl_, kf_camera_;
 
         bool debug_ = false;
         double apply_cluster_to_localmap_ = 100;
