@@ -1,7 +1,7 @@
 #ifndef H_POTBOT_LIB_INTERPOLATE_
 #define H_POTBOT_LIB_INTERPOLATE_
 
-#include <potbot_lib/utility.h>
+#include <potbot_lib/utility.hpp>
 #include <vector>
 #include <eigen3/Eigen/Dense>
 #include <unsupported/Eigen/Splines>

@@ -14,6 +14,7 @@ find_package(sensor_msgs REQUIRED)
 include_directories(include)
 
 add_library(potbot_lib_utility
+  src/interpolate.cpp
   src/utility.cpp
 )
 

@@ -1,4 +1,4 @@
-#include <potbot_lib/interpolate.h>
+#include <potbot_lib/interpolate.hpp>
 
 namespace potbot_lib{
 

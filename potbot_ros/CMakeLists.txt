@@ -10,12 +10,14 @@ find_package(std_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
+find_package(interactive_markers REQUIRED)
 find_package(potbot_lib REQUIRED)
 
 include_directories(include)
 
 add_library(potbot_ros_utility
   src/utility.cpp
+  src/interactive_marker_manager.cpp
 )
 
 ament_target_dependencies(potbot_ros_utility
@@ -27,6 +29,7 @@ ament_target_dependencies(potbot_ros_utility
   geometry_msgs
   nav_msgs
   sensor_msgs
+  interactive_markers
   potbot_lib
 )
 
@@ -57,6 +60,7 @@ ament_export_dependencies(
   geometry_msgs
   nav_msgs
   sensor_msgs
+  interactive_markers
   potbot_lib
 )
 ament_export_include_directories(include)
