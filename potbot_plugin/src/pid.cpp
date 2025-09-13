@@ -9,9 +9,15 @@ namespace potbot_nav
         {
             ros::NodeHandle private_nh("~/" + name);
 
-            dsrv_ = new dynamic_reconfigure::Server<potbot_plugin::PIDConfig>(private_nh);
-            dynamic_reconfigure::Server<potbot_plugin::PIDConfig>::CallbackType cb = boost::bind(&PID::reconfigureCB, this, _1, _2);
-            dsrv_->setCallback(cb);
+            if (!reconfigure_initialized_)
+            {
+                dsrv_ = new dynamic_reconfigure::Server<potbot_plugin::PIDConfig>(private_nh);
+                dynamic_reconfigure::Server<potbot_plugin::PIDConfig>::CallbackType cb = boost::bind(&PID::reconfigureCB, this, _1, _2);
+                dsrv_->setCallback(cb);
+                reconfigure_initialized_ = true;
+            }
+
+            pid_.initPID();
         }
 
         void PID::reconfigureCB(const potbot_plugin::PIDConfig& param, uint32_t level)

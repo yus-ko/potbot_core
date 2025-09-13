@@ -37,6 +37,7 @@ generate_dynamic_reconfigure_options(
   cfg/OptimalPathFollower.cfg
   cfg/TraditionalAPF.cfg
   cfg/ParticleSwarmOptimization.cfg
+  cfg/PotbotLocalPlanner.cfg
 )
 
 catkin_package(

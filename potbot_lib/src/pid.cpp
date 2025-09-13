@@ -4,6 +4,11 @@ namespace potbot_lib{
 
     namespace controller{
 
+        PID::PID()
+        {
+            initPID();
+        }
+
         void PID::applyLimit()
         {
             v = std::min(v, max_linear_velocity_);
@@ -37,7 +42,7 @@ namespace potbot_lib{
 
         void PID::setTargetPoint(const Pose& target)
         {
-            initPID();
+            // initPID();
             target_point_ = target;
         }
 

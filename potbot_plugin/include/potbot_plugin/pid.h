@@ -18,6 +18,7 @@ namespace potbot_nav
                 potbot_lib::controller::PID pid_;
                 dynamic_reconfigure::Server<potbot_plugin::PIDConfig> *dsrv_;
 
+                bool reconfigure_initialized_ = false;
                 void reconfigureCB(const potbot_plugin::PIDConfig& param, uint32_t level); 
 
             public:

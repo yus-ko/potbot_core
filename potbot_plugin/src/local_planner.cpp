@@ -77,7 +77,9 @@ namespace potbot_nav
         if (!isInitialized())
         {
 
-            ros::NodeHandle private_nh("~/" + name);
+            node_name_ = name;
+            
+            ros::NodeHandle private_nh("~/" + node_name_);
             g_plan_pub_ = private_nh.advertise<nav_msgs::Path>("global_plan", 1);
             l_plan_pub_ = private_nh.advertise<nav_msgs::Path>("local_plan", 1);
 
@@ -107,7 +109,7 @@ namespace potbot_nav
             try
             {
                 controller_ = controller_loader_.createInstance(plugin_name);
-                controller_->initialize(name + "/controller", tf);
+                controller_->initialize(node_name_ + "/controller", tf);
                 ROS_INFO("\t%s initialized", plugin_name.c_str());
             }
             catch(pluginlib::PluginlibException& ex)
@@ -130,8 +132,12 @@ namespace potbot_nav
             
             std::string recover_plugin_name = "potbot_nav/PID";
             recover_ = controller_loader_.createInstance(recover_plugin_name);
-            recover_->initialize(name + "/recover", tf);
+            recover_->initialize(node_name_ + "/recover", tf);
             ROS_INFO("\t%s initialized", recover_plugin_name.c_str());
+
+            dsrv_ = new dynamic_reconfigure::Server<potbot_plugin::PotbotLocalPlannerConfig>(private_nh);
+            dynamic_reconfigure::Server<potbot_plugin::PotbotLocalPlannerConfig>::CallbackType cb = boost::bind(&PotbotLocalPlanner::reconfigureCB, this, _1, _2);
+            dsrv_->setCallback(cb);
 
             initialized_ = true;
         }
@@ -139,6 +145,12 @@ namespace potbot_nav
         {
             ROS_WARN("This planner has already been initialized, doing nothing");
         }
+    }
+
+    void PotbotLocalPlanner::reconfigureCB(const potbot_plugin::PotbotLocalPlannerConfig& param, uint32_t level)
+    {
+        recover_distance_ = param.recover_distance;
+        stop_margin_ = param.stop_margin;
     }
 
     bool PotbotLocalPlanner::setPlan(const std::vector<geometry_msgs::PoseStamped> &orig_global_plan)
@@ -279,20 +291,35 @@ namespace potbot_nav
         }
 
         double distance_to_goal = potbot_lib::utility::get_distance(global_pose.pose, transformed_plan.back().pose);
-
-        if (distance_to_goal < 0.1)
+        std::string control_mode;
+        if (distance_to_goal < stop_margin_)
         {
             reached_goal_ = true;
-            ROS_INFO("reached target 0");
+            ROS_INFO("reached target");
         }
-        else if (distance_to_goal < 0.3)
+        else if (distance_to_goal < recover_distance_)
+        {
+            control_mode = "recover";
+        }
+        else
+        {
+            control_mode = "path_follower";
+        }
+
+        if (control_mode != control_mode_pre_)
+        {
+            ROS_INFO_STREAM(control_mode);
+            recover_->initialize(node_name_ + "/recover", tf_);
+        }
+
+        if (control_mode == "recover")
         {
             nav_msgs::Odometry sim_pose;
             sim_pose.pose.pose = global_pose.pose;
             recover_->setRobot(sim_pose);
             recover_->calculateCommand(cmd_vel);
         }
-        else
+        else if (control_mode == "path_follower")
         {
             nav_msgs::Path path_msg_interpolated;
             planner_->getPath(path_msg_interpolated.poses);
@@ -312,6 +339,8 @@ namespace potbot_nav
             // ROS_INFO_STREAM(reached_goal_);
             // ROS_INFO("%d, %f, %f",path_msg_interpolated.poses.size(), cmd_vel.linear.x, cmd_vel.angular.z);
         }
+
+        control_mode_pre_ = control_mode;
 
         //publish information to the visualizer
         // publishPlan(transformed_plan, g_plan_pub_);

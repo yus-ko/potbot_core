@@ -77,6 +77,7 @@
 #include <pluginlib/class_loader.h>
 
 // #include <base_local_planner/trajectory_planner_ros.h>
+#include <potbot_plugin/PotbotLocalPlannerConfig.h>
 
 namespace potbot_nav {
   using namespace base_local_planner;
@@ -145,6 +146,10 @@ namespace potbot_nav {
       void createPathThread();
 
     private:
+      void reconfigureCB(const potbot_plugin::PotbotLocalPlannerConfig& param, uint32_t level);
+      dynamic_reconfigure::Server<potbot_plugin::PotbotLocalPlannerConfig> *dsrv_;
+
+      std::string node_name_, control_mode_, control_mode_pre_;
 
       costmap_2d::Costmap2DROS* costmap_ros_; ///< @brief The ROS wrapper for the costmap the controller will use
       costmap_2d::Costmap2D* costmap_; ///< @brief The costmap the controller will use
@@ -166,6 +171,9 @@ namespace potbot_nav {
       bool rotating_to_goal_;
       bool reached_goal_;
       bool latch_xy_goal_tolerance_, xy_tolerance_latch_;
+
+      double stop_margin_ = 0.1;
+      double recover_distance_ = 0.3;
 
       ros::Publisher g_plan_pub_, l_plan_pub_;
 

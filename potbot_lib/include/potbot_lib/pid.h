@@ -44,7 +44,7 @@ namespace potbot_lib{
                 void pidControl();
 
             public:
-                PID(){};
+                PID();
                 ~PID(){};
 
                 void setTargetPoint(const Pose& target);
