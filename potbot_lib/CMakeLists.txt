@@ -1,76 +1,62 @@
-cmake_minimum_required(VERSION 3.0.2)
+cmake_minimum_required(VERSION 3.5)
 project(potbot_lib)
 
-if($ENV{ROS_DISTRO} STREQUAL "kinetic")
-  add_definitions(-DROS_VERSION_KINETIC)
-endif()
+find_package(ament_cmake REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(tf2 REQUIRED)
+find_package(tf2_ros REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
+find_package(std_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(nav_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
 
-find_package(catkin REQUIRED COMPONENTS
-  roscpp
-  dynamic_reconfigure
-  pluginlib
-  pcl_ros
-  potbot_msgs
-  interactive_markers
-  message_generation
-)
+include_directories(include)
 
-add_service_files(
-  FILES
-  Save.srv
-)
-
-generate_dynamic_reconfigure_options(
-  cfg/APFPathPlanner.cfg
-  cfg/PSOPathPlanner.cfg
-  cfg/PotentialField.cfg
-  cfg/MarkerManager.cfg
-)
-
-generate_messages(
-  # DEPENDENCIES
-)
-
-catkin_package(
-  INCLUDE_DIRS include
-  LIBRARIES ${PROJECT_NAME}
-  # CATKIN_DEPENDS
-  DEPENDS eigen #opencv
-  CATKIN_DEPENDS
-    costmap_2d
-)
-
-include_directories(
-  include
-  ${catkin_INCLUDE_DIRS}
-  # ${OpenCV_INCLUDE_DIRS}
-  # ${PCL_INCLUDE_DIRS}
-)
-
-add_library(${PROJECT_NAME}
+add_library(potbot_lib_utility
   src/utility.cpp
   src/utility_ros.cpp
-  src/interpolate.cpp
-  src/field.cpp
-  src/artificial_potential_field.cpp
-  src/artificial_potential_field_ros.cpp
-  src/apf_path_planner.cpp
-  src/apf_path_planner_ros.cpp
-  src/particle_swarm_optimization.cpp
-  # src/pso_path_planner_ros.cpp
-  src/kalman_filter.cpp
-  src/unscented_kalman_filter.cpp
-  src/pcl_clustering.cpp
-  src/scan_clustering.cpp
-  src/diff_drive_agent.cpp
-  src/interactive_marker_manager.cpp
-  src/pid.cpp
-  src/pure_pursuit.cpp
-  src/time_state.cpp
-  src/optimal_path_follower.cpp
-  src/filter.cpp
 )
-add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
 
-add_definitions(-std=c++14)
+ament_target_dependencies(potbot_lib_utility
+  rclcpp
+  tf2
+  tf2_ros
+  tf2_geometry_msgs
+  std_msgs
+  geometry_msgs
+  nav_msgs
+  sensor_msgs
+)
+
+target_include_directories(potbot_lib_utility PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+)
+
+install(
+  TARGETS potbot_lib_utility
+  EXPORT export_potbot_lib_utility
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION bin
+)
+
+install(DIRECTORY include/
+  DESTINATION include
+)
+
+ament_export_targets(export_potbot_lib_utility)
+ament_export_dependencies(
+  rclcpp
+  tf2
+  tf2_ros
+  tf2_geometry_msgs
+  std_msgs
+  geometry_msgs
+  nav_msgs
+  sensor_msgs
+)
+ament_export_include_directories(include)
+
+ament_package()

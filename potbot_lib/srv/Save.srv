@@ -1,5 +1,0 @@
-string save_target
-string full_path
----
-bool success
-string message

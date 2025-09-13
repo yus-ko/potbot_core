@@ -1,4 +1,4 @@
-#include <potbot_lib/utility.h>
+#include <potbot_lib/utility.hpp>
 
 namespace potbot_lib{
 
