@@ -2,6 +2,7 @@
 #define H_INTERACTIVE_MARKER_MANAGER_
 
 #include <boost/bind/bind.hpp>
+#include <memory>
 #include <fstream>
 
 #include <rclcpp/rclcpp.hpp>
@@ -21,12 +22,17 @@
 
 namespace potbot_lib{
 
+    // typedef struct{
+    //     visualization_msgs::msg::Marker marker;
+    //     std::vector<geometry_msgs::msg::PoseStamped> trajectory;
+    //     bool trajectory_recording = false;
+    //     u_int8_t trajectory_marker_type = visualization_msgs::msg::Marker::LINE_STRIP;
+    //     std::string trajectory_interpolation_method = "none";
+    // } VisualMarker;
+
     typedef struct{
-        visualization_msgs::msg::Marker marker;
-        std::vector<geometry_msgs::msg::PoseStamped> trajectory;
-        bool trajectory_recording = false;
-        u_int8_t trajectory_marker_type = visualization_msgs::msg::Marker::LINE_STRIP;
-        std::string trajectory_interpolation_method = "none";
+        visualization_msgs::msg::InteractiveMarker marker;
+        visualization_msgs::msg::InteractiveMarker controller;
     } VisualMarker;
 
     class InteractiveMarkerManager
@@ -41,17 +47,35 @@ namespace potbot_lib{
             std::string name_space_ = "", frame_id_global_ = "map";
             size_t interactive_marker_num_ = 1;
             std::vector<VisualMarker> visual_markers_;
+            std::map<std::string, VisualMarker> controllable_markers_;
 
             std::shared_ptr<interactive_markers::InteractiveMarkerServer> imsrv_;
             std::shared_ptr<interactive_markers::MenuHandler> menu_handler_;
 
+            visualization_msgs::msg::InteractiveMarkerControl 
+                movement_controller_, 
+                rotation_controller_, 
+                rotation_controller_axis_x_, 
+                rotation_controller_axis_y_,
+                rotation_controller_axis_z_,
+                scale_controller_, 
+                scale_controller_axis_x_,
+                scale_controller_axis_y_,
+                scale_controller_axis_z_;
+
             rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr dyn_params_handler_;
             rcl_interfaces::msg::SetParametersResult dynamicParametersCallback(std::vector<rclcpp::Parameter> parameters);
 
+            void initializeController();
             void initializeParameter();
             void initializeMarker();
 
-            void markerFeedback(const std::shared_ptr<const visualization_msgs::msg::InteractiveMarkerFeedback> &feedback);
+            void markerFeedback(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback);
+            void editorChangeTo(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback, std::string mode);
+            void changePosition(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback);
+            void changeRotation(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback);
+            void changeScale(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback);
+            void typeChangeTo(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback, int type);
 
             void interpolateTrajectory(size_t id);
 
@@ -67,6 +91,8 @@ namespace potbot_lib{
             ~InteractiveMarkerManager(){};
 
             std::vector<VisualMarker>* getVisualMarker();
+            visualization_msgs::msg::InteractiveMarker getMarker(std::string name);
+            std::vector<visualization_msgs::msg::InteractiveMarker> getAllMarkers();
     };
 }
 

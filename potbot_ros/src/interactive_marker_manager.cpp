@@ -11,6 +11,7 @@ namespace potbot_lib{
 		// srv_clear_marker_trajectory_ = pnh.advertiseService("clear_marker_tarajectory", &InteractiveMarkerManager::serviceClearMarkerTrajectory, this);
 		
 		initializeParameter();
+		initializeController();
 		initializeMarker();
 
 		dyn_params_handler_ = parent_node_->add_on_set_parameters_callback(
@@ -51,29 +52,8 @@ namespace potbot_lib{
 		}
 	}
 
-	void InteractiveMarkerManager::initializeMarker()
+	void InteractiveMarkerManager::initializeController()
 	{
-		imsrv_ = std::make_shared<interactive_markers::InteractiveMarkerServer>(
-			parent_node_->get_namespace() + '/' + name_space_, parent_node_);
-		menu_handler_ = std::make_shared<interactive_markers::MenuHandler>();
-
-		interactive_markers::MenuHandler::EntryHandle x_entry = menu_handler_->insert("scale x");
-		interactive_markers::MenuHandler::EntryHandle y_entry = menu_handler_->insert("scale y");
-		interactive_markers::MenuHandler::EntryHandle xy_entry = menu_handler_->insert("scale xy");
-
-		menu_handler_->insert( x_entry, "x2" , boost::bind(&InteractiveMarkerManager::markerFeedback, this, boost::placeholders::_1));
-		menu_handler_->insert( x_entry, "x0.5" , boost::bind(&InteractiveMarkerManager::markerFeedback, this, boost::placeholders::_1));
-
-		menu_handler_->insert( y_entry, "x2" , boost::bind(&InteractiveMarkerManager::markerFeedback, this, boost::placeholders::_1));
-		menu_handler_->insert( y_entry, "x0.5" , boost::bind(&InteractiveMarkerManager::markerFeedback, this, boost::placeholders::_1));
-
-		menu_handler_->insert( xy_entry, "x2" , boost::bind(&InteractiveMarkerManager::markerFeedback, this, boost::placeholders::_1));
-		menu_handler_->insert( xy_entry, "x0.5" , boost::bind(&InteractiveMarkerManager::markerFeedback, this, boost::placeholders::_1));
-
-		interactive_markers::MenuHandler::EntryHandle type_entry = menu_handler_->insert("marker type");
-		menu_handler_->insert( type_entry, "cube" , boost::bind(&InteractiveMarkerManager::markerFeedback, this, boost::placeholders::_1));
-		menu_handler_->insert( type_entry, "sphere" , boost::bind(&InteractiveMarkerManager::markerFeedback, this, boost::placeholders::_1));
-
 		visualization_msgs::msg::Marker move_marker;
 		move_marker.type = visualization_msgs::msg::Marker::SPHERE;
 		move_marker.scale.x = 0.2;
@@ -86,17 +66,72 @@ namespace potbot_lib{
 		move_marker.pose = potbot_lib::utility::get_pose(0,0,0,0,0,0);
 		// move_marker.pose = potbot_lib::utility::get_Pose(0,0.5,1,0,0,0);
 
-		visualization_msgs::msg::InteractiveMarkerControl move_control;
-		move_control.name = "move_plane";
-		move_control.orientation = potbot_lib::utility::get_quat(0,-M_PI_2,0);
-		move_control.always_visible = true;
-		move_control.markers.push_back(move_marker);
-		move_control.interaction_mode = visualization_msgs::msg::InteractiveMarkerControl::MOVE_PLANE;
+		movement_controller_.name = "movement_controller_marker";
+		movement_controller_.orientation = potbot_lib::utility::get_quat(0,-M_PI_2,0);
+		movement_controller_.always_visible = true;
+		movement_controller_.markers.push_back(move_marker);
+		movement_controller_.interaction_mode = visualization_msgs::msg::InteractiveMarkerControl::MOVE_PLANE;
 
-		visualization_msgs::msg::InteractiveMarkerControl rotate_control;
-		rotate_control.name = "rotate_yaw";
-		rotate_control.orientation = potbot_lib::utility::get_quat(0,-M_PI_2,0);
-		rotate_control.interaction_mode = visualization_msgs::msg::InteractiveMarkerControl::ROTATE_AXIS;
+		rotation_controller_axis_z_.name = "rotation_controller_axis_z";
+		rotation_controller_axis_z_.orientation = potbot_lib::utility::get_quat(0,-M_PI_2,0);
+		rotation_controller_axis_z_.always_visible = true;
+		rotation_controller_axis_z_.interaction_mode = visualization_msgs::msg::InteractiveMarkerControl::ROTATE_AXIS;
+
+		rotation_controller_ = rotation_controller_axis_z_;
+		rotation_controller_.name = "rotation_controller_marker";
+		rotation_controller_.markers.push_back(move_marker);
+
+		scale_controller_axis_x_.name = "scale_controller_axis_x";
+		scale_controller_axis_x_.orientation = potbot_lib::utility::get_quat(0,0,0);
+		scale_controller_axis_x_.always_visible = true;
+		scale_controller_axis_x_.interaction_mode = visualization_msgs::msg::InteractiveMarkerControl::MOVE_AXIS;
+
+		scale_controller_axis_y_.name = "scale_controller_axis_y";
+		scale_controller_axis_y_.orientation = potbot_lib::utility::get_quat(0,0,M_PI_2);
+		scale_controller_axis_y_.always_visible = true;
+		scale_controller_axis_y_.interaction_mode = visualization_msgs::msg::InteractiveMarkerControl::MOVE_AXIS;
+
+		scale_controller_axis_z_.name = "scale_controller_axis_z";
+		scale_controller_axis_z_.orientation = potbot_lib::utility::get_quat(0,M_PI_2,0);
+		scale_controller_axis_z_.always_visible = true;
+		scale_controller_axis_z_.interaction_mode = visualization_msgs::msg::InteractiveMarkerControl::MOVE_AXIS;
+
+		scale_controller_.name = "scale_controller_marker";
+		scale_controller_.always_visible = true;
+		scale_controller_.interaction_mode = visualization_msgs::msg::InteractiveMarkerControl::FIXED;
+		scale_controller_.markers.push_back(move_marker);
+
+	}
+
+	void InteractiveMarkerManager::initializeMarker()
+	{
+		imsrv_ = std::make_shared<interactive_markers::InteractiveMarkerServer>(
+			parent_node_->get_namespace() + '/' + name_space_, parent_node_);
+		menu_handler_ = std::make_shared<interactive_markers::MenuHandler>();
+
+		interactive_markers::MenuHandler::EntryHandle edit_entry = menu_handler_->insert("edit");
+
+		menu_handler_->insert( edit_entry, "position" , 
+			[this](const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback) {
+				this->editorChangeTo(feedback, "position");});
+
+		menu_handler_->insert( edit_entry, "rotation" , 
+			[this](const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback) {
+				this->editorChangeTo(feedback, "rotation");});
+
+		menu_handler_->insert( edit_entry, "scale" , 
+			[this](const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback) {
+				this->editorChangeTo(feedback, "scale");});
+
+		interactive_markers::MenuHandler::EntryHandle type_entry = menu_handler_->insert(edit_entry, "type");
+
+		menu_handler_->insert( type_entry, "cube", 
+			[this](const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback) {
+				this->typeChangeTo(feedback, visualization_msgs::msg::Marker::CUBE);});
+
+		menu_handler_->insert( type_entry, "sphere", 
+			[this](const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback) {
+				this->typeChangeTo(feedback, visualization_msgs::msg::Marker::SPHERE);});
 
 		frame_id_global_ = parent_node_->get_parameter("frame_id_global").as_string();
 
@@ -109,8 +144,8 @@ namespace potbot_lib{
 
 			auto marker_type = parent_node_->get_parameter(marker_name + ".type").as_string();
 			auto trajectory_marker_type = parent_node_->get_parameter(marker_name + ".trajectory_marker_type").as_string();
-			visual_markers_[i].trajectory_recording = parent_node_->get_parameter(marker_name + ".trajectory_recording").as_bool();
-			visual_markers_[i].trajectory_interpolation_method = parent_node_->get_parameter(marker_name + ".trajectory_interpolation_method").as_string();
+			// visual_markers_[i].trajectory_recording = parent_node_->get_parameter(marker_name + ".trajectory_recording").as_bool();
+			// visual_markers_[i].trajectory_interpolation_method = parent_node_->get_parameter(marker_name + ".trajectory_interpolation_method").as_string();
 
 			auto x = parent_node_->get_parameter(marker_name + ".initial_pose.x").as_double();
 			auto y = parent_node_->get_parameter(marker_name + ".initial_pose.y").as_double();
@@ -128,52 +163,67 @@ namespace potbot_lib{
 			auto b = parent_node_->get_parameter(marker_name + ".color.b").as_double();
 			auto a = parent_node_->get_parameter(marker_name + ".color.a").as_double();
 
-			if (marker_type == "sphere")
-			{
-				visual_markers_[i].marker.type = visualization_msgs::msg::Marker::SPHERE;
-			}
-			else if (marker_type == "cube")
-			{
-				visual_markers_[i].marker.type = visualization_msgs::msg::Marker::CUBE;
-			}	
+			// if (marker_type == "sphere")
+			// {
+			// 	visual_markers_[i].marker.type = visualization_msgs::msg::Marker::SPHERE;
+			// }
+			// else if (marker_type == "cube")
+			// {
+			// 	visual_markers_[i].marker.type = visualization_msgs::msg::Marker::CUBE;
+			// }	
 
-			if (trajectory_marker_type == "line")
-			{
-				visual_markers_[i].trajectory_marker_type = visualization_msgs::msg::Marker::LINE_STRIP;
-			}
-			else if (trajectory_marker_type == "points")
-			{
-				visual_markers_[i].trajectory_marker_type = visualization_msgs::msg::Marker::POINTS;
-			}	
+			// if (trajectory_marker_type == "line")
+			// {
+			// 	visual_markers_[i].trajectory_marker_type = visualization_msgs::msg::Marker::LINE_STRIP;
+			// }
+			// else if (trajectory_marker_type == "points")
+			// {
+			// 	visual_markers_[i].trajectory_marker_type = visualization_msgs::msg::Marker::POINTS;
+			// }	
 
-			visual_markers_[i].marker.text = marker_name;
+			// visual_markers_[i].marker.text = marker_name;
 
-			visual_markers_[i].marker.scale.x = scale_x;
-			visual_markers_[i].marker.scale.y = scale_y;
-			visual_markers_[i].marker.scale.z = scale_z;
+			// visual_markers_[i].marker.scale.x = scale_x;
+			// visual_markers_[i].marker.scale.y = scale_y;
+			// visual_markers_[i].marker.scale.z = scale_z;
 
-			visual_markers_[i].marker.color.r = r;
-			visual_markers_[i].marker.color.g = g;
-			visual_markers_[i].marker.color.b = b;
-			visual_markers_[i].marker.color.a = a;
+			// visual_markers_[i].marker.color.r = r;
+			// visual_markers_[i].marker.color.g = g;
+			// visual_markers_[i].marker.color.b = b;
+			// visual_markers_[i].marker.color.a = a;
 
-			visual_markers_[i].marker.pose = potbot_lib::utility::get_pose();
+			// visual_markers_[i].marker.pose = potbot_lib::utility::get_pose();
+
+			visualization_msgs::msg::Marker marker_msg;
+			marker_msg.text = marker_name;
+			marker_msg.type = visualization_msgs::msg::Marker::SPHERE;
+			marker_msg.scale.x = scale_x;
+			marker_msg.scale.y = scale_y;
+			marker_msg.scale.z = scale_z;
+			marker_msg.color.r = r;
+			marker_msg.color.g = g;
+			marker_msg.color.b = b;
+			marker_msg.color.a = a;
 
 			visualization_msgs::msg::InteractiveMarker int_marker;
 			int_marker.header.frame_id = frame_id_global_;
 			int_marker.header.stamp = parent_node_->get_clock()->now();
-			// int_marker.name = "obstacle_" + std::to_string(i);
-			int_marker.name = visual_markers_[i].marker.text;
+			int_marker.name = marker_name;
 			int_marker.description = int_marker.name;
 			int_marker.pose = potbot_lib::utility::get_pose(x,y,z,roll,pitch,yaw);
-			// int_marker.pose = potbot_lib::utility::get_Pose(6,0,1,0,0,0);
 
-			move_control.markers[0] = visual_markers_[i].marker;
+			movement_controller_.markers[0] = marker_msg;
+			int_marker.controls.push_back(movement_controller_);
 
-			int_marker.controls.push_back(move_control);
-			int_marker.controls.push_back(rotate_control);
+			VisualMarker vm;
+			vm.marker = int_marker;
+			vm.controller = int_marker;
+			
+			controllable_markers_.emplace(int_marker.name, vm);
 
-			imsrv_->insert(int_marker, boost::bind(&InteractiveMarkerManager::markerFeedback, this, boost::placeholders::_1));
+			imsrv_->insert(int_marker, 
+				[this](const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback) {
+					this->changePosition(feedback);});
 
 			visual_markers_[i].marker.pose = int_marker.pose;
 			menu_handler_->apply(*imsrv_, int_marker.name);
@@ -312,190 +362,358 @@ namespace potbot_lib{
 	// 	first = false;
 	// }
 
-	void InteractiveMarkerManager::markerFeedback(const std::shared_ptr<const visualization_msgs::msg::InteractiveMarkerFeedback> &feedback)
+	void InteractiveMarkerManager::markerFeedback(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback)
+	{
+		// visualization_msgs::msg::InteractiveMarker int_marker;
+		// if (imsrv_->get(feedback->marker_name, int_marker)) 
+		// {
+		// 	int id = -1;
+		// 	for (size_t i = 0; i < interactive_marker_num_; i++)
+		// 	{
+		// 		if (int_marker.name == visual_markers_[i].marker.text)
+		// 		{
+		// 			id = i;
+		// 			break;
+		// 		}
+		// 	}
+		// 	if (id < 0)
+		// 	{
+		// 		return;
+		// 	}
+			
+		// 	visual_markers_[id].marker.pose = feedback->pose;
+		// 	visual_markers_[id].marker.header = feedback->header;
+
+		// 	if (visual_markers_[id].trajectory_recording)
+		// 	{
+		// 		interpolateTrajectory(id);
+		// 	}
+
+		// 	size_t eid = feedback->menu_entry_id;
+		// 	if (eid == 4)
+		// 	{
+		// 		int_marker.controls[0].markers[0].scale.x *= 2;
+		// 	}
+		// 	else if (eid == 5)
+		// 	{
+		// 		int_marker.controls[0].markers[0].scale.x *= 0.5;
+		// 	}
+		// 	else if (eid == 6)
+		// 	{
+		// 		int_marker.controls[0].markers[0].scale.y *= 2;
+		// 	}
+		// 	else if (eid == 7)
+		// 	{
+		// 		int_marker.controls[0].markers[0].scale.y *= 0.5;
+		// 	}
+		// 	else if (eid == 8)
+		// 	{
+		// 		int_marker.controls[0].markers[0].scale.x *= 2;
+		// 		int_marker.controls[0].markers[0].scale.y *= 2;
+		// 	}
+		// 	else if (eid == 9)
+		// 	{
+		// 		int_marker.controls[0].markers[0].scale.x *= 0.5;
+		// 		int_marker.controls[0].markers[0].scale.y *= 0.5;
+		// 	}
+		// 	else if (eid == 11)
+		// 	{
+		// 		int_marker.controls[0].markers[0].type = visualization_msgs::msg::Marker::CUBE;
+		// 	}
+		// 	else if (eid == 12)
+		// 	{
+		// 		int_marker.controls[0].markers[0].type = visualization_msgs::msg::Marker::SPHERE;
+		// 	}
+
+		// 	visual_markers_[id].marker.scale = int_marker.controls[0].markers[0].scale;
+		// 	visual_markers_[id].marker.type = int_marker.controls[0].markers[0].type;
+
+		// 	// 変更をサーバーに反映
+		// 	imsrv_->insert(int_marker, boost::bind(&InteractiveMarkerManager::markerFeedback, this, boost::placeholders::_1));
+		// 	imsrv_->applyChanges();
+		// }
+	}
+
+	void InteractiveMarkerManager::editorChangeTo(
+		const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback, std::string mode)
 	{
 		visualization_msgs::msg::InteractiveMarker int_marker;
-		if (imsrv_->get(feedback->marker_name, int_marker)) 
+		if (imsrv_->get(feedback->marker_name, int_marker))
 		{
-			int id = -1;
-			for (size_t i = 0; i < interactive_marker_num_; i++)
+			auto viz_marker_bak = int_marker.controls.front().markers.front();
+			int_marker.controls.clear();
+			if (mode == "position")
 			{
-				if (int_marker.name == visual_markers_[i].marker.text)
+				movement_controller_.markers[0] = viz_marker_bak;
+				int_marker.controls.push_back(movement_controller_);
+				int_marker.controls[0].markers[0].color.a = 1;
+				int_marker.scale = std::max(std::max(std::max(
+					int_marker.controls[0].markers[0].scale.x,
+					int_marker.controls[0].markers[0].scale.y),
+					int_marker.controls[0].markers[0].scale.z),1.0);
+				controllable_markers_[int_marker.name].marker = int_marker;
+				controllable_markers_[int_marker.name].controller = int_marker;
+				imsrv_->insert(int_marker, 
+					[this](const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &fb) {
+						this->changePosition(fb);});
+				imsrv_->erase(int_marker.name + "_scale_controller");
+			}
+			else if (mode == "rotation")
+			{
+				rotation_controller_.markers[0] = viz_marker_bak;
+				int_marker.controls.push_back(rotation_controller_);
+				int_marker.controls.push_back(rotation_controller_axis_z_);
+				int_marker.controls[0].markers[0].color.a = 1;
+				int_marker.scale = std::max(std::max(std::max(
+					int_marker.controls[0].markers[0].scale.x,
+					int_marker.controls[0].markers[0].scale.y),
+					int_marker.controls[0].markers[0].scale.z),1.0);
+				controllable_markers_[int_marker.name].marker = int_marker;
+				controllable_markers_[int_marker.name].controller = int_marker;
+				imsrv_->insert(int_marker, 
+					[this](const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &fb) {
+						this->changeRotation(fb);});
+				imsrv_->erase(int_marker.name + "_scale_controller");
+			}
+			else if (mode == "scale")
+			{
+				decltype(controllable_markers_)::iterator it = controllable_markers_.find(int_marker.name);
+				if (it != controllable_markers_.end()) 
 				{
-					id = i;
+					scale_controller_.markers[0] = viz_marker_bak;
+					int_marker.controls.push_back(scale_controller_);
+					int_marker.controls[0].markers[0].color.a = 0.5;
+					int_marker.scale = 1;
+					
+
+					visualization_msgs::msg::InteractiveMarker cont_marker = int_marker;
+					cont_marker.name = int_marker.name + "_scale_controller";
+					cont_marker.description = "";
+					cont_marker.controls.clear();
+					cont_marker.controls.push_back(scale_controller_axis_x_);
+					cont_marker.controls.push_back(scale_controller_axis_y_);
+					cont_marker.controls.push_back(scale_controller_axis_z_);
+
+					cont_marker.scale = std::max(std::max(std::max(
+						int_marker.controls[0].markers[0].scale.x,
+						int_marker.controls[0].markers[0].scale.y),
+						int_marker.controls[0].markers[0].scale.z),1.0);
+
+					controllable_markers_[int_marker.name].marker = int_marker;
+					controllable_markers_[int_marker.name].controller = cont_marker;
+
+					imsrv_->insert(int_marker,
+						[this](const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &fb) {
+							this->changeScale(fb);});
+					imsrv_->insert(cont_marker, 
+						[this](const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &fb) {
+							this->changeScale(fb);});
+				}
+			}
+			
+			imsrv_->applyChanges();
+		}
+	}
+
+	void InteractiveMarkerManager::changePosition(
+		const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback)
+	{
+		visualization_msgs::msg::InteractiveMarker int_marker;
+		if (imsrv_->get(feedback->marker_name, int_marker))
+		{
+			controllable_markers_[int_marker.name].marker = int_marker;
+			controllable_markers_[int_marker.name].controller = int_marker;
+		}
+	}
+
+	void InteractiveMarkerManager::changeRotation(
+		const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback)
+	{
+		changePosition(feedback);
+	}
+
+	void InteractiveMarkerManager::changeScale(
+		const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback)
+	{
+		visualization_msgs::msg::InteractiveMarker int_marker;
+		if (imsrv_->get(feedback->marker_name, int_marker))
+		{
+			std::string name = "";
+			for (const auto &cm:controllable_markers_)
+			{
+				if (cm.second.controller.name == int_marker.name)
+				{
+					name = cm.first;
 					break;
 				}
 			}
-			if (id < 0)
-			{
+
+			if (name == "")
 				return;
-			}
-			
-			visual_markers_[id].marker.pose = feedback->pose;
-			visual_markers_[id].marker.header = feedback->header;
 
-			if (visual_markers_[id].trajectory_recording)
+			auto &marker = controllable_markers_[name].marker;
+			auto &controller = controllable_markers_[name].controller;
+
+			marker.controls[0].markers[0].scale.x += 0.2*(int_marker.pose.position.x - marker.pose.position.x);
+			marker.controls[0].markers[0].scale.y += 0.2*(int_marker.pose.position.y - marker.pose.position.y);
+			marker.controls[0].markers[0].scale.z += 0.2*(int_marker.pose.position.z - marker.pose.position.z);
+
+			marker.controls[0].markers[0].scale.x = std::max(marker.controls[0].markers[0].scale.x, 0.01);
+			marker.controls[0].markers[0].scale.y = std::max(marker.controls[0].markers[0].scale.y, 0.01);
+			marker.controls[0].markers[0].scale.z = std::max(marker.controls[0].markers[0].scale.z, 0.01);
+
+			controller.pose = marker.pose;
+
+			imsrv_->insert(marker, 
+				[this](const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &fb) {
+					this->changeScale(fb);});
+			imsrv_->insert(controller, 
+				[this](const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &fb) {
+					this->changeScale(fb);});
+			imsrv_->applyChanges();
+		}
+	}
+
+	void InteractiveMarkerManager::typeChangeTo(
+		const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback, int type)
+	{
+		visualization_msgs::msg::InteractiveMarker int_marker;
+		if (imsrv_->get(feedback->marker_name, int_marker))
+		{
+			int_marker.controls[0].markers[0].type = type;
+
+			auto name = int_marker.controls[0].name;
+			if (name == "scale_controller_marker")
 			{
-				interpolateTrajectory(id);
+				imsrv_->insert(int_marker, 
+					[this](const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &fb) {
+						this->changeScale(fb);});
+			}
+			else
+			{
+				imsrv_->insert(int_marker, 
+					[this](const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &fb) {
+						this->changePosition(fb);});
 			}
 
-			size_t eid = feedback->menu_entry_id;
-			if (eid == 4)
-			{
-				int_marker.controls[0].markers[0].scale.x *= 2;
-			}
-			else if (eid == 5)
-			{
-				int_marker.controls[0].markers[0].scale.x *= 0.5;
-			}
-			else if (eid == 6)
-			{
-				int_marker.controls[0].markers[0].scale.y *= 2;
-			}
-			else if (eid == 7)
-			{
-				int_marker.controls[0].markers[0].scale.y *= 0.5;
-			}
-			else if (eid == 8)
-			{
-				int_marker.controls[0].markers[0].scale.x *= 2;
-				int_marker.controls[0].markers[0].scale.y *= 2;
-			}
-			else if (eid == 9)
-			{
-				int_marker.controls[0].markers[0].scale.x *= 0.5;
-				int_marker.controls[0].markers[0].scale.y *= 0.5;
-			}
-			else if (eid == 11)
-			{
-				int_marker.controls[0].markers[0].type = visualization_msgs::msg::Marker::CUBE;
-			}
-			else if (eid == 12)
-			{
-				int_marker.controls[0].markers[0].type = visualization_msgs::msg::Marker::SPHERE;
-			}
-
-			visual_markers_[id].marker.scale = int_marker.controls[0].markers[0].scale;
-			visual_markers_[id].marker.type = int_marker.controls[0].markers[0].type;
-
-			// 変更をサーバーに反映
-			imsrv_->insert(int_marker, boost::bind(&InteractiveMarkerManager::markerFeedback, this, boost::placeholders::_1));
+			// controllable_markers_[int_marker.name].marker = int_marker;
+			// controllable_markers_[int_marker.name].controller = int_marker;
 			imsrv_->applyChanges();
 		}
 	}
 
 	void InteractiveMarkerManager::interpolateTrajectory(size_t id)
 	{
-		if (visual_markers_[id].trajectory.empty())
-		{
-			geometry_msgs::msg::PoseStamped p;
-			p.header = visual_markers_[id].marker.header;
-			p.pose = visual_markers_[id].marker.pose;
-			visual_markers_[id].trajectory.push_back(p);
-		}
+		// if (visual_markers_[id].trajectory.empty())
+		// {
+		// 	geometry_msgs::msg::PoseStamped p;
+		// 	p.header = visual_markers_[id].marker.header;
+		// 	p.pose = visual_markers_[id].marker.pose;
+		// 	visual_markers_[id].trajectory.push_back(p);
+		// }
 		
-		double distance_to_pre = utility::get_distance(visual_markers_[id].marker.pose, visual_markers_[id].trajectory.back().pose);
-		if (distance_to_pre > 0.01)
-		{
-			geometry_msgs::msg::PoseStamped pose;
-			pose.header.frame_id = frame_id_global_;
-			pose.header.stamp = parent_node_->get_clock()->now();
-			pose.pose = visual_markers_[id].marker.pose;
+		// double distance_to_pre = utility::get_distance(visual_markers_[id].marker.pose, visual_markers_[id].trajectory.back().pose);
+		// if (distance_to_pre > 0.01)
+		// {
+		// 	geometry_msgs::msg::PoseStamped pose;
+		// 	pose.header.frame_id = frame_id_global_;
+		// 	pose.header.stamp = parent_node_->get_clock()->now();
+		// 	pose.pose = visual_markers_[id].marker.pose;
 
-			if (distance_to_pre > 0.05)
-			{
-				std::vector<geometry_msgs::msg::PoseStamped> start_end(2);
-				start_end[0] = visual_markers_[id].trajectory.back();
-				start_end[1] = pose;
+		// 	if (distance_to_pre > 0.05)
+		// 	{
+		// 		std::vector<geometry_msgs::msg::PoseStamped> start_end(2);
+		// 		start_end[0] = visual_markers_[id].trajectory.back();
+		// 		start_end[1] = pose;
 				
-				std::vector<Eigen::Vector2d> interp_vecs;
-				utility::to_mat(start_end,interp_vecs);
-				interpolate::linear(interp_vecs, int(distance_to_pre/0.05), interp_vecs);
-				utility::to_msg(interp_vecs,start_end);
+		// 		std::vector<Eigen::Vector2d> interp_vecs;
+		// 		utility::to_mat(start_end,interp_vecs);
+		// 		interpolate::linear(interp_vecs, int(distance_to_pre/0.05), interp_vecs);
+		// 		utility::to_msg(interp_vecs,start_end);
 
-				RCLCPP_DEBUG(parent_node_->get_logger(), "distance_to_pre: %f, linear_interpolate_num: %d", distance_to_pre, (int)start_end.size());
+		// 		RCLCPP_DEBUG(parent_node_->get_logger(), "distance_to_pre: %f, linear_interpolate_num: %d", distance_to_pre, (int)start_end.size());
 
-				for (size_t i = 1; i < start_end.size(); i++)
-				{
-					start_end[i].header = pose.header;
-					visual_markers_[id].trajectory.push_back(start_end[i]);
-				}
-			}
-			else
-			{
-				visual_markers_[id].trajectory.push_back(pose);
-			}
+		// 		for (size_t i = 1; i < start_end.size(); i++)
+		// 		{
+		// 			start_end[i].header = pose.header;
+		// 			visual_markers_[id].trajectory.push_back(start_end[i]);
+		// 		}
+		// 	}
+		// 	else
+		// 	{
+		// 		visual_markers_[id].trajectory.push_back(pose);
+		// 	}
 
-			auto* points = &visual_markers_[id].trajectory;
-			size_t num = points->size();
-			size_t interpolate_num_limit = 50;
-			static size_t last_interpolated_index = 0;
-			if (num > 1)
-			{
-				std::vector<geometry_msgs::msg::PoseStamped> split_traj;
-				if (num > interpolate_num_limit)
-				{
-					for (size_t i = num - interpolate_num_limit; i < num; i++)
-					{
-						split_traj.push_back((*points)[i]);
-					}
-				}
-				else
-				{
-					split_traj = *points;
-				}
+		// 	auto* points = &visual_markers_[id].trajectory;
+		// 	size_t num = points->size();
+		// 	size_t interpolate_num_limit = 50;
+		// 	static size_t last_interpolated_index = 0;
+		// 	if (num > 1)
+		// 	{
+		// 		std::vector<geometry_msgs::msg::PoseStamped> split_traj;
+		// 		if (num > interpolate_num_limit)
+		// 		{
+		// 			for (size_t i = num - interpolate_num_limit; i < num; i++)
+		// 			{
+		// 				split_traj.push_back((*points)[i]);
+		// 			}
+		// 		}
+		// 		else
+		// 		{
+		// 			split_traj = *points;
+		// 		}
 				
-				if (split_traj.size() > 1)
-				{
-					std::vector<Eigen::Vector2d> traj_vecs;
-					utility::to_mat(split_traj,traj_vecs);
-					if (visual_markers_[id].trajectory_interpolation_method == "spline")
-					{
-						interpolate::spline(traj_vecs, traj_vecs.size(), traj_vecs);
-					}
-					else if (visual_markers_[id].trajectory_interpolation_method == "bezier")
-					{
-						interpolate::bezier(traj_vecs, traj_vecs.size(), traj_vecs);
-					}
-					utility::to_msg(traj_vecs,split_traj);
-				}
+		// 		if (split_traj.size() > 1)
+		// 		{
+		// 			std::vector<Eigen::Vector2d> traj_vecs;
+		// 			utility::to_mat(split_traj,traj_vecs);
+		// 			if (visual_markers_[id].trajectory_interpolation_method == "spline")
+		// 			{
+		// 				interpolate::spline(traj_vecs, traj_vecs.size(), traj_vecs);
+		// 			}
+		// 			else if (visual_markers_[id].trajectory_interpolation_method == "bezier")
+		// 			{
+		// 				interpolate::bezier(traj_vecs, traj_vecs.size(), traj_vecs);
+		// 			}
+		// 			utility::to_msg(traj_vecs,split_traj);
+		// 		}
 
-				if (num > interpolate_num_limit)
-				{
-					for (size_t i = 0; i < split_traj.size(); i++)
-					{
-						visual_markers_[id].trajectory[i+num-interpolate_num_limit] = split_traj[i];
-					}
-				}
-				else
-				{
-					visual_markers_[id].trajectory = split_traj;
-				}
-				RCLCPP_DEBUG(parent_node_->get_logger(), "interpolate size: %d, trajectories_[%d]_size: %d", (int)split_traj.size(), (int)id, (int)visual_markers_[id].trajectory.size());
+		// 		if (num > interpolate_num_limit)
+		// 		{
+		// 			for (size_t i = 0; i < split_traj.size(); i++)
+		// 			{
+		// 				visual_markers_[id].trajectory[i+num-interpolate_num_limit] = split_traj[i];
+		// 			}
+		// 		}
+		// 		else
+		// 		{
+		// 			visual_markers_[id].trajectory = split_traj;
+		// 		}
+		// 		RCLCPP_DEBUG(parent_node_->get_logger(), "interpolate size: %d, trajectories_[%d]_size: %d", (int)split_traj.size(), (int)id, (int)visual_markers_[id].trajectory.size());
 
-			}
-			publishMarkerTrajectory();
-		}
+		// 	}
+		// 	publishMarkerTrajectory();
+		// }
 	}
 
 	void InteractiveMarkerManager::publishMarkerTrajectory()
 	{
-		visualization_msgs::msg::MarkerArray traj_marker;
-		for (const auto& vismark:visual_markers_)
-		{
-			if (vismark.trajectory_recording)
-			{
-				visualization_msgs::msg::Marker traj = vismark.marker;
-				traj.type = vismark.trajectory_marker_type;
-				traj.pose = potbot_lib::utility::get_pose();
-				traj.scale.x = 0.01;
-				traj.scale.y = 0.01;
-				traj.scale.z = 0.01;
-				utility::get_point(vismark.trajectory, traj.points);
-				traj_marker.markers.push_back(traj);
-			}
-		}
-		pub_marker_trajectory_->publish(traj_marker);
+		// visualization_msgs::msg::MarkerArray traj_marker;
+		// for (const auto& vismark:visual_markers_)
+		// {
+		// 	if (vismark.trajectory_recording)
+		// 	{
+		// 		visualization_msgs::msg::Marker traj = vismark.marker;
+		// 		traj.type = vismark.trajectory_marker_type;
+		// 		traj.pose = potbot_lib::utility::get_pose();
+		// 		traj.scale.x = 0.01;
+		// 		traj.scale.y = 0.01;
+		// 		traj.scale.z = 0.01;
+		// 		utility::get_point(vismark.trajectory, traj.points);
+		// 		traj_marker.markers.push_back(traj);
+		// 	}
+		// }
+		// pub_marker_trajectory_->publish(traj_marker);
 	}
 
 	// bool directoryExists(const std::string &path) 
@@ -559,14 +777,14 @@ namespace potbot_lib{
 
 	int InteractiveMarkerManager::getMarkerId(std::string marker_name)
 	{
-		for (size_t i = 0; i < visual_markers_.size(); i++)
-		{
-			if (visual_markers_[i].marker.text == marker_name)
-			{
-				return i;
-			}
-		}
-		return -1;
+		// for (size_t i = 0; i < visual_markers_.size(); i++)
+		// {
+		// 	if (visual_markers_[i].marker.text == marker_name)
+		// 	{
+		// 		return i;
+		// 	}
+		// }
+		// return -1;
 	}
 
 	// bool InteractiveMarkerManager::serviceSaveMarkerTrajectory(potbot_lib::Save::Request &req, potbot_lib::Save::Response &resp)
