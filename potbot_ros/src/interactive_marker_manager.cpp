@@ -1,4 +1,5 @@
 #include <potbot_ros/interactive_marker_manager.hpp>
+#include <yaml-cpp/yaml.h>
 
 namespace potbot_lib{
 
@@ -11,8 +12,9 @@ namespace potbot_lib{
 		// srv_clear_marker_trajectory_ = pnh.advertiseService("clear_marker_tarajectory", &InteractiveMarkerManager::serviceClearMarkerTrajectory, this);
 		
 		initializeParameter();
+
 		initializeController();
-		initializeMarker();
+		initializeMarker(parent_node_->get_parameter("marker_yaml_path").as_string());
 
 		dyn_params_handler_ = parent_node_->add_on_set_parameters_callback(
 			std::bind(&InteractiveMarkerManager::dynamicParametersCallback, this, std::placeholders::_1));
@@ -21,35 +23,7 @@ namespace potbot_lib{
 	void InteractiveMarkerManager::initializeParameter()
 	{
 		parent_node_->declare_parameter("frame_id_global", rclcpp::ParameterValue("map"));
-		parent_node_->declare_parameter("markers", rclcpp::ParameterValue(std::vector<std::string>{"marker"}));
-
-		auto markers = parent_node_->get_parameter("markers").as_string_array();
-		interactive_marker_num_ = markers.size();
-		visual_markers_.resize(interactive_marker_num_);
-		for (const auto &maker:markers)
-		{
-			parent_node_->declare_parameter(maker + ".type", rclcpp::ParameterValue("sphere"));
-
-			parent_node_->declare_parameter(maker + ".trajectory_recording", rclcpp::ParameterValue(false));
-			parent_node_->declare_parameter(maker + ".trajectory_marker_type", rclcpp::ParameterValue("line"));
-			parent_node_->declare_parameter(maker + ".trajectory_interpolation_method", rclcpp::ParameterValue("none"));
-
-			parent_node_->declare_parameter(maker + ".initial_pose.x", rclcpp::ParameterValue(0.0));
-			parent_node_->declare_parameter(maker + ".initial_pose.y", rclcpp::ParameterValue(0.0));
-			parent_node_->declare_parameter(maker + ".initial_pose.z", rclcpp::ParameterValue(0.0));
-			parent_node_->declare_parameter(maker + ".initial_pose.roll", rclcpp::ParameterValue(0.0));
-			parent_node_->declare_parameter(maker + ".initial_pose.pitch", rclcpp::ParameterValue(0.0));
-			parent_node_->declare_parameter(maker + ".initial_pose.yaw", rclcpp::ParameterValue(0.0));
-
-			parent_node_->declare_parameter(maker + ".scale.x", rclcpp::ParameterValue(0.05));
-			parent_node_->declare_parameter(maker + ".scale.y", rclcpp::ParameterValue(0.05));
-			parent_node_->declare_parameter(maker + ".scale.z", rclcpp::ParameterValue(0.05));
-
-			parent_node_->declare_parameter(maker + ".color.r", rclcpp::ParameterValue(0.7));
-			parent_node_->declare_parameter(maker + ".color.g", rclcpp::ParameterValue(0.0));
-			parent_node_->declare_parameter(maker + ".color.b", rclcpp::ParameterValue(0.0));
-			parent_node_->declare_parameter(maker + ".color.a", rclcpp::ParameterValue(1.0));
-		}
+		parent_node_->declare_parameter("marker_yaml_path", rclcpp::ParameterValue("interactive_markers.yaml"));
 	}
 
 	void InteractiveMarkerManager::initializeController()
@@ -103,10 +77,8 @@ namespace potbot_lib{
 
 	}
 
-	void InteractiveMarkerManager::initializeMarker()
+	void InteractiveMarkerManager::initializeMenu()
 	{
-		imsrv_ = std::make_shared<interactive_markers::InteractiveMarkerServer>(
-			parent_node_->get_namespace() + '/' + name_space_, parent_node_);
 		menu_handler_ = std::make_shared<interactive_markers::MenuHandler>();
 
 		interactive_markers::MenuHandler::EntryHandle edit_entry = menu_handler_->insert("edit");
@@ -133,103 +105,159 @@ namespace potbot_lib{
 			[this](const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback) {
 				this->typeChangeTo(feedback, visualization_msgs::msg::Marker::SPHERE);});
 
+		menu_handler_->insert("save marker", 
+			[this](const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback) {
+				this->saveMarker(feedback);});
+	}
+
+	void InteractiveMarkerManager::initializeMarker(std::string yaml_path, bool set_default)
+	{
 		frame_id_global_ = parent_node_->get_parameter("frame_id_global").as_string();
 
-		auto markers = parent_node_->get_parameter("markers").as_string_array();
-		interactive_marker_num_ = markers.size();
-		visual_markers_.resize(interactive_marker_num_);
-		for (size_t i = 0; i < interactive_marker_num_; i++)
+		try 
 		{
-			std::string marker_name = markers[i];
+			YAML::Node root = YAML::LoadFile(yaml_path);
+			if (root["markers"]) 
+			{
+				std::vector<visualization_msgs::msg::InteractiveMarker> int_markers;
+				for (const auto& node : root["markers"]) 
+				{
+					std::string name = node["name"].as<std::string>();
+					std::string type = node["type"].as<std::string>();
 
-			auto marker_type = parent_node_->get_parameter(marker_name + ".type").as_string();
-			auto trajectory_marker_type = parent_node_->get_parameter(marker_name + ".trajectory_marker_type").as_string();
-			// visual_markers_[i].trajectory_recording = parent_node_->get_parameter(marker_name + ".trajectory_recording").as_bool();
-			// visual_markers_[i].trajectory_interpolation_method = parent_node_->get_parameter(marker_name + ".trajectory_interpolation_method").as_string();
+					auto x = node["pose"]["position"]["x"].as<double>();
+					auto y = node["pose"]["position"]["y"].as<double>();
+					auto z = node["pose"]["position"]["z"].as<double>();
+					auto roll = node["pose"]["rotation"]["roll"].as<double>();
+					auto pitch = node["pose"]["rotation"]["pitch"].as<double>();
+					auto yaw = node["pose"]["rotation"]["yaw"].as<double>();
 
-			auto x = parent_node_->get_parameter(marker_name + ".initial_pose.x").as_double();
-			auto y = parent_node_->get_parameter(marker_name + ".initial_pose.y").as_double();
-			auto z = parent_node_->get_parameter(marker_name + ".initial_pose.z").as_double();
-			auto roll = parent_node_->get_parameter(marker_name + ".initial_pose.roll").as_double();
-			auto pitch = parent_node_->get_parameter(marker_name + ".initial_pose.pitch").as_double();
-			auto yaw = parent_node_->get_parameter(marker_name + ".initial_pose.yaw").as_double();
+					auto scale_x = node["scale"]["x"].as<double>();
+					auto scale_y = node["scale"]["y"].as<double>();
+					auto scale_z = node["scale"]["z"].as<double>();
 
-			auto scale_x = parent_node_->get_parameter(marker_name + ".scale.x").as_double();
-			auto scale_y = parent_node_->get_parameter(marker_name + ".scale.y").as_double();
-			auto scale_z = parent_node_->get_parameter(marker_name + ".scale.z").as_double();
+					auto r = node["color"]["r"].as<double>();
+					auto g = node["color"]["g"].as<double>();
+					auto b = node["color"]["b"].as<double>();
+					auto a = node["color"]["a"].as<double>();
+							
+					visualization_msgs::msg::Marker marker_msg;
+					marker_msg.text = name;
+					marker_msg.scale.x = scale_x;
+					marker_msg.scale.y = scale_y;
+					marker_msg.scale.z = scale_z;
+					marker_msg.color.r = r;
+					marker_msg.color.g = g;
+					marker_msg.color.b = b;
+					marker_msg.color.a = a;
 
-			auto r = parent_node_->get_parameter(marker_name + ".color.r").as_double();
-			auto g = parent_node_->get_parameter(marker_name + ".color.g").as_double();
-			auto b = parent_node_->get_parameter(marker_name + ".color.b").as_double();
-			auto a = parent_node_->get_parameter(marker_name + ".color.a").as_double();
+					if (type == "sphere")
+						marker_msg.type = visualization_msgs::msg::Marker::SPHERE;
+					else if (type == "cube")
+						marker_msg.type = visualization_msgs::msg::Marker::CUBE;
 
-			// if (marker_type == "sphere")
-			// {
-			// 	visual_markers_[i].marker.type = visualization_msgs::msg::Marker::SPHERE;
-			// }
-			// else if (marker_type == "cube")
-			// {
-			// 	visual_markers_[i].marker.type = visualization_msgs::msg::Marker::CUBE;
-			// }	
+					visualization_msgs::msg::InteractiveMarker int_marker;
+					int_marker.header.frame_id = frame_id_global_;
+					int_marker.header.stamp = parent_node_->get_clock()->now();
+					int_marker.name = name;
+					int_marker.description = int_marker.name;
+					int_marker.pose = potbot_lib::utility::get_pose(x,y,z,roll,pitch,yaw);
 
-			// if (trajectory_marker_type == "line")
-			// {
-			// 	visual_markers_[i].trajectory_marker_type = visualization_msgs::msg::Marker::LINE_STRIP;
-			// }
-			// else if (trajectory_marker_type == "points")
-			// {
-			// 	visual_markers_[i].trajectory_marker_type = visualization_msgs::msg::Marker::POINTS;
-			// }	
+					movement_controller_.markers[0] = marker_msg;
+					int_marker.controls.push_back(movement_controller_);
 
-			// visual_markers_[i].marker.text = marker_name;
+					int_markers.push_back(int_marker);
+				}
 
-			// visual_markers_[i].marker.scale.x = scale_x;
-			// visual_markers_[i].marker.scale.y = scale_y;
-			// visual_markers_[i].marker.scale.z = scale_z;
+				controllable_markers_.clear();
+				imsrv_ = std::make_shared<interactive_markers::InteractiveMarkerServer>(
+					parent_node_->get_namespace() + '/' + name_space_, parent_node_);
+				initializeMenu();
+				for (const auto & int_marker:int_markers)
+				{
+					VisualMarker vm;
+					vm.marker = int_marker;
+					vm.controller = int_marker;
 
-			// visual_markers_[i].marker.color.r = r;
-			// visual_markers_[i].marker.color.g = g;
-			// visual_markers_[i].marker.color.b = b;
-			// visual_markers_[i].marker.color.a = a;
+					controllable_markers_.emplace(int_marker.name, vm);
 
-			// visual_markers_[i].marker.pose = potbot_lib::utility::get_pose();
+					imsrv_->insert(int_marker, 
+						[this](const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback) {
+							this->changePosition(feedback);});
 
-			visualization_msgs::msg::Marker marker_msg;
-			marker_msg.text = marker_name;
-			marker_msg.type = visualization_msgs::msg::Marker::SPHERE;
-			marker_msg.scale.x = scale_x;
-			marker_msg.scale.y = scale_y;
-			marker_msg.scale.z = scale_z;
-			marker_msg.color.r = r;
-			marker_msg.color.g = g;
-			marker_msg.color.b = b;
-			marker_msg.color.a = a;
+					menu_handler_->apply(*imsrv_, int_marker.name);
+				}
+				imsrv_->applyChanges();
+				RCLCPP_INFO(parent_node_->get_logger(), "Loaded: %s", yaml_path.c_str());
+			}
+		} 
+		catch (const std::exception& e) 
+		{
+			RCLCPP_INFO(parent_node_->get_logger(), "Failed to load marker yaml: %s", e.what());
 
-			visualization_msgs::msg::InteractiveMarker int_marker;
-			int_marker.header.frame_id = frame_id_global_;
-			int_marker.header.stamp = parent_node_->get_clock()->now();
-			int_marker.name = marker_name;
-			int_marker.description = int_marker.name;
-			int_marker.pose = potbot_lib::utility::get_pose(x,y,z,roll,pitch,yaw);
+			if (set_default)
+			{
+				visualization_msgs::msg::Marker marker_msg;
+				marker_msg.text = "marker";
+				marker_msg.type = visualization_msgs::msg::Marker::SPHERE;
+				marker_msg.scale.x = 0.05;
+				marker_msg.scale.y = 0.05;
+				marker_msg.scale.z = 0.05;
+				marker_msg.color.r = 0.7;
+				marker_msg.color.g = 0;
+				marker_msg.color.b = 0;
+				marker_msg.color.a = 1;
+				marker_msg.type = visualization_msgs::msg::Marker::SPHERE;
 
-			movement_controller_.markers[0] = marker_msg;
-			int_marker.controls.push_back(movement_controller_);
+				visualization_msgs::msg::InteractiveMarker int_marker;
+				int_marker.header.frame_id = frame_id_global_;
+				int_marker.header.stamp = parent_node_->get_clock()->now();
+				int_marker.name = marker_msg.text;
+				int_marker.description = int_marker.name;
+				int_marker.pose = potbot_lib::utility::get_pose();
 
-			VisualMarker vm;
-			vm.marker = int_marker;
-			vm.controller = int_marker;
-			
-			controllable_markers_.emplace(int_marker.name, vm);
+				movement_controller_.markers[0] = marker_msg;
+				int_marker.controls.push_back(movement_controller_);
 
-			imsrv_->insert(int_marker, 
-				[this](const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback) {
-					this->changePosition(feedback);});
+				VisualMarker vm;
+				vm.marker = int_marker;
+				vm.controller = int_marker;
+				
+				controllable_markers_.clear();
+				imsrv_ = std::make_shared<interactive_markers::InteractiveMarkerServer>(
+					parent_node_->get_namespace() + '/' + name_space_, parent_node_);
+				initializeMenu();
 
-			visual_markers_[i].marker.pose = int_marker.pose;
-			menu_handler_->apply(*imsrv_, int_marker.name);
+				controllable_markers_.emplace(int_marker.name, vm);
+				imsrv_->insert(int_marker, 
+					[this](const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback) {
+						this->changePosition(feedback);});
+				menu_handler_->apply(*imsrv_, int_marker.name);
+
+				imsrv_->applyChanges();
+
+				RCLCPP_INFO(parent_node_->get_logger(), "Set to default");
+			}
 		}
 
-		imsrv_->applyChanges();
+		// for (size_t i = 0; i < interactive_marker_num_; i++)
+		// {
+		// 	std::string marker_name = markers[i];
+
+		// 	auto marker_type = parent_node_->get_parameter(marker_name + ".type").as_string();
+		// 	auto trajectory_marker_type = parent_node_->get_parameter(marker_name + ".trajectory_marker_type").as_string();
+		// 	// visual_markers_[i].trajectory_recording = parent_node_->get_parameter(marker_name + ".trajectory_recording").as_bool();
+		// 	// visual_markers_[i].trajectory_interpolation_method = parent_node_->get_parameter(marker_name + ".trajectory_interpolation_method").as_string();
+
+		// 	// if (trajectory_marker_type == "line")
+		// 	// {
+		// 	// 	visual_markers_[i].trajectory_marker_type = visualization_msgs::msg::Marker::LINE_STRIP;
+		// 	// }
+		// 	// else if (trajectory_marker_type == "points")
+		// 	// {
+		// 	// 	visual_markers_[i].trajectory_marker_type = visualization_msgs::msg::Marker::POINTS;
+		// 	// }	
+		// }
 	}
 
 	rcl_interfaces::msg::SetParametersResult InteractiveMarkerManager::dynamicParametersCallback(std::vector<rclcpp::Parameter> parameters)
@@ -284,13 +312,12 @@ namespace potbot_lib{
 
 		for(const auto& param : parameters)
 		{
-
 			RCLCPP_INFO_STREAM(parent_node_->get_logger(), param.get_name());
 
-			// if(param.get_name() == "param1")
-			// {
-			// 	member_param1_ = param.as_double(); // double型メンバ変数に代入
-			// }
+			if(param.get_name() == "marker_yaml_path")
+			{
+				initializeMarker(param.as_string(), false);
+			}
 			// else if(param.get_name() == "param2")
 			// {
 			// 	// なんか変な時．例えば重力加速度にマイナスの値を代入しようとするなど．
@@ -599,6 +626,56 @@ namespace potbot_lib{
 			// controllable_markers_[int_marker.name].marker = int_marker;
 			// controllable_markers_[int_marker.name].controller = int_marker;
 			imsrv_->applyChanges();
+		}
+	}
+
+	void InteractiveMarkerManager::saveMarker(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback)
+	{
+		YAML::Node root;
+		YAML::Node node = root["markers"];
+
+		for (const auto& cm:controllable_markers_)
+		{
+			const auto &marker = cm.second.marker;
+			YAML::Node child;
+			child["name"] = cm.first;
+
+			auto type = marker.controls[0].markers[0].type;
+			if (type == visualization_msgs::msg::Marker::SPHERE)
+				child["type"] = "sphere";
+			else if (type == visualization_msgs::msg::Marker::CUBE)
+				child["type"] = "cube";
+
+			child["pose"]["position"]["x"] = marker.pose.position.x;
+			child["pose"]["position"]["y"] = marker.pose.position.y;
+			child["pose"]["position"]["z"] = marker.pose.position.z;
+
+			double r,p,y;
+			tf2::getEulerYPR(marker.pose.orientation, r,p,y);
+			child["pose"]["rotation"]["roll"] = r;
+			child["pose"]["rotation"]["pitch"] = p;
+			child["pose"]["rotation"]["yaw"] = y;
+
+			child["scale"]["x"] = marker.controls[0].markers[0].scale.x;
+			child["scale"]["y"] = marker.controls[0].markers[0].scale.y;
+			child["scale"]["z"] = marker.controls[0].markers[0].scale.z;
+			child["color"]["r"] = marker.controls[0].markers[0].color.r;
+			child["color"]["g"] = marker.controls[0].markers[0].color.g;
+			child["color"]["b"] = marker.controls[0].markers[0].color.b;
+			child["color"]["a"] = marker.controls[0].markers[0].color.a;
+
+			node.push_back(child);
+		}
+
+		// yamlファイル名を決定（例: marker名.yaml）
+		std::string yaml_path = parent_node_->get_parameter("marker_yaml_path").as_string();
+		try {
+			std::ofstream ofs(yaml_path);
+			ofs << root;
+			ofs.close();
+			RCLCPP_INFO(parent_node_->get_logger(), "Saved marker to %s", yaml_path.c_str());
+		} catch (const std::exception& e) {
+			RCLCPP_ERROR(parent_node_->get_logger(), "Failed to write yaml: %s", e.what());
 		}
 	}
 

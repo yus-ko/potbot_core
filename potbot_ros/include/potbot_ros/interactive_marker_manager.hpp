@@ -68,7 +68,8 @@ namespace potbot_lib{
 
             void initializeController();
             void initializeParameter();
-            void initializeMarker();
+            void initializeMenu();
+            void initializeMarker(std::string yaml_path = "", bool set_default = true);
 
             void markerFeedback(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback);
             void editorChangeTo(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback, std::string mode);
@@ -76,6 +77,7 @@ namespace potbot_lib{
             void changeRotation(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback);
             void changeScale(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback);
             void typeChangeTo(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback, int type);
+            void saveMarker(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback);
 
             void interpolateTrajectory(size_t id);
 

@@ -11,7 +11,9 @@ find_package(geometry_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(interactive_markers REQUIRED)
+
 find_package(potbot_lib REQUIRED)
+find_package(yaml-cpp REQUIRED)
 
 include_directories(include)
 
@@ -19,6 +21,7 @@ add_library(potbot_ros_utility
   src/utility.cpp
   src/interactive_marker_manager.cpp
 )
+
 
 ament_target_dependencies(potbot_ros_utility
   rclcpp
@@ -32,6 +35,7 @@ ament_target_dependencies(potbot_ros_utility
   interactive_markers
   potbot_lib
 )
+target_link_libraries(potbot_ros_utility yaml-cpp)
 
 target_include_directories(potbot_ros_utility PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -62,6 +66,7 @@ ament_export_dependencies(
   sensor_msgs
   interactive_markers
   potbot_lib
+  yaml-cpp
 )
 ament_export_include_directories(include)
 
