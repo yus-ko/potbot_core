@@ -576,6 +576,9 @@ namespace potbot_lib{
 		visualization_msgs::msg::InteractiveMarker int_marker;
 		if (imsrv_->get(feedback->marker_name, int_marker))
 		{
+			controllable_markers_.erase(int_marker.name);
+			imsrv_->erase(int_marker.name);
+			imsrv_->applyChanges();
 			RCLCPP_INFO(this->get_logger(), "[%s] deleted", int_marker.name.c_str());
 		}
 	}
