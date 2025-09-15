@@ -7,11 +7,12 @@ namespace potbot_lib{
 
 	InteractiveMarkerManager::InteractiveMarkerManager(std::string name, std::string node_namespace) : rclcpp_lifecycle::LifecycleNode(name,node_namespace)
 	{
-
-		// this->create_publisher<visualization_msgs::msg::MarkerArray>("trajectory", 1);
-
-		// srv_save_marker_trajectory_ = pnh.advertiseService("save_marker_tarajectory", &InteractiveMarkerManager::serviceSaveMarkerTrajectory, this);
-		// srv_clear_marker_trajectory_ = pnh.advertiseService("clear_marker_tarajectory", &InteractiveMarkerManager::serviceClearMarkerTrajectory, this);
+		function_change_position_ = [this](
+			const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback){
+			changePosition(feedback);};
+		function_change_rotation_ = [this](
+			const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback){
+			changeRotation(feedback);};
 		
 		initializeParameter();
 
@@ -21,7 +22,7 @@ namespace potbot_lib{
 		dyn_params_handler_ = this->add_on_set_parameters_callback(
 			std::bind(&InteractiveMarkerManager::dynamicParametersCallback, this, std::placeholders::_1));
 		
-		RCLCPP_INFO(this->get_logger(), "InteractiveMarkerManager 初期化完了");
+		RCLCPP_INFO(this->get_logger(), "InteractiveMarkerManager initialized");
 	}
 
 	void InteractiveMarkerManager::initializeParameter()
@@ -187,10 +188,7 @@ namespace potbot_lib{
 
 					controllable_markers_.emplace(int_marker.name, vm);
 
-					imsrv_->insert(int_marker, 
-						[this](const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback) {
-							this->changePosition(feedback);});
-
+					imsrv_->insert(int_marker, function_change_position_);
 					menu_handler_->apply(*imsrv_, int_marker.name);
 				}
 				imsrv_->applyChanges();
@@ -235,9 +233,7 @@ namespace potbot_lib{
 				initializeMenu();
 
 				controllable_markers_.emplace(int_marker.name, vm);
-				imsrv_->insert(int_marker, 
-					[this](const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback) {
-						this->changePosition(feedback);});
+				imsrv_->insert(int_marker, function_change_position_);
 				menu_handler_->apply(*imsrv_, int_marker.name);
 
 				imsrv_->applyChanges();
@@ -341,132 +337,6 @@ namespace potbot_lib{
 		return *results;
 	}
 
-	// void InteractiveMarkerManager::reconfigureCB(const potbot_lib::MarkerManagerConfig& param, uint32_t level)
-	// {	
-	// 	static bool first = true;
-
-	// 	if (!first)
-	// 	{
-	// 		int id = param.marker_id;
-	// 		std::string visual_type = param.trajectory_marker_type;
-
-	// 		u_int8_t type = visualization_msgs::Marker::LINE_STRIP;
-	// 		if (visual_type == "line")
-	// 		{
-	// 			type = visualization_msgs::Marker::LINE_STRIP;
-	// 		}
-	// 		else if (visual_type == "points")
-	// 		{
-	// 			type = visualization_msgs::Marker::POINTS;
-	// 		}
-
-	// 		std::vector<size_t> ids;
-	// 		if (id == -1)
-	// 		{
-	// 			for (size_t i = 0; i < visual_markers_.size(); i++)
-	// 			{
-	// 				ids.push_back(id);
-	// 			}
-	// 		}
-	// 		else
-	// 		{
-	// 			ids.push_back(id);
-	// 		}
-			
-	// 		for (const auto& i:ids)
-	// 		{
-	// 			if (i < visual_markers_.size())
-	// 			{
-	// 				visual_markers_[i].trajectory_recording = param.trajectory_recording;
-	// 				if (visual_markers_[i].trajectory_recording)
-	// 				{
-	// 					visual_markers_[i].trajectory_marker_type = type;
-	// 					visual_markers_[i].trajectory_interpolation_method = param.trajectory_interpolation_method;
-	// 				}
-	// 				else
-	// 				{
-	// 					visual_markers_[i].trajectory.clear();
-	// 				}
-	// 			}
-	// 		}
-	// 		publishMarkerTrajectory();
-	// 	}
-
-	// 	first = false;
-	// }
-
-	void InteractiveMarkerManager::markerFeedback(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback)
-	{
-		// visualization_msgs::msg::InteractiveMarker int_marker;
-		// if (imsrv_->get(feedback->marker_name, int_marker)) 
-		// {
-		// 	int id = -1;
-		// 	for (size_t i = 0; i < interactive_marker_num_; i++)
-		// 	{
-		// 		if (int_marker.name == visual_markers_[i].marker.text)
-		// 		{
-		// 			id = i;
-		// 			break;
-		// 		}
-		// 	}
-		// 	if (id < 0)
-		// 	{
-		// 		return;
-		// 	}
-			
-		// 	visual_markers_[id].marker.pose = feedback->pose;
-		// 	visual_markers_[id].marker.header = feedback->header;
-
-		// 	if (visual_markers_[id].trajectory_recording)
-		// 	{
-		// 		interpolateTrajectory(id);
-		// 	}
-
-		// 	size_t eid = feedback->menu_entry_id;
-		// 	if (eid == 4)
-		// 	{
-		// 		int_marker.controls[0].markers[0].scale.x *= 2;
-		// 	}
-		// 	else if (eid == 5)
-		// 	{
-		// 		int_marker.controls[0].markers[0].scale.x *= 0.5;
-		// 	}
-		// 	else if (eid == 6)
-		// 	{
-		// 		int_marker.controls[0].markers[0].scale.y *= 2;
-		// 	}
-		// 	else if (eid == 7)
-		// 	{
-		// 		int_marker.controls[0].markers[0].scale.y *= 0.5;
-		// 	}
-		// 	else if (eid == 8)
-		// 	{
-		// 		int_marker.controls[0].markers[0].scale.x *= 2;
-		// 		int_marker.controls[0].markers[0].scale.y *= 2;
-		// 	}
-		// 	else if (eid == 9)
-		// 	{
-		// 		int_marker.controls[0].markers[0].scale.x *= 0.5;
-		// 		int_marker.controls[0].markers[0].scale.y *= 0.5;
-		// 	}
-		// 	else if (eid == 11)
-		// 	{
-		// 		int_marker.controls[0].markers[0].type = visualization_msgs::msg::Marker::CUBE;
-		// 	}
-		// 	else if (eid == 12)
-		// 	{
-		// 		int_marker.controls[0].markers[0].type = visualization_msgs::msg::Marker::SPHERE;
-		// 	}
-
-		// 	visual_markers_[id].marker.scale = int_marker.controls[0].markers[0].scale;
-		// 	visual_markers_[id].marker.type = int_marker.controls[0].markers[0].type;
-
-		// 	// 変更をサーバーに反映
-		// 	imsrv_->insert(int_marker, boost::bind(&InteractiveMarkerManager::markerFeedback, this, boost::placeholders::_1));
-		// 	imsrv_->applyChanges();
-		// }
-	}
-
 	void InteractiveMarkerManager::editorChangeTo(
 		const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback, std::string mode)
 	{
@@ -486,9 +356,7 @@ namespace potbot_lib{
 					int_marker.controls[0].markers[0].scale.z),1.0);
 				controllable_markers_[int_marker.name].marker = int_marker;
 				controllable_markers_[int_marker.name].controller = int_marker;
-				imsrv_->insert(int_marker, 
-					[this](const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &fb) {
-						this->changePosition(fb);});
+				imsrv_->insert(int_marker, function_change_position_);
 				imsrv_->erase(int_marker.name + "_scale_controller");
 			}
 			else if (mode == "rotation")
@@ -503,9 +371,7 @@ namespace potbot_lib{
 					int_marker.controls[0].markers[0].scale.z),1.0);
 				controllable_markers_[int_marker.name].marker = int_marker;
 				controllable_markers_[int_marker.name].controller = int_marker;
-				imsrv_->insert(int_marker, 
-					[this](const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &fb) {
-						this->changeRotation(fb);});
+				imsrv_->insert(int_marker, function_change_rotation_);
 				imsrv_->erase(int_marker.name + "_scale_controller");
 			}
 			else if (mode == "scale")
@@ -685,179 +551,6 @@ namespace potbot_lib{
 		}
 	}
 
-	void InteractiveMarkerManager::interpolateTrajectory(size_t id)
-	{
-		// if (visual_markers_[id].trajectory.empty())
-		// {
-		// 	geometry_msgs::msg::PoseStamped p;
-		// 	p.header = visual_markers_[id].marker.header;
-		// 	p.pose = visual_markers_[id].marker.pose;
-		// 	visual_markers_[id].trajectory.push_back(p);
-		// }
-		
-		// double distance_to_pre = utility::get_distance(visual_markers_[id].marker.pose, visual_markers_[id].trajectory.back().pose);
-		// if (distance_to_pre > 0.01)
-		// {
-		// 	geometry_msgs::msg::PoseStamped pose;
-		// 	pose.header.frame_id = frame_id_global_;
-		// 	pose.header.stamp = this->get_clock()->now();
-		// 	pose.pose = visual_markers_[id].marker.pose;
-
-		// 	if (distance_to_pre > 0.05)
-		// 	{
-		// 		std::vector<geometry_msgs::msg::PoseStamped> start_end(2);
-		// 		start_end[0] = visual_markers_[id].trajectory.back();
-		// 		start_end[1] = pose;
-				
-		// 		std::vector<Eigen::Vector2d> interp_vecs;
-		// 		utility::to_mat(start_end,interp_vecs);
-		// 		interpolate::linear(interp_vecs, int(distance_to_pre/0.05), interp_vecs);
-		// 		utility::to_msg(interp_vecs,start_end);
-
-		// 		RCLCPP_DEBUG(this->get_logger(), "distance_to_pre: %f, linear_interpolate_num: %d", distance_to_pre, (int)start_end.size());
-
-		// 		for (size_t i = 1; i < start_end.size(); i++)
-		// 		{
-		// 			start_end[i].header = pose.header;
-		// 			visual_markers_[id].trajectory.push_back(start_end[i]);
-		// 		}
-		// 	}
-		// 	else
-		// 	{
-		// 		visual_markers_[id].trajectory.push_back(pose);
-		// 	}
-
-		// 	auto* points = &visual_markers_[id].trajectory;
-		// 	size_t num = points->size();
-		// 	size_t interpolate_num_limit = 50;
-		// 	static size_t last_interpolated_index = 0;
-		// 	if (num > 1)
-		// 	{
-		// 		std::vector<geometry_msgs::msg::PoseStamped> split_traj;
-		// 		if (num > interpolate_num_limit)
-		// 		{
-		// 			for (size_t i = num - interpolate_num_limit; i < num; i++)
-		// 			{
-		// 				split_traj.push_back((*points)[i]);
-		// 			}
-		// 		}
-		// 		else
-		// 		{
-		// 			split_traj = *points;
-		// 		}
-				
-		// 		if (split_traj.size() > 1)
-		// 		{
-		// 			std::vector<Eigen::Vector2d> traj_vecs;
-		// 			utility::to_mat(split_traj,traj_vecs);
-		// 			if (visual_markers_[id].trajectory_interpolation_method == "spline")
-		// 			{
-		// 				interpolate::spline(traj_vecs, traj_vecs.size(), traj_vecs);
-		// 			}
-		// 			else if (visual_markers_[id].trajectory_interpolation_method == "bezier")
-		// 			{
-		// 				interpolate::bezier(traj_vecs, traj_vecs.size(), traj_vecs);
-		// 			}
-		// 			utility::to_msg(traj_vecs,split_traj);
-		// 		}
-
-		// 		if (num > interpolate_num_limit)
-		// 		{
-		// 			for (size_t i = 0; i < split_traj.size(); i++)
-		// 			{
-		// 				visual_markers_[id].trajectory[i+num-interpolate_num_limit] = split_traj[i];
-		// 			}
-		// 		}
-		// 		else
-		// 		{
-		// 			visual_markers_[id].trajectory = split_traj;
-		// 		}
-		// 		RCLCPP_DEBUG(this->get_logger(), "interpolate size: %d, trajectories_[%d]_size: %d", (int)split_traj.size(), (int)id, (int)visual_markers_[id].trajectory.size());
-
-		// 	}
-		// 	publishMarkerTrajectory();
-		// }
-	}
-
-	void InteractiveMarkerManager::publishMarkerTrajectory()
-	{
-		// visualization_msgs::msg::MarkerArray traj_marker;
-		// for (const auto& vismark:visual_markers_)
-		// {
-		// 	if (vismark.trajectory_recording)
-		// 	{
-		// 		visualization_msgs::msg::Marker traj = vismark.marker;
-		// 		traj.type = vismark.trajectory_marker_type;
-		// 		traj.pose = potbot_lib::utility::get_pose();
-		// 		traj.scale.x = 0.01;
-		// 		traj.scale.y = 0.01;
-		// 		traj.scale.z = 0.01;
-		// 		utility::get_point(vismark.trajectory, traj.points);
-		// 		traj_marker.markers.push_back(traj);
-		// 	}
-		// }
-		// pub_marker_trajectory_->publish(traj_marker);
-	}
-
-	// bool directoryExists(const std::string &path) 
-	// {
-	// 	struct stat info;
-	// 	if (stat(path.c_str(), &info) != 0) 
-	// 	{
-	// 		return false; // ディレクトリは存在しない
-	// 	}
-	// 	else if (info.st_mode & S_IFDIR) 
-	// 	{
-	// 		return true; // ディレクトリは存在する
-	// 	} 
-	// 	else 
-	// 	{
-	// 		return false; // パスはディレクトリではない
-	// 	}
-	// }
-
-	// bool createDirectory(const std::string &path) 
-	// {
-	// 	if (mkdir(path.c_str(), 0755) != 0) 
-	// 	{
-	// 		if (errno == EEXIST) 
-	// 		{
-	// 			return true; // ディレクトリは既に存在する
-	// 		} else 
-	// 		{
-	// 			return false; // ディレクトリの作成に失敗
-	// 		}
-	// 	}
-	// 	return true; // ディレクトリの作成に成功
-	// }
-
-	// bool createDirectoriesRecursively(const std::string &path) 
-	// {
-	// 	size_t pos = 0;
-	// 	std::string current_path;
-
-	// 	while ((pos = path.find_first_of('/', pos)) != std::string::npos) 
-	// 	{
-	// 		current_path = path.substr(0, pos++);
-	// 		if (!current_path.empty() && !directoryExists(current_path)) 
-	// 		{
-	// 			if (!createDirectory(current_path)) 
-	// 			{
-	// 				return false;
-	// 			}
-	// 		}
-	// 	}
-
-	// 	if (!directoryExists(path)) {
-	// 		if (!createDirectory(path)) 
-	// 		{
-	// 			return false;
-	// 		}
-	// 	}
-
-	// 	return true;
-	// }
-
 	int InteractiveMarkerManager::getMarkerId(std::string marker_name)
 	{
 		// for (size_t i = 0; i < visual_markers_.size(); i++)
@@ -867,126 +560,16 @@ namespace potbot_lib{
 		// 		return i;
 		// 	}
 		// }
-		// return -1;
+		return -1;
 	}
 
-	// bool InteractiveMarkerManager::serviceSaveMarkerTrajectory(potbot_lib::Save::Request &req, potbot_lib::Save::Response &resp)
-	// {
-	// 	std::string marker_name = req.save_target;
-	// 	int id = 0;
-
-	// 	if (marker_name == "")
-	// 	{
-	// 		marker_name = visual_markers_[0].marker.text;
-	// 	}
-	// 	else
-	// 	{
-	// 		id = getMarkerId(marker_name);
-	// 		if (id == -1)
-	// 		{
-	// 			resp.success = false;
-	// 			resp.message = "Invalid save_target: " + marker_name;
-	// 			return false;
-	// 		}
-	// 	}
-		
-	// 	std::string csv_path = req.full_path;
-
-	// 	if (csv_path == "")
-	// 	{
-	// 		csv_path = std::string(std::getenv("HOME")) + "/.ros/marker/trajectory/" + marker_name + ".csv";
-	// 	}
-
-	// 	size_t last_slash_pos = csv_path.find_last_of('/');
-    // 	std::string directory_path = csv_path.substr(0, last_slash_pos);
-
-	// 	// ディレクトリが存在するか確認し、存在しない場合は作成
-	// 	if (!directoryExists(directory_path)) 
-	// 	{
-	// 		if (!createDirectoriesRecursively(directory_path)) 
-	// 		{
-	// 			ROS_ERROR_STREAM("Failed to create directory: " << directory_path);
-	// 			resp.success = false;
-	// 			resp.message = "Failed to create directory: " + directory_path;
-	// 			return false;
-	// 		}
-	// 	}
-
-	// 	std::ofstream csv_file(csv_path);
-
-	// 	if (csv_file.is_open()) 
-	// 	{
-	// 		for (const auto& p : visual_markers_[id].trajectory) 
-	// 		{
-	// 			double roll,pitch,yaw;
-	// 			utility::get_rpy(p.pose.orientation, roll, pitch, yaw);
-
-	// 			csv_file	<< p.pose.position.x 	<< ","
-	// 						<< p.pose.position.y 	<< ","
-	// 						<< p.pose.position.z 	<< ","
-	// 						<< roll 				<< ","
-	// 						<< pitch 				<< ","
-	// 						<< yaw 					<< "\n";
-	// 		}
-	// 		csv_file.close();
-
-	// 		ROS_INFO_STREAM("Saved to: " << csv_path);
-	// 		resp.success = true;
-	// 		resp.message = "Saved to: " + csv_path;
-	// 		return true;
-	// 	} 
-	// 	else 
-	// 	{
-	// 		ROS_ERROR_STREAM("Failed to open file: " << csv_path);
-	// 		resp.success = false;
-	// 		resp.message = "Failed to open file: " + csv_path;
-	// 		return false;
-	// 	}
-		
-	// }
-
-	// bool InteractiveMarkerManager::serviceClearMarkerTrajectory(potbot_lib::Save::Request &req, potbot_lib::Save::Response &resp)
-	// {
-	// 	std::string marker_name = req.save_target;
-
-	// 	if (marker_name == "")
-	// 	{
-	// 		std::string names = "";
-	// 		for (auto& vm:visual_markers_)
-	// 		{
-	// 			vm.trajectory.clear();
-	// 			names+=vm.marker.text + ", ";
-	// 		}
-	// 		names.pop_back();
-	// 		names.pop_back();
-	// 		ROS_INFO_STREAM("Clear trajectory: " << names);
-	// 		resp.success = true;
-	// 		resp.message = "Clear trajectory: " + names;
-	// 	}
-	// 	else
-	// 	{
-	// 		int id = getMarkerId(marker_name);
-	// 		if (id == -1)
-	// 		{
-	// 			ROS_INFO_STREAM("Invalid target name: " << marker_name);
-	// 			resp.success = false;
-	// 			resp.message = "Invalid target name: " + marker_name;
-	// 			return false;
-	// 		}
-	// 		else
-	// 		{
-	// 			visual_markers_[id].trajectory.clear();
-	// 			ROS_INFO_STREAM("Clear trajectory: " << visual_markers_[id].marker.text);
-	// 			resp.success = true;
-	// 			resp.message = "Clear trajectory: " + visual_markers_[id].marker.text;
-	// 		}
-	// 	}
-	// 	return true;
-	// }
-
-	std::vector<VisualMarker>* InteractiveMarkerManager::getVisualMarker()
+	void InteractiveMarkerManager::registerFeedback(std::string marker_name,
+		const interactive_markers::InteractiveMarkerServer::FeedbackCallback &feedbck_func)
 	{
-		return &visual_markers_;
+		const auto cm = controllable_markers_[marker_name];
+		imsrv_->insert(cm.marker,feedbck_func);
+		menu_handler_->apply(*imsrv_, cm.marker.name);
+		imsrv_->applyChanges();
 	}
 
 	geometry_msgs::msg::Pose InteractiveMarkerManager::getMarkerPose(std::string name)

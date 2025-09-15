@@ -149,7 +149,18 @@ namespace potbot_lib{
             {
                 points[i] = poses[i].pose.position;
             }
-            
+        }
+
+        Point get_point(const geometry_msgs::msg::Quaternion& q)
+        {
+            double r,p,y;
+            get_rpy(q,r,p,y);
+            return Point(r,p,y);
+        }
+
+        Point get_point(const geometry_msgs::msg::Point& p)
+        {
+            return Point(p.x,p.y,p.z);
         }
 
         geometry_msgs::msg::Pose get_pose(const double x, const double y, const double z, const double roll, const double pitch, const double yaw)
@@ -174,6 +185,11 @@ namespace potbot_lib{
         {
             Eigen::Vector3d rpy = p.rotation().eulerAngles(2, 1, 0);    // (Yaw, Pitch, Roll)
             return get_pose(p.translation()[0], p.translation()[1], p.translation()[2], rpy[2], rpy[1], rpy[0]);
+        }
+
+        Pose get_pose(const geometry_msgs::msg::Pose& p)
+        {
+            return Pose(get_point(p.position), get_point(p.orientation));
         }
 
         Eigen::Vector2d get_vector(const geometry_msgs::msg::Point& p)

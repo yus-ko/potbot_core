@@ -23,7 +23,6 @@ add_library(potbot_ros_utility
   src/interactive_marker_manager.cpp
 )
 
-
 ament_target_dependencies(potbot_ros_utility
   rclcpp
   rclcpp_lifecycle

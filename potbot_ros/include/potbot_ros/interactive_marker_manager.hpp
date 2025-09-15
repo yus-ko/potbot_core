@@ -1,7 +1,6 @@
 #ifndef H_INTERACTIVE_MARKER_MANAGER_
 #define H_INTERACTIVE_MARKER_MANAGER_
 
-#include <boost/bind/bind.hpp>
 #include <memory>
 #include <fstream>
 
@@ -10,9 +9,6 @@
 
 #include <interactive_markers/interactive_marker_server.hpp>
 #include <interactive_markers/menu_handler.hpp>
-
-// #include <potbot_lib/Save.h>
-// #include <std_srvs/Empty.h>
 
 #include <std_msgs/msg/string.hpp>
 #include <visualization_msgs/msg/interactive_marker_feedback.hpp>
@@ -23,14 +19,6 @@
 
 namespace potbot_lib{
 
-    // typedef struct{
-    //     visualization_msgs::msg::Marker marker;
-    //     std::vector<geometry_msgs::msg::PoseStamped> trajectory;
-    //     bool trajectory_recording = false;
-    //     u_int8_t trajectory_marker_type = visualization_msgs::msg::Marker::LINE_STRIP;
-    //     std::string trajectory_interpolation_method = "none";
-    // } VisualMarker;
-
     typedef struct{
         visualization_msgs::msg::InteractiveMarker marker;
         visualization_msgs::msg::InteractiveMarker controller;
@@ -38,17 +26,11 @@ namespace potbot_lib{
 
     class InteractiveMarkerManager : public rclcpp_lifecycle::LifecycleNode
     {
-        private:
+        protected:
         
             rclcpp::TimerBase::SharedPtr timer_;
 
-            rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr pub_marker_trajectory_;
-
-            // ros::ServiceServer srv_save_marker_trajectory_, srv_clear_marker_trajectory_;
-
             std::string name_space_ = "", frame_id_global_ = "map";
-            size_t interactive_marker_num_ = 1;
-            std::vector<VisualMarker> visual_markers_;
             std::map<std::string, VisualMarker> controllable_markers_;
 
             std::shared_ptr<interactive_markers::InteractiveMarkerServer> imsrv_;
@@ -64,6 +46,10 @@ namespace potbot_lib{
                 scale_controller_axis_x_,
                 scale_controller_axis_y_,
                 scale_controller_axis_z_;
+            
+            interactive_markers::InteractiveMarkerServer::FeedbackCallback 
+                function_change_position_,
+                function_change_rotation_;
 
             rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr dyn_params_handler_;
             rcl_interfaces::msg::SetParametersResult dynamicParametersCallback(std::vector<rclcpp::Parameter> parameters);
@@ -73,7 +59,6 @@ namespace potbot_lib{
             void initializeMenu();
             void initializeMarker(std::string yaml_path = "", bool set_default = true);
 
-            void markerFeedback(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback);
             void editorChangeTo(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback, std::string mode);
             void changePosition(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback);
             void changeRotation(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback);
@@ -81,20 +66,15 @@ namespace potbot_lib{
             void typeChangeTo(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback, int type);
             void saveMarker(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback);
 
-            void interpolateTrajectory(size_t id);
-
-            void publishMarkerTrajectory();
-            
-            // bool serviceSaveMarkerTrajectory(potbot_lib::Save::Request &req, potbot_lib::Save::Response &resp);
-            // bool serviceClearMarkerTrajectory(potbot_lib::Save::Request &req, potbot_lib::Save::Response &resp);
-
             int getMarkerId(std::string marker_name);
 
         public:
             InteractiveMarkerManager(std::string name="marker", std::string node_namespace="");
             ~InteractiveMarkerManager(){};
 
-            std::vector<VisualMarker>* getVisualMarker();
+            void registerFeedback(std::string marker_name,
+                const interactive_markers::InteractiveMarkerServer::FeedbackCallback &feedbck_func);
+
             geometry_msgs::msg::Pose getMarkerPose(std::string name);
     };
 }
