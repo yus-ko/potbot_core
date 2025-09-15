@@ -3,6 +3,7 @@ project(potbot_ros)
 
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(rclcpp_lifecycle REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
@@ -25,6 +26,7 @@ add_library(potbot_ros_utility
 
 ament_target_dependencies(potbot_ros_utility
   rclcpp
+  rclcpp_lifecycle
   tf2
   tf2_ros
   tf2_geometry_msgs
@@ -57,6 +59,7 @@ install(DIRECTORY include/
 ament_export_targets(export_potbot_ros_utility)
 ament_export_dependencies(
   rclcpp
+  rclcpp_lifecycle
   tf2
   tf2_ros
   tf2_geometry_msgs

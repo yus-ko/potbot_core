@@ -1,12 +1,14 @@
 #include <potbot_ros/interactive_marker_manager.hpp>
 #include <yaml-cpp/yaml.h>
 
+using namespace std::chrono_literals;
+
 namespace potbot_lib{
 
-	InteractiveMarkerManager::InteractiveMarkerManager(std::string name, rclcpp::Node* node) : name_space_(name), parent_node_(node)
+	InteractiveMarkerManager::InteractiveMarkerManager(std::string name, std::string node_namespace) : rclcpp_lifecycle::LifecycleNode(name,node_namespace)
 	{
 
-		parent_node_->create_publisher<visualization_msgs::msg::MarkerArray>("trajectory", 1);
+		// this->create_publisher<visualization_msgs::msg::MarkerArray>("trajectory", 1);
 
 		// srv_save_marker_trajectory_ = pnh.advertiseService("save_marker_tarajectory", &InteractiveMarkerManager::serviceSaveMarkerTrajectory, this);
 		// srv_clear_marker_trajectory_ = pnh.advertiseService("clear_marker_tarajectory", &InteractiveMarkerManager::serviceClearMarkerTrajectory, this);
@@ -14,16 +16,18 @@ namespace potbot_lib{
 		initializeParameter();
 
 		initializeController();
-		initializeMarker(parent_node_->get_parameter("marker_yaml_path").as_string());
+		initializeMarker(this->get_parameter("marker_yaml_path").as_string());
 
-		dyn_params_handler_ = parent_node_->add_on_set_parameters_callback(
+		dyn_params_handler_ = this->add_on_set_parameters_callback(
 			std::bind(&InteractiveMarkerManager::dynamicParametersCallback, this, std::placeholders::_1));
+		
+		RCLCPP_INFO(this->get_logger(), "InteractiveMarkerManager 初期化完了");
 	}
 
 	void InteractiveMarkerManager::initializeParameter()
 	{
-		parent_node_->declare_parameter("frame_id_global", rclcpp::ParameterValue("map"));
-		parent_node_->declare_parameter("marker_yaml_path", rclcpp::ParameterValue("interactive_markers.yaml"));
+		this->declare_parameter("frame_id_global", rclcpp::ParameterValue("map"));
+		this->declare_parameter("marker_yaml_path", rclcpp::ParameterValue("interactive_markers.yaml"));
 	}
 
 	void InteractiveMarkerManager::initializeController()
@@ -112,7 +116,8 @@ namespace potbot_lib{
 
 	void InteractiveMarkerManager::initializeMarker(std::string yaml_path, bool set_default)
 	{
-		frame_id_global_ = parent_node_->get_parameter("frame_id_global").as_string();
+		frame_id_global_ = this->get_parameter("frame_id_global").as_string();
+		std::string marker_server_name = "markers";
 
 		try 
 		{
@@ -158,7 +163,7 @@ namespace potbot_lib{
 
 					visualization_msgs::msg::InteractiveMarker int_marker;
 					int_marker.header.frame_id = frame_id_global_;
-					int_marker.header.stamp = parent_node_->get_clock()->now();
+					int_marker.header.stamp = this->get_clock()->now();
 					int_marker.name = name;
 					int_marker.description = int_marker.name;
 					int_marker.pose = potbot_lib::utility::get_pose(x,y,z,roll,pitch,yaw);
@@ -171,7 +176,8 @@ namespace potbot_lib{
 
 				controllable_markers_.clear();
 				imsrv_ = std::make_shared<interactive_markers::InteractiveMarkerServer>(
-					parent_node_->get_namespace() + '/' + name_space_, parent_node_);
+					this->get_namespace() + '/' + marker_server_name, this);
+
 				initializeMenu();
 				for (const auto & int_marker:int_markers)
 				{
@@ -188,12 +194,12 @@ namespace potbot_lib{
 					menu_handler_->apply(*imsrv_, int_marker.name);
 				}
 				imsrv_->applyChanges();
-				RCLCPP_INFO(parent_node_->get_logger(), "Loaded: %s", yaml_path.c_str());
+				RCLCPP_INFO(this->get_logger(), "Loaded: %s", yaml_path.c_str());
 			}
 		} 
 		catch (const std::exception& e) 
 		{
-			RCLCPP_INFO(parent_node_->get_logger(), "Failed to load marker yaml: %s", e.what());
+			RCLCPP_INFO(this->get_logger(), "Failed to load marker yaml: %s", e.what());
 
 			if (set_default)
 			{
@@ -211,7 +217,7 @@ namespace potbot_lib{
 
 				visualization_msgs::msg::InteractiveMarker int_marker;
 				int_marker.header.frame_id = frame_id_global_;
-				int_marker.header.stamp = parent_node_->get_clock()->now();
+				int_marker.header.stamp = this->get_clock()->now();
 				int_marker.name = marker_msg.text;
 				int_marker.description = int_marker.name;
 				int_marker.pose = potbot_lib::utility::get_pose();
@@ -225,7 +231,7 @@ namespace potbot_lib{
 				
 				controllable_markers_.clear();
 				imsrv_ = std::make_shared<interactive_markers::InteractiveMarkerServer>(
-					parent_node_->get_namespace() + '/' + name_space_, parent_node_);
+					this->get_namespace() + '/' + marker_server_name, this);
 				initializeMenu();
 
 				controllable_markers_.emplace(int_marker.name, vm);
@@ -236,7 +242,7 @@ namespace potbot_lib{
 
 				imsrv_->applyChanges();
 
-				RCLCPP_INFO(parent_node_->get_logger(), "Set to default");
+				RCLCPP_INFO(this->get_logger(), "Set to default");
 			}
 		}
 
@@ -244,10 +250,10 @@ namespace potbot_lib{
 		// {
 		// 	std::string marker_name = markers[i];
 
-		// 	auto marker_type = parent_node_->get_parameter(marker_name + ".type").as_string();
-		// 	auto trajectory_marker_type = parent_node_->get_parameter(marker_name + ".trajectory_marker_type").as_string();
-		// 	// visual_markers_[i].trajectory_recording = parent_node_->get_parameter(marker_name + ".trajectory_recording").as_bool();
-		// 	// visual_markers_[i].trajectory_interpolation_method = parent_node_->get_parameter(marker_name + ".trajectory_interpolation_method").as_string();
+		// 	auto marker_type = this->get_parameter(marker_name + ".type").as_string();
+		// 	auto trajectory_marker_type = this->get_parameter(marker_name + ".trajectory_marker_type").as_string();
+		// 	// visual_markers_[i].trajectory_recording = this->get_parameter(marker_name + ".trajectory_recording").as_bool();
+		// 	// visual_markers_[i].trajectory_interpolation_method = this->get_parameter(marker_name + ".trajectory_interpolation_method").as_string();
 
 		// 	// if (trajectory_marker_type == "line")
 		// 	// {
@@ -262,7 +268,7 @@ namespace potbot_lib{
 
 	rcl_interfaces::msg::SetParametersResult InteractiveMarkerManager::dynamicParametersCallback(std::vector<rclcpp::Parameter> parameters)
 	{
-		RCLCPP_INFO(parent_node_->get_logger(), "パラメータ変更");
+		RCLCPP_INFO(this->get_logger(), "パラメータ変更");
 		auto results = std::make_shared<rcl_interfaces::msg::SetParametersResult>();
 		results->successful = true;
 
@@ -312,7 +318,7 @@ namespace potbot_lib{
 
 		for(const auto& param : parameters)
 		{
-			RCLCPP_INFO_STREAM(parent_node_->get_logger(), param.get_name());
+			RCLCPP_INFO_STREAM(this->get_logger(), param.get_name());
 
 			if(param.get_name() == "marker_yaml_path")
 			{
@@ -668,14 +674,14 @@ namespace potbot_lib{
 		}
 
 		// yamlファイル名を決定（例: marker名.yaml）
-		std::string yaml_path = parent_node_->get_parameter("marker_yaml_path").as_string();
+		std::string yaml_path = this->get_parameter("marker_yaml_path").as_string();
 		try {
 			std::ofstream ofs(yaml_path);
 			ofs << root;
 			ofs.close();
-			RCLCPP_INFO(parent_node_->get_logger(), "Saved marker to %s", yaml_path.c_str());
+			RCLCPP_INFO(this->get_logger(), "Saved marker to %s", yaml_path.c_str());
 		} catch (const std::exception& e) {
-			RCLCPP_ERROR(parent_node_->get_logger(), "Failed to write yaml: %s", e.what());
+			RCLCPP_ERROR(this->get_logger(), "Failed to write yaml: %s", e.what());
 		}
 	}
 
@@ -694,7 +700,7 @@ namespace potbot_lib{
 		// {
 		// 	geometry_msgs::msg::PoseStamped pose;
 		// 	pose.header.frame_id = frame_id_global_;
-		// 	pose.header.stamp = parent_node_->get_clock()->now();
+		// 	pose.header.stamp = this->get_clock()->now();
 		// 	pose.pose = visual_markers_[id].marker.pose;
 
 		// 	if (distance_to_pre > 0.05)
@@ -708,7 +714,7 @@ namespace potbot_lib{
 		// 		interpolate::linear(interp_vecs, int(distance_to_pre/0.05), interp_vecs);
 		// 		utility::to_msg(interp_vecs,start_end);
 
-		// 		RCLCPP_DEBUG(parent_node_->get_logger(), "distance_to_pre: %f, linear_interpolate_num: %d", distance_to_pre, (int)start_end.size());
+		// 		RCLCPP_DEBUG(this->get_logger(), "distance_to_pre: %f, linear_interpolate_num: %d", distance_to_pre, (int)start_end.size());
 
 		// 		for (size_t i = 1; i < start_end.size(); i++)
 		// 		{
@@ -766,7 +772,7 @@ namespace potbot_lib{
 		// 		{
 		// 			visual_markers_[id].trajectory = split_traj;
 		// 		}
-		// 		RCLCPP_DEBUG(parent_node_->get_logger(), "interpolate size: %d, trajectories_[%d]_size: %d", (int)split_traj.size(), (int)id, (int)visual_markers_[id].trajectory.size());
+		// 		RCLCPP_DEBUG(this->get_logger(), "interpolate size: %d, trajectories_[%d]_size: %d", (int)split_traj.size(), (int)id, (int)visual_markers_[id].trajectory.size());
 
 		// 	}
 		// 	publishMarkerTrajectory();
@@ -981,5 +987,10 @@ namespace potbot_lib{
 	std::vector<VisualMarker>* InteractiveMarkerManager::getVisualMarker()
 	{
 		return &visual_markers_;
+	}
+
+	geometry_msgs::msg::Pose InteractiveMarkerManager::getMarkerPose(std::string name)
+	{
+		return controllable_markers_[name].marker.pose;
 	}
 }

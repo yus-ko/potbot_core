@@ -6,6 +6,7 @@
 #include <fstream>
 
 #include <rclcpp/rclcpp.hpp>
+#include <rclcpp_lifecycle/lifecycle_node.hpp>
 
 #include <interactive_markers/interactive_marker_server.hpp>
 #include <interactive_markers/menu_handler.hpp>
@@ -35,10 +36,11 @@ namespace potbot_lib{
         visualization_msgs::msg::InteractiveMarker controller;
     } VisualMarker;
 
-    class InteractiveMarkerManager
+    class InteractiveMarkerManager : public rclcpp_lifecycle::LifecycleNode
     {
         private:
-            rclcpp::Node* parent_node_;
+        
+            rclcpp::TimerBase::SharedPtr timer_;
 
             rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr pub_marker_trajectory_;
 
@@ -89,12 +91,11 @@ namespace potbot_lib{
             int getMarkerId(std::string marker_name);
 
         public:
-            InteractiveMarkerManager(std::string name, rclcpp::Node* node);
+            InteractiveMarkerManager(std::string name="marker", std::string node_namespace="");
             ~InteractiveMarkerManager(){};
 
             std::vector<VisualMarker>* getVisualMarker();
-            visualization_msgs::msg::InteractiveMarker getMarker(std::string name);
-            std::vector<visualization_msgs::msg::InteractiveMarker> getAllMarkers();
+            geometry_msgs::msg::Pose getMarkerPose(std::string name);
     };
 }
 
