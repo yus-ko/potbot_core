@@ -2,6 +2,7 @@
 #define H_POTBOT_LIB_UTILITY_
 
 #include <vector>
+#include <map>
 #include <eigen3/Eigen/Dense>
 
 namespace potbot_lib{
@@ -131,6 +132,9 @@ namespace potbot_lib{
     };
 
     namespace utility{
+
+        std::vector<Eigen::Affine3d> get_vec(const std::vector<Pose>& vec);
+        std::vector<Eigen::Vector3d> get_vec(const std::vector<Point>& vec);
         
         void find_closest_vector(const std::vector<Eigen::Vector2d>& vectors, const Eigen::Vector2d& target, Eigen::Vector2d& closest);
 
@@ -141,10 +145,13 @@ namespace potbot_lib{
         double combination(double n, double r);
 
         template <typename T>
-        bool is_containing(const T& element, const std::vector<T>& vec)
-        {
-            return std::find(vec.begin(), vec.end(), element) != vec.end();
-        };
+        bool contains(const T& element, const std::vector<T>& vec) { return std::find(vec.begin(), vec.end(), element) != vec.end(); };
+
+        template <typename T>
+        bool is_containing(const T& element, const std::vector<T>& vec) { return contains(element, vec); };
+
+        template <typename KEY, typename DATA>
+        bool contains(const KEY& key, const std::map<KEY, DATA>& map) { return (map.find(key) != map.end()); };
 
         void vec_to_path(const std::vector<Eigen::VectorXd>& vectors, std::vector<Pose>& path);
         bool bezier(const std::vector<Pose> path_raw, std::vector<Pose>& path_interpolated);

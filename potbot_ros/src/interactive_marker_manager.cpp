@@ -26,7 +26,17 @@ namespace potbot_lib{
 		function_change_rotation_ = [this](
 			const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback){
 			changeRotation(feedback);};
-		
+
+		fuction_duplicate_marker_ = [this](
+			const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback) {
+				this->duplicateMarker(feedback);};
+		fuction_save_marker_ = [this](
+			const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback) {
+				this->saveMarker(feedback);};
+	}
+
+	void InteractiveMarkerManager::initialize()
+	{
 		initializeParameter();
 		
 		frame_id_global_ = this->get_parameter("frame_id_global").as_string();
@@ -127,9 +137,7 @@ namespace potbot_lib{
 			[this](const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback) {
 				this->typeChangeTo(feedback, visualization_msgs::msg::Marker::SPHERE);});
 		
-		entry_handle_add_ = menu_handler_->insert("add",
-			[this](const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback) {
-				this->duplicateMarker(feedback);});
+		entry_handle_add_ = menu_handler_->insert("add", fuction_duplicate_marker_);
 
 		entry_handle_delete_ = menu_handler_->insert("delete",
 			[this](const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback) {
@@ -137,9 +145,7 @@ namespace potbot_lib{
 
 		entry_handle_save_ = menu_handler_->insert("save");
 
-		menu_handler_->insert( entry_handle_save_, "marker pose", 
-			[this](const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback) {
-				this->saveMarker(feedback);});
+		menu_handler_->insert( entry_handle_save_, "marker pose", fuction_save_marker_);
 	}
 
 	void InteractiveMarkerManager::initializeMarker(std::string yaml_path, bool set_default)
@@ -458,7 +464,7 @@ namespace potbot_lib{
 		}
 	}
 
-	void InteractiveMarkerManager::saveMarker(
+	YAML::Node InteractiveMarkerManager::saveMarker(
 		const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback)
 	{
 		YAML::Node root;
@@ -504,12 +510,14 @@ namespace potbot_lib{
 			ofs << root;
 			ofs.close();
 			RCLCPP_INFO(this->get_logger(), "Saved marker to %s", yaml_path.c_str());
+			return root;
 		} catch (const std::exception& e) {
 			RCLCPP_ERROR(this->get_logger(), "Failed to write yaml: %s", e.what());
+			return YAML::Node();
 		}
 	}
 
-	void InteractiveMarkerManager::duplicateMarker(
+	std::string InteractiveMarkerManager::duplicateMarker(
 		const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback)
 	{
 		visualization_msgs::msg::InteractiveMarker int_marker;
@@ -526,7 +534,9 @@ namespace potbot_lib{
 			addMarker(new_marker_name, viz_marker, new_pose);
 			initializeMarkerServer(controllable_markers_);
 			RCLCPP_INFO(this->get_logger(), "[%s] added", new_marker_name.c_str());
+			return new_marker_name;
 		}
+		return std::string();
 	}
 
 	std::string InteractiveMarkerManager::getCopyName(std::string original_name)

@@ -47,8 +47,10 @@ namespace potbot_lib
     namespace utility
     {
         void get_rpy(const geometry_msgs::msg::Quaternion& orientation, double &roll, double &pitch, double &yaw);
+
         geometry_msgs::msg::Quaternion get_quat(const double roll = 0, const double pitch = 0, const double yaw = 0);
         geometry_msgs::msg::Quaternion get_quat(const Point& p);
+
         geometry_msgs::msg::Point get_point(const double x = 0, const double y = 0, const double z = 0);
         geometry_msgs::msg::Point get_point(const Point& p);
         geometry_msgs::msg::Point get_point(const Eigen::Vector2d& vec);
@@ -110,8 +112,11 @@ namespace potbot_lib
 
         void to_msg(const std::vector<Eigen::Vector2d>& vectors, std::vector<geometry_msgs::msg::PoseStamped>& msg);
         void to_msg(const std::vector<Eigen::Vector2d>& vectors, nav_msgs::msg::Path& msg);
+        void to_msg(const std::vector<Pose>& poses, std::vector<geometry_msgs::msg::PoseStamped>& msg);
+        void to_msg(const std::vector<Pose>& poses, nav_msgs::msg::Path& msg);
         void to_mat(const std::vector<geometry_msgs::msg::PoseStamped>& msg, std::vector<Eigen::Vector2d>& vectors);
         void to_mat(const nav_msgs::msg::Path& msg, std::vector<Eigen::Vector2d>& vectors);
+        void to_mat(const std::vector<Pose>& path, std::vector<Eigen::Vector2d>& vectors);
 
         std_msgs::msg::Float64MultiArray matrix_to_multiarray(const Eigen::MatrixXd& mat);
         Eigen::MatrixXd multiarray_to_matrix(const std_msgs::msg::Float64MultiArray& multiarray);

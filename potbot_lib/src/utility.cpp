@@ -4,6 +4,22 @@ namespace potbot_lib{
 
     namespace utility{
 
+        std::vector<Eigen::Affine3d> get_vec(const std::vector<Pose>& vec)
+        {
+            std::vector<Eigen::Affine3d> eigvec(vec.size());
+            for (size_t i = 0; i < vec.size(); i++)
+                eigvec[i] = vec[i].to_affine();
+            return eigvec;
+        }
+
+        std::vector<Eigen::Vector3d> get_vec(const std::vector<Point>& vec)
+        {
+            std::vector<Eigen::Vector3d> eigvec(vec.size());
+            for (size_t i = 0; i < vec.size(); i++)
+                eigvec[i] = vec[i].to_translation();
+            return eigvec;
+        }
+
         void find_closest_vector(const std::vector<Eigen::Vector2d>& vectors, const Eigen::Vector2d& target, Eigen::Vector2d& closest)
         {
             double minDistance = std::numeric_limits<double>::max();

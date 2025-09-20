@@ -54,7 +54,9 @@ namespace potbot_lib{
             
             interactive_markers::InteractiveMarkerServer::FeedbackCallback 
                 function_change_position_,
-                function_change_rotation_;
+                function_change_rotation_,
+                fuction_duplicate_marker_,
+                fuction_save_marker_;
 
             interactive_markers::MenuHandler::EntryHandle 
                 entry_handle_save_,
@@ -76,8 +78,8 @@ namespace potbot_lib{
             void changeRotation(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback);
             void changeScale(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback);
             void typeChangeTo(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback, int type);
-            void saveMarker(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback);
-            void duplicateMarker(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback);
+            YAML::Node saveMarker(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback);
+            std::string duplicateMarker(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback);
             void deleteMarker(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback);
 
             std::string getCopyName(std::string original_name);
@@ -85,6 +87,8 @@ namespace potbot_lib{
         public:
             InteractiveMarkerManager(std::string name="marker", std::string node_namespace="");
             ~InteractiveMarkerManager(){};
+
+            void initialize();
 
             void registerFeedback(std::string marker_name,
                 const interactive_markers::InteractiveMarkerServer::FeedbackCallback &feedbck_func);

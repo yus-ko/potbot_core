@@ -122,5 +122,35 @@ namespace potbot_lib{
                 curve_out.push_back(Eigen::Vector2d(x,y));
             }
         }
+        
+        void bezier(const std::vector<Eigen::Vector3d>& curve_in, int num_points, std::vector<Eigen::Vector3d>& curve_out)
+        {
+
+        }
+
+        void bezier(const std::vector<Eigen::Affine3d>& curve_in, int num_points, std::vector<Eigen::Affine3d>& curve_out)
+        {
+
+        }
+
+        void bezier(const std::vector<Point>& curve_in, int num_points, std::vector<Point>& curve_out)
+        {
+
+        }
+
+        void bezier(const std::vector<Pose>& curve_in, int num_points, std::vector<Pose>& curve_out)
+        {
+            std::vector<Eigen::Vector2d> eigvec(curve_in.size());
+            for (size_t i = 0; i < curve_in.size(); i++)
+                eigvec[i] = curve_in[i].to_affine().translation().head<2>();
+            
+            std::vector<Eigen::Vector2d> eigvec_out;
+            bezier(eigvec, num_points, eigvec_out);
+
+            curve_out.resize(eigvec_out.size());
+            for (size_t i = 0; i < eigvec_out.size(); i++)
+                curve_out[i] = Pose(eigvec_out[i].x(), eigvec_out[i].y());
+
+        }
     }
 }

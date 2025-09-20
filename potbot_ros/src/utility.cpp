@@ -662,6 +662,22 @@ namespace potbot_lib{
             to_msg(vectors, msg.poses);
         }
 
+        void to_msg(const std::vector<Pose>& poses, std::vector<geometry_msgs::msg::PoseStamped>& msg)
+        {
+            msg.clear();
+            for (const auto& p:poses)
+            {
+                geometry_msgs::msg::PoseStamped pose;
+                pose.pose = utility::get_pose(p);
+                msg.push_back(pose);
+            }
+        }
+
+        void to_msg(const std::vector<Pose>& poses, nav_msgs::msg::Path& msg)
+        {
+            to_msg(poses, msg.poses);
+        }
+
         void to_mat(const std::vector<geometry_msgs::msg::PoseStamped>& msg, std::vector<Eigen::Vector2d>& vectors)
         {
             vectors.clear();
@@ -674,6 +690,15 @@ namespace potbot_lib{
         void to_mat(const nav_msgs::msg::Path& msg, std::vector<Eigen::Vector2d>& vectors)
         {
             to_mat(msg.poses,vectors);
+        }
+
+        void to_mat(const std::vector<Pose>& path, std::vector<Eigen::Vector2d>& vectors)
+        {
+            vectors.resize(path.size());
+            for (size_t i = 0; i < vectors.size(); i++)
+            {
+                vectors[i] = Eigen::Vector2d(path[i].position.x, path[i].position.y);
+            }
         }
 
         std_msgs::msg::Float64MultiArray matrix_to_multiarray(const Eigen::MatrixXd& mat)

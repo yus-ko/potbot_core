@@ -11,7 +11,12 @@ namespace potbot_lib{
     namespace interpolate{
         void linear(const std::vector<Eigen::Vector2d>& curve_in, int num_points, std::vector<Eigen::Vector2d>& curve_out);
         void spline(const std::vector<Eigen::Vector2d>& curve_in, int numPoints, std::vector<Eigen::Vector2d>& curve_out);
+        
         void bezier(const std::vector<Eigen::Vector2d>& curve_in, int num_points, std::vector<Eigen::Vector2d>& curve_out);
+        void bezier(const std::vector<Eigen::Vector3d>& curve_in, int num_points, std::vector<Eigen::Vector3d>& curve_out);
+        void bezier(const std::vector<Eigen::Affine3d>& curve_in, int num_points, std::vector<Eigen::Affine3d>& curve_out);
+        void bezier(const std::vector<Point>& curve_in, int num_points, std::vector<Point>& curve_out);
+        void bezier(const std::vector<Pose>& curve_in, int num_points, std::vector<Pose>& curve_out);
     }
 }
 
