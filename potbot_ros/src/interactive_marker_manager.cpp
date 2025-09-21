@@ -25,12 +25,10 @@ namespace potbot_lib{
 	CallbackReturn InteractiveMarkerManager::on_configure(const rclcpp_lifecycle::State &)
 	{
 		initializeParameter();
-		
-		frame_id_global_ = this->get_parameter("frame_id_global").as_string();
 
 		initializeController();
 		initializeMenu();
-		initializeMarker(this->get_parameter("marker_yaml_path").as_string());
+		initializeMarker(marker_file_);
 
 		dyn_params_handler_ = this->add_on_set_parameters_callback(
 			std::bind(&InteractiveMarkerManager::dynamicParametersCallback, this, std::placeholders::_1));
@@ -59,6 +57,9 @@ namespace potbot_lib{
 	{
 		this->declare_parameter("frame_id_global", rclcpp::ParameterValue("map"));
 		this->declare_parameter("marker_yaml_path", rclcpp::ParameterValue("interactive_markers.yaml"));
+
+		frame_id_global_ = this->get_parameter("frame_id_global").as_string();
+		marker_file_ = this->get_parameter("marker_yaml_path").as_string();
 	}
 
 	void InteractiveMarkerManager::initializeController()
@@ -240,71 +241,21 @@ namespace potbot_lib{
 		auto results = std::make_shared<rcl_interfaces::msg::SetParametersResult>();
 		results->successful = true;
 
-		// int id = param.marker_id;
-		// std::string visual_type = param.trajectory_marker_type;
-
-		// u_int8_t type = visualization_msgs::Marker::LINE_STRIP;
-		// if (visual_type == "line")
-		// {
-		// 	type = visualization_msgs::Marker::LINE_STRIP;
-		// }
-		// else if (visual_type == "points")
-		// {
-		// 	type = visualization_msgs::Marker::POINTS;
-		// }
-
-		// std::vector<size_t> ids;
-		// if (id == -1)
-		// {
-		// 	for (size_t i = 0; i < visual_markers_.size(); i++)
-		// 	{
-		// 		ids.push_back(id);
-		// 	}
-		// }
-		// else
-		// {
-		// 	ids.push_back(id);
-		// }
-		
-		// for (const auto& i:ids)
-		// {
-		// 	if (i < visual_markers_.size())
-		// 	{
-		// 		visual_markers_[i].trajectory_recording = param.trajectory_recording;
-		// 		if (visual_markers_[i].trajectory_recording)
-		// 		{
-		// 			visual_markers_[i].trajectory_marker_type = type;
-		// 			visual_markers_[i].trajectory_interpolation_method = param.trajectory_interpolation_method;
-		// 		}
-		// 		else
-		// 		{
-		// 			visual_markers_[i].trajectory.clear();
-		// 		}
-		// 	}
-		// }
-		// publishMarkerTrajectory();
-
 		for(const auto& param : parameters)
 		{
 			RCLCPP_INFO_STREAM(this->get_logger(), param.get_name());
 
 			if(param.get_name() == "marker_yaml_path")
 			{
-				initializeMarker(param.as_string(), false);
+				marker_file_ = param.as_string();
+				initializeMarker(marker_file_, false);
+				initializeMarkerServer(controllable_markers_);
 			}
-			// else if(param.get_name() == "param2")
-			// {
-			// 	// なんか変な時．例えば重力加速度にマイナスの値を代入しようとするなど．
-			// 	if(!some_considion)
-			// 	{
-			// 		results->successful = false;
-			// 		results->reason = "Wrong operation"; 
-			// 		return *results;
-			// 	}
-			// }
+			else if(param.get_name() == "frame_id_global")
+			{
+				frame_id_global_ = param.as_string();
+			}
 		}
-		
-		// initializeMarker();
 
 		return *results;
 	}
@@ -517,7 +468,7 @@ namespace potbot_lib{
 		}
 
 		// yamlファイル名を決定（例: marker名.yaml）
-		std::string yaml_path = this->get_parameter("marker_yaml_path").as_string();
+		std::string yaml_path = marker_file_;
 		try {
 			std::ofstream ofs(yaml_path);
 			ofs << root;

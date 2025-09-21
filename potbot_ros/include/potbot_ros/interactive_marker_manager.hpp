@@ -31,6 +31,7 @@ namespace potbot_lib{
     {
         protected:
             bool is_initialized_ = false;
+            std::string marker_file_ = "";
         
             rclcpp::TimerBase::SharedPtr timer_;
 
