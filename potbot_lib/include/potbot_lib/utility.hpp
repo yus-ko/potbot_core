@@ -152,6 +152,8 @@ namespace potbot_lib{
 
         template <typename KEY, typename DATA>
         bool contains(const KEY& key, const std::map<KEY, DATA>& map) { return (map.find(key) != map.end()); };
+        template <typename KEY, typename DATA>
+        bool contains(const KEY& key, const std::unordered_map<KEY, DATA>& map) { return (map.find(key) != map.end()); };
 
         void vec_to_path(const std::vector<Eigen::VectorXd>& vectors, std::vector<Pose>& path);
         bool bezier(const std::vector<Pose> path_raw, std::vector<Pose>& path_interpolated);

@@ -30,6 +30,7 @@ namespace potbot_lib{
     class InteractiveMarkerManager : public rclcpp_lifecycle::LifecycleNode
     {
         protected:
+            bool is_initialized_ = false;
         
             rclcpp::TimerBase::SharedPtr timer_;
 
@@ -64,31 +65,32 @@ namespace potbot_lib{
                 entry_handle_delete_;
 
             rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr dyn_params_handler_;
-            rcl_interfaces::msg::SetParametersResult dynamicParametersCallback(std::vector<rclcpp::Parameter> parameters);
+            virtual rcl_interfaces::msg::SetParametersResult dynamicParametersCallback(std::vector<rclcpp::Parameter> parameters);
 
-            void initializeController();
-            void initializeParameter();
-            void initializeMenu();
-            void initializeMarker(std::string yaml_path = "", bool set_default = true);
+            virtual void initializeController();
+            virtual void initializeParameter();
+            virtual void initializeMenu();
+            virtual void initializeMarker(std::string yaml_path = "", bool set_default = true);
 
-            void initializeMarkerServer(const std::map<std::string, VisualMarker> &markers);
+            virtual void initializeMarkerServer(const std::map<std::string, VisualMarker> &markers);
 
             void editorChangeTo(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback, std::string mode);
-            void changePosition(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback);
-            void changeRotation(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback);
+            virtual void changePosition(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback);
+            virtual void changeRotation(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback);
             void changeScale(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback);
             void typeChangeTo(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback, int type);
-            YAML::Node saveMarker(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback);
-            std::string duplicateMarker(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback);
-            void deleteMarker(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback);
+            virtual YAML::Node saveMarker(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback);
+            virtual std::string duplicateMarker(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback);
+            virtual void deleteMarker(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback);
 
             std::string getCopyName(std::string original_name);
+
+            virtual CallbackReturn on_configure(const rclcpp_lifecycle::State &);
+            virtual CallbackReturn on_activate(const rclcpp_lifecycle::State &);
 
         public:
             InteractiveMarkerManager(std::string name="marker", std::string node_namespace="");
             ~InteractiveMarkerManager(){};
-
-            void initialize();
 
             void registerFeedback(std::string marker_name,
                 const interactive_markers::InteractiveMarkerServer::FeedbackCallback &feedbck_func);
