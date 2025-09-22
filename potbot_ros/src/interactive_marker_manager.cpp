@@ -117,21 +117,21 @@ namespace potbot_lib{
 	{
 		menu_handler_ = std::make_shared<interactive_markers::MenuHandler>();
 
-		interactive_markers::MenuHandler::EntryHandle edit_entry = menu_handler_->insert("edit");
+		entry_handles_["edit"] = menu_handler_->insert("edit");
 
-		menu_handler_->insert( edit_entry, "position" , 
+		menu_handler_->insert( entry_handles_["edit"], "position" , 
 			[this](const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback) {
 				this->editorChangeTo(feedback, "position");});
 
-		menu_handler_->insert( edit_entry, "rotation" , 
+		menu_handler_->insert( entry_handles_["edit"], "rotation" , 
 			[this](const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback) {
 				this->editorChangeTo(feedback, "rotation");});
 
-		menu_handler_->insert( edit_entry, "scale" , 
+		menu_handler_->insert( entry_handles_["edit"], "scale" , 
 			[this](const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback) {
 				this->editorChangeTo(feedback, "scale");});
 
-		interactive_markers::MenuHandler::EntryHandle type_entry = menu_handler_->insert(edit_entry, "type");
+		interactive_markers::MenuHandler::EntryHandle type_entry = menu_handler_->insert(entry_handles_["edit"], "type");
 
 		menu_handler_->insert( type_entry, "cube", 
 			[this](const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback) {
@@ -141,17 +141,21 @@ namespace potbot_lib{
 			[this](const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback) {
 				this->typeChangeTo(feedback, visualization_msgs::msg::Marker::SPHERE);});
 		
-		entry_handle_add_ = menu_handler_->insert("add",
+		entry_handles_["add"] = menu_handler_->insert("add");
+
+		menu_handler_->insert(entry_handles_["add"], "marker",
 			[this](const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback) {
 				this->duplicateMarker(feedback);});
-
-		entry_handle_delete_ = menu_handler_->insert("delete",
+		
+		entry_handles_["delete"] = menu_handler_->insert("delete");
+				
+		menu_handler_->insert(entry_handles_["delete"], "marker",
 			[this](const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback) {
 				this->deleteMarker(feedback);});
 
-		entry_handle_save_ = menu_handler_->insert("save");
+		entry_handles_["save"] = menu_handler_->insert("save");
 
-		menu_handler_->insert( entry_handle_save_, "marker pose", 
+		menu_handler_->insert( entry_handles_["save"], "marker pose", 
 			[this](const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback) {
 				this->saveMarker(feedback);});
 	}
@@ -594,6 +598,12 @@ namespace potbot_lib{
 			imsrv_->applyChanges();
 			RCLCPP_INFO(this->get_logger(), "[%s] deleted", int_marker.name.c_str());
 		}
+	}
+
+	void InteractiveMarkerManager::setMenuVisibles(bool visible)
+	{
+		for (auto &h:entry_handles_)
+			menu_handler_->setVisible(h.second, visible);
 	}
 
 	void InteractiveMarkerManager::registerFeedback(std::string marker_name,

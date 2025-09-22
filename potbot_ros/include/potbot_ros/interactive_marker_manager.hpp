@@ -53,17 +53,8 @@ namespace potbot_lib{
                 scale_controller_axis_x_,
                 scale_controller_axis_y_,
                 scale_controller_axis_z_;
-            
-            interactive_markers::InteractiveMarkerServer::FeedbackCallback 
-                function_change_position_,
-                function_change_rotation_,
-                fuction_duplicate_marker_,
-                fuction_save_marker_;
 
-            interactive_markers::MenuHandler::EntryHandle 
-                entry_handle_save_,
-                entry_handle_add_,
-                entry_handle_delete_;
+            std::map<std::string, interactive_markers::MenuHandler::EntryHandle> entry_handles_;
 
             rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr dyn_params_handler_;
             virtual rcl_interfaces::msg::SetParametersResult dynamicParametersCallback(std::vector<rclcpp::Parameter> parameters);
@@ -87,6 +78,8 @@ namespace potbot_lib{
             VisualMarker getVisualMarker(std::string name, const visualization_msgs::msg::Marker &vis_marker, const Pose &init_pose=Pose());
             virtual std::string duplicateMarker(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback);
             virtual void deleteMarker(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback);
+
+            void setMenuVisibles(bool visible);
 
             std::string getCopyName(std::string original_name);
 
