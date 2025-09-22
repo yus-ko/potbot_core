@@ -81,6 +81,10 @@ namespace potbot_lib{
             void changeScale(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback);
             void typeChangeTo(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback, int type);
             virtual YAML::Node saveMarker(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback);
+            YAML::Node getYamlNode(const VisualMarker &visual_marker);
+            VisualMarker getVisualMarker(const YAML::Node &yaml_node);
+            VisualMarker getVisualMarker(std::string name, const Pose &init_pose=Pose());
+            VisualMarker getVisualMarker(std::string name, const visualization_msgs::msg::Marker &vis_marker, const Pose &init_pose=Pose());
             virtual std::string duplicateMarker(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback);
             virtual void deleteMarker(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback);
 
@@ -99,6 +103,8 @@ namespace potbot_lib{
             void addMarker(std::string name, const Pose &init_pose=Pose());
             void addMarker(std::string name, const visualization_msgs::msg::Marker &vis_marker, 
                             const Pose &init_pose=Pose());
+            void addMarker(std::string name, const VisualMarker &visual_marker);
+            void addMarker(VisualMarker &visual_marker);
 
             geometry_msgs::msg::Pose getMarkerPose(std::string name);
     };

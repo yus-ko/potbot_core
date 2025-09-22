@@ -163,43 +163,10 @@ namespace potbot_lib{
 			YAML::Node root = YAML::LoadFile(yaml_path);
 			if (root["markers"]) 
 			{
-				std::vector<visualization_msgs::msg::InteractiveMarker> int_markers;
 				for (const auto& node : root["markers"]) 
 				{
-					std::string name = node["name"].as<std::string>();
-					std::string type = node["type"].as<std::string>();
-
-					auto x = node["pose"]["position"]["x"].as<double>();
-					auto y = node["pose"]["position"]["y"].as<double>();
-					auto z = node["pose"]["position"]["z"].as<double>();
-					auto roll = node["pose"]["rotation"]["roll"].as<double>();
-					auto pitch = node["pose"]["rotation"]["pitch"].as<double>();
-					auto yaw = node["pose"]["rotation"]["yaw"].as<double>();
-
-					auto scale_x = node["scale"]["x"].as<double>();
-					auto scale_y = node["scale"]["y"].as<double>();
-					auto scale_z = node["scale"]["z"].as<double>();
-
-					auto r = node["color"]["r"].as<double>();
-					auto g = node["color"]["g"].as<double>();
-					auto b = node["color"]["b"].as<double>();
-					auto a = node["color"]["a"].as<double>();
-							
-					visualization_msgs::msg::Marker marker_msg;
-					marker_msg.scale.x = scale_x;
-					marker_msg.scale.y = scale_y;
-					marker_msg.scale.z = scale_z;
-					marker_msg.color.r = r;
-					marker_msg.color.g = g;
-					marker_msg.color.b = b;
-					marker_msg.color.a = a;
-
-					if (type == "sphere")
-						marker_msg.type = visualization_msgs::msg::Marker::SPHERE;
-					else if (type == "cube")
-						marker_msg.type = visualization_msgs::msg::Marker::CUBE;
-
-					addMarker(name, marker_msg, Pose(x,y,z,roll,pitch,yaw));
+					auto vm = getVisualMarker(node);
+					addMarker(vm);
 				}
 
 				RCLCPP_INFO(this->get_logger(), "Base marker loaded: %s", yaml_path.c_str());
@@ -207,7 +174,7 @@ namespace potbot_lib{
 		} 
 		catch (const std::exception& e) 
 		{
-			RCLCPP_INFO(this->get_logger(), "Failed to base marker load marker yaml: %s", e.what());
+			RCLCPP_INFO(this->get_logger(), "Failed to base marker load. marker yaml: %s", e.what());
 
 			if (set_default)
 			{
@@ -215,6 +182,76 @@ namespace potbot_lib{
 				RCLCPP_INFO(this->get_logger(), "Set to default");
 			}
 		}
+	}
+
+	VisualMarker InteractiveMarkerManager::getVisualMarker(const YAML::Node &yaml_node)
+	{
+		std::string name = yaml_node["name"].as<std::string>();
+		std::string type = yaml_node["type"].as<std::string>();
+
+		auto x = yaml_node["pose"]["position"]["x"].as<double>();
+		auto y = yaml_node["pose"]["position"]["y"].as<double>();
+		auto z = yaml_node["pose"]["position"]["z"].as<double>();
+		auto roll = yaml_node["pose"]["rotation"]["roll"].as<double>();
+		auto pitch = yaml_node["pose"]["rotation"]["pitch"].as<double>();
+		auto yaw = yaml_node["pose"]["rotation"]["yaw"].as<double>();
+
+		auto scale_x = yaml_node["scale"]["x"].as<double>();
+		auto scale_y = yaml_node["scale"]["y"].as<double>();
+		auto scale_z = yaml_node["scale"]["z"].as<double>();
+
+		auto r = yaml_node["color"]["r"].as<double>();
+		auto g = yaml_node["color"]["g"].as<double>();
+		auto b = yaml_node["color"]["b"].as<double>();
+		auto a = yaml_node["color"]["a"].as<double>();
+				
+		visualization_msgs::msg::Marker marker_msg;
+		marker_msg.scale.x = scale_x;
+		marker_msg.scale.y = scale_y;
+		marker_msg.scale.z = scale_z;
+		marker_msg.color.r = r;
+		marker_msg.color.g = g;
+		marker_msg.color.b = b;
+		marker_msg.color.a = a;
+
+		if (type == "sphere")
+			marker_msg.type = visualization_msgs::msg::Marker::SPHERE;
+		else if (type == "cube")
+			marker_msg.type = visualization_msgs::msg::Marker::CUBE;
+		
+		return getVisualMarker(name, marker_msg, Pose(x,y,z,roll,pitch,yaw));
+	}
+
+	VisualMarker InteractiveMarkerManager::getVisualMarker(std::string name, const Pose &init_pose)
+	{
+		visualization_msgs::msg::InteractiveMarker int_marker;
+		int_marker.header.frame_id = frame_id_global_;
+		int_marker.header.stamp = this->get_clock()->now();
+		int_marker.name = name;
+		int_marker.description = int_marker.name;
+		int_marker.pose = potbot_lib::utility::get_pose(init_pose);
+
+		visualization_msgs::msg::Marker marker_msg = default_visual_marker_;
+		marker_msg.text = name;
+
+		visualization_msgs::msg::InteractiveMarkerControl controller = movement_controller_;
+
+		controller.markers[0] = marker_msg;
+		int_marker.controls.push_back(controller);
+
+		VisualMarker vm;
+		vm.marker = int_marker;
+		vm.controller = int_marker;
+		return vm;
+	}
+
+	VisualMarker InteractiveMarkerManager::getVisualMarker(
+		std::string name, const visualization_msgs::msg::Marker &vis_marker, const Pose &init_pose)
+	{
+		auto vm = getVisualMarker(name, init_pose);
+		vm.marker.controls[0].markers[0] = vis_marker;
+		vm.controller.controls[0].markers[0] = vis_marker;
+		return vm;
 	}
 
 	void InteractiveMarkerManager::initializeMarkerServer(
@@ -435,39 +472,8 @@ namespace potbot_lib{
 		YAML::Node node = root["markers"];
 
 		for (const auto& cm:controllable_markers_)
-		{
-			const auto &marker = cm.second.marker;
-			YAML::Node child;
-			child["name"] = cm.first;
+			node.push_back(getYamlNode(cm.second));
 
-			auto type = marker.controls[0].markers[0].type;
-			if (type == visualization_msgs::msg::Marker::SPHERE)
-				child["type"] = "sphere";
-			else if (type == visualization_msgs::msg::Marker::CUBE)
-				child["type"] = "cube";
-
-			child["pose"]["position"]["x"] = marker.pose.position.x;
-			child["pose"]["position"]["y"] = marker.pose.position.y;
-			child["pose"]["position"]["z"] = marker.pose.position.z;
-
-			double r,p,y;
-			tf2::getEulerYPR(marker.pose.orientation, r,p,y);
-			child["pose"]["rotation"]["roll"] = r;
-			child["pose"]["rotation"]["pitch"] = p;
-			child["pose"]["rotation"]["yaw"] = y;
-
-			child["scale"]["x"] = marker.controls[0].markers[0].scale.x;
-			child["scale"]["y"] = marker.controls[0].markers[0].scale.y;
-			child["scale"]["z"] = marker.controls[0].markers[0].scale.z;
-			child["color"]["r"] = marker.controls[0].markers[0].color.r;
-			child["color"]["g"] = marker.controls[0].markers[0].color.g;
-			child["color"]["b"] = marker.controls[0].markers[0].color.b;
-			child["color"]["a"] = marker.controls[0].markers[0].color.a;
-
-			node.push_back(child);
-		}
-
-		// yamlファイル名を決定（例: marker名.yaml）
 		std::string yaml_path = marker_file_;
 		try {
 			std::ofstream ofs(yaml_path);
@@ -479,6 +485,39 @@ namespace potbot_lib{
 			RCLCPP_ERROR(this->get_logger(), "Failed to write yaml: %s", e.what());
 			return YAML::Node();
 		}
+	}
+
+	YAML::Node InteractiveMarkerManager::getYamlNode(const VisualMarker &visual_marker)
+	{
+		const auto &marker = visual_marker.marker;
+		YAML::Node node;
+		node["name"] = marker.name;
+
+		auto type = marker.controls[0].markers[0].type;
+		if (type == visualization_msgs::msg::Marker::SPHERE)
+			node["type"] = "sphere";
+		else if (type == visualization_msgs::msg::Marker::CUBE)
+			node["type"] = "cube";
+
+		node["pose"]["position"]["x"] = marker.pose.position.x;
+		node["pose"]["position"]["y"] = marker.pose.position.y;
+		node["pose"]["position"]["z"] = marker.pose.position.z;
+
+		double r,p,y;
+		tf2::getEulerYPR(marker.pose.orientation, r,p,y);
+		node["pose"]["rotation"]["roll"] = r;
+		node["pose"]["rotation"]["pitch"] = p;
+		node["pose"]["rotation"]["yaw"] = y;
+
+		node["scale"]["x"] = marker.controls[0].markers[0].scale.x;
+		node["scale"]["y"] = marker.controls[0].markers[0].scale.y;
+		node["scale"]["z"] = marker.controls[0].markers[0].scale.z;
+		node["color"]["r"] = marker.controls[0].markers[0].color.r;
+		node["color"]["g"] = marker.controls[0].markers[0].color.g;
+		node["color"]["b"] = marker.controls[0].markers[0].color.b;
+		node["color"]["a"] = marker.controls[0].markers[0].color.a;
+
+		return node;
 	}
 
 	std::string InteractiveMarkerManager::duplicateMarker(
@@ -568,31 +607,23 @@ namespace potbot_lib{
 
 	void InteractiveMarkerManager::addMarker(std::string name, const Pose &init_pose)
 	{
-		visualization_msgs::msg::InteractiveMarker int_marker;
-		int_marker.header.frame_id = frame_id_global_;
-		int_marker.header.stamp = this->get_clock()->now();
-		int_marker.name = name;
-		int_marker.description = int_marker.name;
-		int_marker.pose = potbot_lib::utility::get_pose(init_pose);
-
-		visualization_msgs::msg::Marker marker_msg = default_visual_marker_;
-		marker_msg.text = name;
-
-		visualization_msgs::msg::InteractiveMarkerControl controller = movement_controller_;
-
-		controller.markers[0] = marker_msg;
-		int_marker.controls.push_back(controller);
-
-		controllable_markers_[name].marker = int_marker;
-		controllable_markers_[name].controller = int_marker;
+		controllable_markers_[name] = getVisualMarker(name, init_pose);
 	}
 
-	void InteractiveMarkerManager::addMarker(std::string name,
-		const visualization_msgs::msg::Marker &vis_marker, const Pose &init_pose)
+	void InteractiveMarkerManager::addMarker(
+		std::string name, const visualization_msgs::msg::Marker &vis_marker, const Pose &init_pose)
 	{
-		addMarker(name, init_pose);
-		controllable_markers_[name].marker.controls[0].markers[0] = vis_marker;
-		controllable_markers_[name].controller.controls[0].markers[0] = vis_marker;
+		controllable_markers_[name] = getVisualMarker(name, vis_marker, init_pose);
+	}
+
+	void InteractiveMarkerManager::addMarker(std::string name, const VisualMarker &visual_marker)
+	{
+		controllable_markers_[name] = visual_marker;
+	}
+
+	void InteractiveMarkerManager::addMarker(VisualMarker &visual_marker)
+	{
+		addMarker(visual_marker.marker.name, visual_marker);
 	}
 
 	geometry_msgs::msg::Pose InteractiveMarkerManager::getMarkerPose(std::string name)
