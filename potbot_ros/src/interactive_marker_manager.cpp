@@ -57,9 +57,14 @@ namespace potbot_lib{
 	{
 		this->declare_parameter("frame_id_global", rclcpp::ParameterValue("map"));
 		this->declare_parameter("marker_yaml_path", rclcpp::ParameterValue("interactive_markers.yaml"));
+		std::string ros_distro = std::getenv("ROS_DISTRO");
+		this->declare_parameter("mesh_resource_files", rclcpp::ParameterValue(std::vector<std::string>{
+			"file:///opt/ros/" + ros_distro + "/share/rviz_default_plugins/test_meshes/pr2-base.dae",
+			"package://rviz_default_plugins/test_meshes/pr2-base.dae"}));
 
 		frame_id_global_ = this->get_parameter("frame_id_global").as_string();
 		marker_file_ = this->get_parameter("marker_yaml_path").as_string();
+		mesh_resource_files_ = this->get_parameter("mesh_resource_files").as_string_array();
 	}
 
 	void InteractiveMarkerManager::initializeController()
@@ -76,11 +81,50 @@ namespace potbot_lib{
 		move_marker.pose = potbot_lib::utility::get_pose(0,0,0,0,0,0);
 		// move_marker.pose = potbot_lib::utility::get_Pose(0,0.5,1,0,0,0);
 
+		visualization_msgs::msg::Marker scale_arrow_x;
+		scale_arrow_x.type = visualization_msgs::msg::Marker::ARROW;
+		scale_arrow_x.scale.x = 1;
+		scale_arrow_x.scale.y = 0.05;
+		scale_arrow_x.scale.z = 0.05;
+		scale_arrow_x.color = color::get_msg("red");
+		scale_arrow_x.color.a = 0.3;
+		scale_arrow_x.pose = potbot_lib::utility::get_pose(0,0,0,0,0,0);
+
+		visualization_msgs::msg::Marker scale_arrow_y = scale_arrow_x;
+		scale_arrow_y.color = color::get_msg("green");
+		scale_arrow_y.color.a = 0.3;
+		scale_arrow_y.pose = potbot_lib::utility::get_pose(0,0,0,0,0,M_PI_2);
+
+		visualization_msgs::msg::Marker scale_arrow_z = scale_arrow_x;
+		scale_arrow_z.color = color::get_msg("blue");
+		scale_arrow_z.color.a = 0.3;
+		scale_arrow_z.pose = potbot_lib::utility::get_pose(0,0,0,0,-M_PI_2,0);
+
+		visualization_msgs::msg::Marker scale_arrow_xyz = scale_arrow_x;
+		scale_arrow_xyz.color = color::get_msg("white");
+		scale_arrow_xyz.color.a = 0.3;
+		scale_arrow_xyz.pose = potbot_lib::utility::get_pose(0,0,0,0,-M_PI_4,M_PI_4);
+
 		movement_controller_.name = "movement_controller_marker";
 		movement_controller_.orientation = potbot_lib::utility::get_quat(0,-M_PI_2,0);
 		movement_controller_.always_visible = true;
 		movement_controller_.markers.push_back(move_marker);
 		movement_controller_.interaction_mode = visualization_msgs::msg::InteractiveMarkerControl::MOVE_PLANE;
+
+		movement_controller_axis_z_.name = "movement_controller_axis_z";
+		movement_controller_axis_z_.orientation = potbot_lib::utility::get_quat(0,M_PI_2,0);
+		movement_controller_axis_z_.always_visible = true;
+		movement_controller_axis_z_.interaction_mode = visualization_msgs::msg::InteractiveMarkerControl::MOVE_AXIS;
+
+		rotation_controller_axis_x_.name = "rotation_controller_axis_x";
+		rotation_controller_axis_x_.orientation = potbot_lib::utility::get_quat(0,0,0);
+		rotation_controller_axis_x_.always_visible = true;
+		rotation_controller_axis_x_.interaction_mode = visualization_msgs::msg::InteractiveMarkerControl::ROTATE_AXIS;
+
+		rotation_controller_axis_y_.name = "rotation_controller_axis_y";
+		rotation_controller_axis_y_.orientation = potbot_lib::utility::get_quat(0,0,M_PI_2);
+		rotation_controller_axis_y_.always_visible = true;
+		rotation_controller_axis_y_.interaction_mode = visualization_msgs::msg::InteractiveMarkerControl::ROTATE_AXIS;
 
 		rotation_controller_axis_z_.name = "rotation_controller_axis_z";
 		rotation_controller_axis_z_.orientation = potbot_lib::utility::get_quat(0,-M_PI_2,0);
@@ -95,16 +139,25 @@ namespace potbot_lib{
 		scale_controller_axis_x_.orientation = potbot_lib::utility::get_quat(0,0,0);
 		scale_controller_axis_x_.always_visible = true;
 		scale_controller_axis_x_.interaction_mode = visualization_msgs::msg::InteractiveMarkerControl::MOVE_AXIS;
+		scale_controller_axis_x_.markers.push_back(scale_arrow_x);
 
 		scale_controller_axis_y_.name = "scale_controller_axis_y";
 		scale_controller_axis_y_.orientation = potbot_lib::utility::get_quat(0,0,M_PI_2);
 		scale_controller_axis_y_.always_visible = true;
 		scale_controller_axis_y_.interaction_mode = visualization_msgs::msg::InteractiveMarkerControl::MOVE_AXIS;
+		scale_controller_axis_y_.markers.push_back(scale_arrow_y);
 
 		scale_controller_axis_z_.name = "scale_controller_axis_z";
 		scale_controller_axis_z_.orientation = potbot_lib::utility::get_quat(0,M_PI_2,0);
 		scale_controller_axis_z_.always_visible = true;
 		scale_controller_axis_z_.interaction_mode = visualization_msgs::msg::InteractiveMarkerControl::MOVE_AXIS;
+		scale_controller_axis_z_.markers.push_back(scale_arrow_z);
+
+		scale_controller_axis_xyz_.name = "scale_controller_axis_xyz";
+		scale_controller_axis_xyz_.orientation = potbot_lib::utility::get_quat(0,-M_PI_4,M_PI_4);
+		scale_controller_axis_xyz_.always_visible = true;
+		scale_controller_axis_xyz_.interaction_mode = visualization_msgs::msg::InteractiveMarkerControl::MOVE_AXIS;
+		scale_controller_axis_xyz_.markers.push_back(scale_arrow_xyz);
 
 		scale_controller_.name = "scale_controller_marker";
 		scale_controller_.always_visible = true;
@@ -119,27 +172,106 @@ namespace potbot_lib{
 
 		entry_handles_["edit"] = menu_handler_->insert("edit");
 
-		menu_handler_->insert( entry_handles_["edit"], "position" , 
-			[this](const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback) {
-				this->editorChangeTo(feedback, "position");});
+		auto position_entry = menu_handler_->insert(entry_handles_["edit"], "position");
 
-		menu_handler_->insert( entry_handles_["edit"], "rotation" , 
+		menu_handler_->insert(position_entry, "plane" , 
 			[this](const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback) {
-				this->editorChangeTo(feedback, "rotation");});
+				this->editorChangeTo(feedback, "position_plane");});
+		
+		menu_handler_->insert(position_entry, "height" , 
+			[this](const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback) {
+				this->editorChangeTo(feedback, "position_z");});
 
-		menu_handler_->insert( entry_handles_["edit"], "scale" , 
+		menu_handler_->insert(position_entry, "reset height" , 
+			[this](const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback) {
+				this->resetPositionZ(feedback);});
+		
+		auto rotation_entry = menu_handler_->insert(entry_handles_["edit"], "rotation");
+
+		menu_handler_->insert(rotation_entry, "yaw" , 
+			[this](const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback) {
+				this->editorChangeTo(feedback, "rotation_yaw");});
+
+		menu_handler_->insert(rotation_entry, "3D" , 
+			[this](const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback) {
+				this->editorChangeTo(feedback, "rotation_3d");});
+		
+		menu_handler_->insert(rotation_entry, "reset" , 
+			[this](const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback) {
+				this->resetRotation(feedback);});
+		
+		auto scale_entry = menu_handler_->insert(entry_handles_["edit"], "scale");
+
+		menu_handler_->insert(scale_entry, "3D" , 
 			[this](const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback) {
 				this->editorChangeTo(feedback, "scale");});
 
-		interactive_markers::MenuHandler::EntryHandle type_entry = menu_handler_->insert(entry_handles_["edit"], "type");
+		menu_handler_->insert(scale_entry, "reset" , 
+			[this](const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback) {
+				this->resetScale(feedback);});
 
-		menu_handler_->insert( type_entry, "cube", 
+		auto type_entry = menu_handler_->insert(entry_handles_["edit"], "shape");
+
+		menu_handler_->insert(type_entry, "cube", 
 			[this](const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback) {
 				this->typeChangeTo(feedback, visualization_msgs::msg::Marker::CUBE);});
 
-		menu_handler_->insert( type_entry, "sphere", 
+		menu_handler_->insert(type_entry, "sphere", 
 			[this](const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback) {
 				this->typeChangeTo(feedback, visualization_msgs::msg::Marker::SPHERE);});
+		
+		menu_handler_->insert(type_entry, "cylinder", 
+			[this](const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback) {
+				this->typeChangeTo(feedback, visualization_msgs::msg::Marker::CYLINDER);});
+
+		menu_handler_->insert(type_entry, "arrow", 
+			[this](const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback) {
+				this->typeChangeTo(feedback, visualization_msgs::msg::Marker::ARROW);});
+		
+		auto mesh_entry = menu_handler_->insert(type_entry, "mesh");
+
+		for (const auto &mesh_file:mesh_resource_files_)
+			menu_handler_->insert(mesh_entry, mesh_file, 
+				[this,mesh_file](const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback) {
+					this->typeChangeTo(feedback, visualization_msgs::msg::Marker::MESH_RESOURCE, mesh_file);});
+
+		auto color_entry = menu_handler_->insert(entry_handles_["edit"], "color");
+
+		menu_handler_->insert(color_entry, "red", 
+			[this](const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback) {
+				this->colorChangeTo(feedback, color::get_msg(color::RED));});
+
+		menu_handler_->insert(color_entry, "green", 
+			[this](const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback) {
+				this->colorChangeTo(feedback, color::get_msg(color::GREEN));});
+
+		menu_handler_->insert(color_entry, "blue", 
+			[this](const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback) {
+				this->colorChangeTo(feedback, color::get_msg(color::BLUE));});
+		
+		menu_handler_->insert(color_entry, "yellow", 
+			[this](const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback) {
+				this->colorChangeTo(feedback, color::get_msg(color::YELLOW));});
+
+		menu_handler_->insert(color_entry, "light blue", 
+			[this](const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback) {
+				this->colorChangeTo(feedback, color::get_msg(color::LIGHT_BLUE));});
+
+		menu_handler_->insert(color_entry, "purple", 
+			[this](const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback) {
+				this->colorChangeTo(feedback, color::get_msg(color::PURPLE));});
+
+		menu_handler_->insert(color_entry, "white", 
+			[this](const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback) {
+				this->colorChangeTo(feedback, color::get_msg(color::WHITE));});
+
+		menu_handler_->insert(color_entry, "black", 
+			[this](const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback) {
+				this->colorChangeTo(feedback, color::get_msg(color::BLACK));});
+
+		menu_handler_->insert(color_entry, "none", 
+			[this](const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback) {
+				this->colorChangeTo(feedback, std_msgs::msg::ColorRGBA());});
 		
 		entry_handles_["add"] = menu_handler_->insert("add");
 
@@ -222,6 +354,16 @@ namespace potbot_lib{
 			marker_msg.type = visualization_msgs::msg::Marker::SPHERE;
 		else if (type == "cube")
 			marker_msg.type = visualization_msgs::msg::Marker::CUBE;
+		else if (type == "cylinder")
+			marker_msg.type = visualization_msgs::msg::Marker::CYLINDER;
+		else if (type == "arrow")
+			marker_msg.type = visualization_msgs::msg::Marker::ARROW;
+		else if (type == "mesh")
+		{
+			marker_msg.type = visualization_msgs::msg::Marker::MESH_RESOURCE;
+			marker_msg.mesh_resource = yaml_node["mesh_resource"].as<std::string>();
+			marker_msg.mesh_use_embedded_materials = true;
+		}
 		
 		return getVisualMarker(name, marker_msg, Pose(x,y,z,roll,pitch,yaw));
 	}
@@ -259,7 +401,7 @@ namespace potbot_lib{
 	}
 
 	void InteractiveMarkerManager::initializeMarkerServer(
-		const std::map<std::string, VisualMarker> &markers)
+		const std::map<std::string, VisualMarker> &markers, const std::vector<std::string> &marker_with_controller)
 	{
 		std::string marker_server_name = "markers";
 		imsrv_ = std::make_shared<interactive_markers::InteractiveMarkerServer>(
@@ -270,6 +412,12 @@ namespace potbot_lib{
 			imsrv_->insert(m.second.marker, 
 				[this](const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback){
 					changePosition(feedback);});
+			
+			if (utility::contains(m.first, marker_with_controller))
+					imsrv_->insert(m.second.controller, 
+						[this](const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback){
+							changeScale(feedback);});
+			
 			menu_handler_->apply(*imsrv_, m.second.marker.name);
 		}
 		imsrv_->applyChanges();
@@ -284,7 +432,7 @@ namespace potbot_lib{
 
 		for(const auto& param : parameters)
 		{
-			RCLCPP_INFO_STREAM(this->get_logger(), param.get_name());
+			RCLCPP_INFO_STREAM(this->get_logger(), "\t" + param.get_name());
 
 			if(param.get_name() == "marker_yaml_path")
 			{
@@ -295,6 +443,13 @@ namespace potbot_lib{
 			else if(param.get_name() == "frame_id_global")
 			{
 				frame_id_global_ = param.as_string();
+			}
+			else if(param.get_name() == "mesh_resource_files")
+			{
+
+				mesh_resource_files_ = this->get_parameter("mesh_resource_files").as_string_array();
+				initializeMenu();
+				initializeMarkerServer(controllable_markers_);
 			}
 		}
 
@@ -309,7 +464,7 @@ namespace potbot_lib{
 		{
 			auto viz_marker_bak = int_marker.controls.front().markers.front();
 			int_marker.controls.clear();
-			if (mode == "position")
+			if (mode == "position_plane")
 			{
 				movement_controller_.markers[0] = viz_marker_bak;
 				int_marker.controls.push_back(movement_controller_);
@@ -325,7 +480,26 @@ namespace potbot_lib{
 						changePosition(feedback);});
 				imsrv_->erase(int_marker.name + "_scale_controller");
 			}
-			else if (mode == "rotation")
+			else if (mode == "position_z")
+			{
+				auto tmp_controller = movement_controller_axis_z_;
+				tmp_controller.markers.clear();
+				tmp_controller.markers.push_back(viz_marker_bak);
+				int_marker.controls.push_back(tmp_controller);
+				int_marker.controls.push_back(movement_controller_axis_z_);
+				int_marker.controls[0].markers[0].color.a = 1;
+				int_marker.scale = std::max(std::max(std::max(
+					int_marker.controls[0].markers[0].scale.x,
+					int_marker.controls[0].markers[0].scale.y),
+					int_marker.controls[0].markers[0].scale.z),1.0);
+				controllable_markers_[int_marker.name].marker = int_marker;
+				controllable_markers_[int_marker.name].controller = int_marker;
+				imsrv_->insert(int_marker, 
+					[this](const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback){
+						changePosition(feedback);});
+				imsrv_->erase(int_marker.name + "_scale_controller");
+			}
+			else if (mode == "rotation_yaw")
 			{
 				rotation_controller_.markers[0] = viz_marker_bak;
 				int_marker.controls.push_back(rotation_controller_);
@@ -342,16 +516,36 @@ namespace potbot_lib{
 						changeRotation(feedback);});
 				imsrv_->erase(int_marker.name + "_scale_controller");
 			}
+			else if (mode == "rotation_3d")
+			{
+				rotation_controller_.markers[0] = viz_marker_bak;
+				auto tmp_controller = rotation_controller_;
+				tmp_controller.orientation = potbot_lib::utility::get_quat(0,0,0);
+				tmp_controller.interaction_mode = visualization_msgs::msg::InteractiveMarkerControl::ROTATE_3D;
+				int_marker.controls.push_back(tmp_controller);
+				int_marker.controls.push_back(rotation_controller_axis_x_);
+				int_marker.controls.push_back(rotation_controller_axis_y_);
+				int_marker.controls.push_back(rotation_controller_axis_z_);
+				int_marker.controls[0].markers[0].color.a = 1;
+				int_marker.scale = std::max(std::max(std::max(
+					int_marker.controls[0].markers[0].scale.x,
+					int_marker.controls[0].markers[0].scale.y),
+					int_marker.controls[0].markers[0].scale.z),1.0);
+				controllable_markers_[int_marker.name].marker = int_marker;
+				controllable_markers_[int_marker.name].controller = int_marker;
+				imsrv_->insert(int_marker, 
+					[this](const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback){
+						changeRotation(feedback);});
+				imsrv_->erase(int_marker.name + "_scale_controller");
+			}
 			else if (mode == "scale")
 			{
-				decltype(controllable_markers_)::iterator it = controllable_markers_.find(int_marker.name);
-				if (it != controllable_markers_.end()) 
+				if (utility::contains(int_marker.name, controllable_markers_)) 
 				{
 					scale_controller_.markers[0] = viz_marker_bak;
 					int_marker.controls.push_back(scale_controller_);
 					int_marker.controls[0].markers[0].color.a = 0.5;
 					int_marker.scale = 1;
-					
 
 					visualization_msgs::msg::InteractiveMarker cont_marker = int_marker;
 					cont_marker.name = int_marker.name + "_scale_controller";
@@ -360,6 +554,7 @@ namespace potbot_lib{
 					cont_marker.controls.push_back(scale_controller_axis_x_);
 					cont_marker.controls.push_back(scale_controller_axis_y_);
 					cont_marker.controls.push_back(scale_controller_axis_z_);
+					cont_marker.controls.push_back(scale_controller_axis_xyz_);
 
 					cont_marker.scale = std::max(std::max(std::max(
 						int_marker.controls[0].markers[0].scale.x,
@@ -393,10 +588,38 @@ namespace potbot_lib{
 		}
 	}
 
+	void InteractiveMarkerManager::resetPositionZ(
+		const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback)
+	{
+		visualization_msgs::msg::InteractiveMarker int_marker;
+		if (imsrv_->get(feedback->marker_name, int_marker))
+		{
+			int_marker.pose.position.z = 0;
+			controllable_markers_[int_marker.name].marker = int_marker;
+			controllable_markers_[int_marker.name].controller = int_marker;
+			initializeMarkerServer(controllable_markers_);
+			changePosition(feedback);
+		}
+	}
+
 	void InteractiveMarkerManager::changeRotation(
 		const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback)
 	{
 		changePosition(feedback);
+	}
+
+	void InteractiveMarkerManager::resetRotation(
+		const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback)
+	{
+		visualization_msgs::msg::InteractiveMarker int_marker;
+		if (imsrv_->get(feedback->marker_name, int_marker))
+		{
+			int_marker.pose.orientation = utility::get_quat(0,0,0);
+			controllable_markers_[int_marker.name].marker = int_marker;
+			controllable_markers_[int_marker.name].controller = int_marker;
+			initializeMarkerServer(controllable_markers_);
+			changeRotation(feedback);
+		}
 	}
 
 	void InteractiveMarkerManager::changeScale(
@@ -421,13 +644,19 @@ namespace potbot_lib{
 			auto &marker = controllable_markers_[name].marker;
 			auto &controller = controllable_markers_[name].controller;
 
-			marker.controls[0].markers[0].scale.x += 0.2*(int_marker.pose.position.x - marker.pose.position.x);
-			marker.controls[0].markers[0].scale.y += 0.2*(int_marker.pose.position.y - marker.pose.position.y);
-			marker.controls[0].markers[0].scale.z += 0.2*(int_marker.pose.position.z - marker.pose.position.z);
+			marker.controls.front().markers.front().scale.x
+				+= 0.2*(int_marker.pose.position.x - marker.pose.position.x);
+			marker.controls.front().markers.front().scale.y
+				+= 0.2*(int_marker.pose.position.y - marker.pose.position.y);
+			marker.controls.front().markers.front().scale.z
+				+= 0.2*(int_marker.pose.position.z - marker.pose.position.z);
 
-			marker.controls[0].markers[0].scale.x = std::max(marker.controls[0].markers[0].scale.x, 0.01);
-			marker.controls[0].markers[0].scale.y = std::max(marker.controls[0].markers[0].scale.y, 0.01);
-			marker.controls[0].markers[0].scale.z = std::max(marker.controls[0].markers[0].scale.z, 0.01);
+			marker.controls.front().markers.front().scale.x
+				= std::max(marker.controls.front().markers.front().scale.x, 0.01);
+			marker.controls.front().markers.front().scale.y
+				= std::max(marker.controls.front().markers.front().scale.y, 0.01);
+			marker.controls.front().markers.front().scale.z
+				= std::max(marker.controls.front().markers.front().scale.z, 0.01);
 
 			controller.pose = marker.pose;
 
@@ -438,35 +667,90 @@ namespace potbot_lib{
 				[this](const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &fb) {
 					this->changeScale(fb);});
 			imsrv_->applyChanges();
+
 		}
 	}
 
-	void InteractiveMarkerManager::typeChangeTo(
-		const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback, int type)
+	void InteractiveMarkerManager::resetScale(
+		const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback)
 	{
 		visualization_msgs::msg::InteractiveMarker int_marker;
 		if (imsrv_->get(feedback->marker_name, int_marker))
 		{
-			int_marker.controls[0].markers[0].type = type;
+			int_marker.controls.front().markers.front().scale.x = 0.05;
+			int_marker.controls.front().markers.front().scale.y = 0.05;
+			int_marker.controls.front().markers.front().scale.z = 0.05;
+			controllable_markers_[int_marker.name].marker = int_marker;
+			controllable_markers_[int_marker.name].controller = int_marker;
+			initializeMarkerServer(controllable_markers_);
+		}
+	}
 
+	void InteractiveMarkerManager::typeChangeTo(
+		const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback, int type, std::string mesh_resource)
+	{
+		visualization_msgs::msg::InteractiveMarker int_marker;
+		if (imsrv_->get(feedback->marker_name, int_marker))
+		{
+			// int_marker.controls.front().markers.front().type = visualization_msgs::msg::Marker::TRIANGLE_LIST;
+			// int_marker.controls.front().markers.front().scale.x = 0.5;
+			// int_marker.controls.front().markers.front().points.push_back(utility::get_point(0,0,0));
+			// int_marker.controls.front().markers.front().points.push_back(utility::get_point(cos(M_PI/3),sin(M_PI/3),0));
+			// int_marker.controls.front().markers.front().points.push_back(utility::get_point(-cos(M_PI/3),sin(M_PI/3),0));
+			// int_marker.controls.front().markers.front().colors.push_back(color::get_msg("green"));
+
+			int_marker.controls.front().markers.front().type = type;
+			if (type == visualization_msgs::msg::Marker::MESH_RESOURCE)
+			{
+				int_marker.controls.front().markers.front().mesh_use_embedded_materials = true;
+				int_marker.controls.front().markers.front().mesh_resource = mesh_resource;
+				int_marker.controls.front().markers.front().scale.x = 1;
+				int_marker.controls.front().markers.front().scale.y = 1;
+				int_marker.controls.front().markers.front().scale.z = 1;
+				int_marker.controls.front().markers.front().color = std_msgs::msg::ColorRGBA();
+			}
+
+			controllable_markers_[int_marker.name].marker = int_marker;
+
+			auto name = int_marker.controls.front().name;
+			if (name == "scale_controller_marker")
+				initializeMarkerServer(controllable_markers_, {int_marker.name});
+			else
+				initializeMarkerServer(controllable_markers_);
+		}
+	}
+
+	void InteractiveMarkerManager::colorChangeTo(
+		const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback, std_msgs::msg::ColorRGBA color)
+	{
+		visualization_msgs::msg::InteractiveMarker int_marker;
+		if (imsrv_->get(feedback->marker_name, int_marker))
+		{
 			auto name = int_marker.controls[0].name;
 			if (name == "scale_controller_marker")
 			{
-				imsrv_->insert(int_marker, 
-					[this](const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &fb) {
-						this->changeScale(fb);});
+				int_marker.controls.front().markers.front().color.r = color.r;
+				int_marker.controls.front().markers.front().color.g = color.g;
+				int_marker.controls.front().markers.front().color.b = color.b;
+
+				controllable_markers_[int_marker.name].marker.controls.front().markers.front().color
+					= int_marker.controls.front().markers.front().color;
+				initializeMarkerServer(controllable_markers_, {int_marker.name});
 			}
 			else
 			{
-				imsrv_->insert(int_marker, 
-					[this](const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &fb) {
-						this->changePosition(fb);});
+				controllable_markers_[int_marker.name].marker.controls.front().markers.front().color = color;
+				initializeMarkerServer(controllable_markers_);
 			}
-
-			// controllable_markers_[int_marker.name].marker = int_marker;
-			// controllable_markers_[int_marker.name].controller = int_marker;
-			imsrv_->applyChanges();
 		}
+	}
+
+	std::string InteractiveMarkerManager::getMarkerName(std::string controller_name)
+	{
+		for (const auto &cm:controllable_markers_)
+			if (cm.second.controller.name == controller_name)
+				return cm.second.marker.name;
+		return std::string();
 	}
 
 	YAML::Node InteractiveMarkerManager::saveMarker(
@@ -502,6 +786,15 @@ namespace potbot_lib{
 			node["type"] = "sphere";
 		else if (type == visualization_msgs::msg::Marker::CUBE)
 			node["type"] = "cube";
+		else if (type == visualization_msgs::msg::Marker::CYLINDER)
+			node["type"] = "cylinder";
+		else if (type == visualization_msgs::msg::Marker::ARROW)
+			node["type"] = "arrow";
+		else if (type == visualization_msgs::msg::Marker::MESH_RESOURCE)
+		{
+			node["type"] = "mesh";
+			node["mesh_resource"] = marker.controls.front().markers.front().mesh_resource;
+		}
 
 		node["pose"]["position"]["x"] = marker.pose.position.x;
 		node["pose"]["position"]["y"] = marker.pose.position.y;

@@ -36,6 +36,7 @@ namespace potbot_lib{
             rclcpp::TimerBase::SharedPtr timer_;
 
             std::string name_space_ = "", frame_id_global_ = "map";
+            std::vector<std::string> mesh_resource_files_;
             std::map<std::string, VisualMarker> controllable_markers_;
 
             std::shared_ptr<interactive_markers::InteractiveMarkerServer> imsrv_;
@@ -45,6 +46,7 @@ namespace potbot_lib{
 
             visualization_msgs::msg::InteractiveMarkerControl 
                 movement_controller_, 
+                movement_controller_axis_z_, 
                 rotation_controller_, 
                 rotation_controller_axis_x_, 
                 rotation_controller_axis_y_,
@@ -52,7 +54,8 @@ namespace potbot_lib{
                 scale_controller_, 
                 scale_controller_axis_x_,
                 scale_controller_axis_y_,
-                scale_controller_axis_z_;
+                scale_controller_axis_z_,
+                scale_controller_axis_xyz_;
 
             std::map<std::string, interactive_markers::MenuHandler::EntryHandle> entry_handles_;
 
@@ -64,13 +67,17 @@ namespace potbot_lib{
             virtual void initializeMenu();
             virtual void initializeMarker(std::string yaml_path = "", bool set_default = true);
 
-            virtual void initializeMarkerServer(const std::map<std::string, VisualMarker> &markers);
+            virtual void initializeMarkerServer(const std::map<std::string, VisualMarker> &markers, const std::vector<std::string> &marker_with_controller = {});
 
             void editorChangeTo(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback, std::string mode);
             virtual void changePosition(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback);
+            void resetPositionZ(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback);
             virtual void changeRotation(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback);
+            void resetRotation(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback);
             void changeScale(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback);
-            void typeChangeTo(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback, int type);
+            void resetScale(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback);
+            void typeChangeTo(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback, int type, std::string mesh_resource = "");
+            void colorChangeTo(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback, std_msgs::msg::ColorRGBA color);
             virtual YAML::Node saveMarker(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr &feedback);
             YAML::Node getYamlNode(const VisualMarker &visual_marker);
             VisualMarker getVisualMarker(const YAML::Node &yaml_node);
@@ -82,9 +89,10 @@ namespace potbot_lib{
             void setMenuVisibles(bool visible);
 
             std::string getCopyName(std::string original_name);
+            std::string getMarkerName(std::string controller_name);
 
-            virtual CallbackReturn on_configure(const rclcpp_lifecycle::State &);
-            virtual CallbackReturn on_activate(const rclcpp_lifecycle::State &);
+            virtual CallbackReturn on_configure(const rclcpp_lifecycle::State &) override;
+            virtual CallbackReturn on_activate(const rclcpp_lifecycle::State &) override;
 
         public:
             InteractiveMarkerManager(std::string name="marker", std::string node_namespace="");
