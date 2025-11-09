@@ -16,6 +16,8 @@ include_directories(include)
 add_library(potbot_lib_utility
   src/interpolate.cpp
   src/utility.cpp
+  src/diff_drive_agent.cpp
+  src/optimal_path_follower.cpp
 )
 
 ament_target_dependencies(potbot_lib_utility
