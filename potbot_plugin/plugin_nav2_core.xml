@@ -1,0 +1,10 @@
+<class_libraries>
+    <library path="potbot_plugin">
+        <class name="potbot_nav::controller::OptimalPathFollower" type="potbot_nav::controller::OptimalPathFollower" base_class_type="nav2_core::Controller">
+            <description>
+                OptimalPathFollower
+            </description>
+        </class>
+    </library>
+</class_libraries>
+
