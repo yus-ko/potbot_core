@@ -5,10 +5,15 @@
 #include <vector>
 #include <memory>
 
-#include "nav2_core/controller.hpp"
 #include "rclcpp/rclcpp.hpp"
+
+#include "nav2_core/controller.hpp"
+
 #include "pluginlib/class_loader.hpp"
 #include "pluginlib/class_list_macros.hpp"
+
+#include "potbot_lib/optimal_path_follower.hpp"
+#include "potbot_ros/utility.hpp"
 
 namespace potbot_nav
 {
@@ -17,6 +22,9 @@ namespace potbot_nav
 
         class OptimalPathFollower : public nav2_core::Controller
         {
+        private:
+            potbot_lib::controller::OptimalPathFollower optimizer_;
+
         public:
             OptimalPathFollower() = default;
             ~OptimalPathFollower() override = default;
@@ -55,9 +63,13 @@ namespace potbot_nav
             rclcpp::Logger logger_{rclcpp::get_logger("PurePursuitController")};
             rclcpp::Clock::SharedPtr clock_;
 
-            double desired_linear_vel_;
-            double lookahead_dist_;
-            double max_angular_vel_;
+            double max_vel_x_;
+            double min_vel_x_;
+            double max_vel_theta_;
+            double sim_time_;
+            double vx_samples_;
+            double vtheta_samples_;
+            double max_iteration_;
             rclcpp::Duration transform_tolerance_{0, 0};
 
             nav_msgs::msg::Path global_plan_;

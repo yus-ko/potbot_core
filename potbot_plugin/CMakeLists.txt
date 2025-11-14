@@ -16,9 +16,9 @@ find_package(nav2_costmap_2d REQUIRED)
 #   navfn
 #   sensor_msgs
 #   cv_bridge
-#   potbot_lib
+find_package(potbot_lib REQUIRED)
+find_package(potbot_ros REQUIRED)
 #   potbot_msgs
-#   potbot_base
 
 # catkin_package(
 #   INCLUDE_DIRS include
@@ -69,16 +69,23 @@ set(dependencies
   nav2_util
   nav2_core
   tf2
+  potbot_lib
+  potbot_ros
 )
 
 add_library(potbot_plugin SHARED
-        src/optimal_path_follower.cpp)
+  src/optimal_path_follower.cpp)
 
 # prevent pluginlib from using boost
 target_compile_definitions(potbot_plugin PUBLIC "PLUGINLIB__DISABLE_BOOST_FUNCTIONS")
 
 ament_target_dependencies(potbot_plugin
   ${dependencies}
+)
+
+target_include_directories(potbot_plugin PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
 )
 
 install(TARGETS potbot_plugin

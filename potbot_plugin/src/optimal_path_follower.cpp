@@ -15,7 +15,6 @@
 #include "potbot_plugin/optimal_path_follower.hpp"
 #include "nav2_util/geometry_utils.hpp"
 
-using nav2_util::declare_parameter_if_not_declared;
 using nav2_util::geometry_utils::euclidean_distance;
 using std::abs;
 using std::hypot;
@@ -66,22 +65,41 @@ namespace potbot_nav
             logger_ = node->get_logger();
             clock_ = node->get_clock();
 
-            declare_parameter_if_not_declared(
-                node, plugin_name_ + ".desired_linear_vel", rclcpp::ParameterValue(0.2));
-            declare_parameter_if_not_declared(
-                node, plugin_name_ + ".lookahead_dist",
-                rclcpp::ParameterValue(0.4));
-            declare_parameter_if_not_declared(
-                node, plugin_name_ + ".max_angular_vel", rclcpp::ParameterValue(1.0));
-            declare_parameter_if_not_declared(
+            nav2_util::declare_parameter_if_not_declared(
+                node, plugin_name_ + ".max_vel_x", rclcpp::ParameterValue(0.2));
+
+            nav2_util::declare_parameter_if_not_declared(
+                node, plugin_name_ + ".min_vel_x", rclcpp::ParameterValue(0.0));
+
+            nav2_util::declare_parameter_if_not_declared(
+                node, plugin_name_ + ".max_vel_theta", rclcpp::ParameterValue(1.5));
+
+            nav2_util::declare_parameter_if_not_declared(
+                node, plugin_name_ + ".sim_time", rclcpp::ParameterValue(2.0));
+
+            nav2_util::declare_parameter_if_not_declared(
+                node, plugin_name_ + ".vx_samples", rclcpp::ParameterValue(20));
+
+            nav2_util::declare_parameter_if_not_declared(
+                node, plugin_name_ + ".vtheta_samples", rclcpp::ParameterValue(40));
+
+            nav2_util::declare_parameter_if_not_declared(
+                node, plugin_name_ + ".max_iteration", rclcpp::ParameterValue(100));
+
+            nav2_util::declare_parameter_if_not_declared(
                 node, plugin_name_ + ".transform_tolerance", rclcpp::ParameterValue(0.1));
 
-            node->get_parameter(plugin_name_ + ".desired_linear_vel", desired_linear_vel_);
-            node->get_parameter(plugin_name_ + ".lookahead_dist", lookahead_dist_);
-            node->get_parameter(plugin_name_ + ".max_angular_vel", max_angular_vel_);
             double transform_tolerance;
             node->get_parameter(plugin_name_ + ".transform_tolerance", transform_tolerance);
             transform_tolerance_ = rclcpp::Duration::from_seconds(transform_tolerance);
+
+            max_vel_x_ = node->get_parameter(plugin_name_ + ".max_vel_x").as_double();
+            min_vel_x_ = node->get_parameter(plugin_name_ + ".min_vel_x").as_double();
+            max_vel_theta_ = node->get_parameter(plugin_name_ + ".max_vel_theta").as_double();
+            sim_time_ = node->get_parameter(plugin_name_ + ".sim_time").as_double();
+            vx_samples_ = node->get_parameter(plugin_name_ + ".vx_samples").as_int();
+            vtheta_samples_ = node->get_parameter(plugin_name_ + ".vtheta_samples").as_int();
+            max_iteration_ = node->get_parameter(plugin_name_ + ".max_iteration").as_int();
 
             global_pub_ = node->create_publisher<nav_msgs::msg::Path>("received_global_plan", 1);
         }
@@ -129,45 +147,31 @@ namespace potbot_nav
 
             auto transformed_plan = transformGlobalPlan(pose);
 
-            // Find the first pose which is at a distance greater than the specified lookahed distance
-            auto goal_pose_it = std::find_if(
-                transformed_plan.poses.begin(), transformed_plan.poses.end(), [&](const auto &ps)
-                { return hypot(ps.pose.position.x, ps.pose.position.y) >= lookahead_dist_; });
-
-            // If the last pose is still within lookahed distance, take the last pose
-            if (goal_pose_it == transformed_plan.poses.end())
-            {
-                goal_pose_it = std::prev(transformed_plan.poses.end());
-            }
-            auto goal_pose = goal_pose_it->pose;
-
-            double linear_vel, angular_vel;
-
-            // If the goal pose is in front of the robot then compute the velocity using the pure pursuit
-            // algorithm, else rotate with the max angular velocity until the goal pose is in front of the
-            // robot
-            if (goal_pose.position.x > 0)
-            {
-                auto curvature = 2.0 * goal_pose.position.y /
-                                 (goal_pose.position.x * goal_pose.position.x + goal_pose.position.y * goal_pose.position.y);
-                linear_vel = desired_linear_vel_;
-                angular_vel = desired_linear_vel_ * curvature;
-            }
-            else
-            {
-                linear_vel = 0.0;
-                angular_vel = max_angular_vel_;
-            }
+            geometry_msgs::msg::PoseStamped robot_pose;
+            costmap_ros_->getRobotPose(robot_pose);
+            potbot_lib::utility::to_agent(robot_pose, optimizer_);
+            optimizer_.setTargetPath(
+                potbot_lib::utility::get_path(global_plan_));
+            optimizer_.setOptimizationMethod("all_search");
+            optimizer_.setLimit(min_vel_x_, max_vel_x_, -max_vel_theta_, max_vel_theta_);
+            optimizer_.setTimeIncrement(sim_time_ / max_iteration_);
+            optimizer_.setTimeEnd(sim_time_);
+            optimizer_.setLinearVelocityIncrement((max_vel_x_ - min_vel_x_) / vx_samples_);
+            optimizer_.setAngularVelocityIncrement(2 * max_vel_theta_ / vx_samples_);
+            optimizer_.setIterationMax(max_iteration_);
+            optimizer_.setLearningRate(0.01);
+            optimizer_.calculateCommand();
 
             // Create and publish a TwistStamped message with the desired velocity
             geometry_msgs::msg::TwistStamped cmd_vel;
+            potbot_lib::utility::to_msg(optimizer_, cmd_vel.twist);
             cmd_vel.header.frame_id = pose.header.frame_id;
             cmd_vel.header.stamp = clock_->now();
-            cmd_vel.twist.linear.x = linear_vel;
-            cmd_vel.twist.angular.z = max(
-                -1.0 * abs(max_angular_vel_), min(
-                                                  angular_vel, abs(
-                                                                   max_angular_vel_)));
+            // cmd_vel.twist.linear.x = linear_vel;
+            // cmd_vel.twist.angular.z = max(
+            //     -1.0 * abs(max_angular_vel_), min(
+            //                                       angular_vel, abs(
+            //                                                        max_angular_vel_)));
 
             return cmd_vel;
         }

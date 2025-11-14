@@ -1,9 +1,5 @@
-#ifndef H_POTBOT_LIB_UTILITY_ROS_
-#define H_POTBOT_LIB_UTILITY_ROS_
-
-#include <potbot_lib/utility.hpp>
-// #include <potbot_lib/field.h>
-// #include <potbot_lib/diff_drive_agent.h>
+#ifndef HPP_POTBOT_LIB_UTILITY_ROS_
+#define HPP_POTBOT_LIB_UTILITY_ROS_
 
 #include <random>
 
@@ -26,19 +22,23 @@
 
 // #include <pcl_conversions/pcl_conversions.h>
 
+#include <potbot_lib/utility.hpp>
+// #include <potbot_lib/field.h>
+#include <potbot_lib/diff_drive_agent.hpp>
+
 namespace potbot_lib
 {
 
     namespace color
     {
-        const int RED           = 0;
-        const int GREEN         = 1;
-        const int BLUE          = 2;
-        const int YELLOW        = 3;
-        const int LIGHT_BLUE    = 4;
-        const int PURPLE        = 5;
-        const int WHITE         = 6;
-        const int BLACK         = 7;
+        const int RED = 0;
+        const int GREEN = 1;
+        const int BLUE = 2;
+        const int YELLOW = 3;
+        const int LIGHT_BLUE = 4;
+        const int PURPLE = 5;
+        const int WHITE = 6;
+        const int BLACK = 7;
 
         std_msgs::msg::ColorRGBA get_msg(const int color_id = potbot_lib::color::RED);
         std_msgs::msg::ColorRGBA get_msg(const std::string color_name);
@@ -46,95 +46,99 @@ namespace potbot_lib
 
     namespace utility
     {
-        void get_rpy(const geometry_msgs::msg::Quaternion& orientation, double &roll, double &pitch, double &yaw);
+        void get_rpy(const geometry_msgs::msg::Quaternion &orientation, double &roll, double &pitch, double &yaw);
 
         geometry_msgs::msg::Quaternion get_quat(const double roll = 0, const double pitch = 0, const double yaw = 0);
-        geometry_msgs::msg::Quaternion get_quat(const Point& p);
+        geometry_msgs::msg::Quaternion get_quat(const Point &p);
 
         geometry_msgs::msg::Point get_point(const double x = 0, const double y = 0, const double z = 0);
-        geometry_msgs::msg::Point get_point(const Point& p);
-        geometry_msgs::msg::Point get_point(const Eigen::Vector2d& vec);
-        geometry_msgs::msg::Point get_point(const Eigen::Vector3d& vec);
-        void get_point(const std::vector<geometry_msgs::msg::PoseStamped>& poses, std::vector<geometry_msgs::msg::Point>& points);
-        Point get_point(const geometry_msgs::msg::Quaternion& q);
-        Point get_point(const geometry_msgs::msg::Point& p);
+        geometry_msgs::msg::Point get_point(const Point &p);
+        geometry_msgs::msg::Point get_point(const Eigen::Vector2d &vec);
+        geometry_msgs::msg::Point get_point(const Eigen::Vector3d &vec);
+        void get_point(const std::vector<geometry_msgs::msg::PoseStamped> &poses, std::vector<geometry_msgs::msg::Point> &points);
+        Point get_point(const geometry_msgs::msg::Quaternion &q);
+        Point get_point(const geometry_msgs::msg::Point &p);
 
         geometry_msgs::msg::Pose get_pose(const double x = 0, const double y = 0, const double z = 0, const double roll = 0, const double pitch = 0, const double yaw = 0);
-        geometry_msgs::msg::Pose get_pose(const geometry_msgs::msg::Point& p, const double roll = 0, const double pitch = 0, const double yaw = 0);
-        geometry_msgs::msg::Pose get_pose(const Pose& p);
-        geometry_msgs::msg::Pose get_pose(const Eigen::Affine3d& p);
-        Pose get_pose(const geometry_msgs::msg::Pose& p);
+        geometry_msgs::msg::Pose get_pose(const geometry_msgs::msg::Point &p, const double roll = 0, const double pitch = 0, const double yaw = 0);
+        geometry_msgs::msg::Pose get_pose(const Pose &p);
+        geometry_msgs::msg::Pose get_pose(const Eigen::Affine3d &p);
+        Pose get_pose(const geometry_msgs::msg::Pose &p);
 
-        Eigen::Vector2d get_vector(const geometry_msgs::msg::Point& p);
+        Eigen::Vector2d get_vector(const geometry_msgs::msg::Point &p);
 
-        double get_distance(const geometry_msgs::msg::Point& position1, const geometry_msgs::msg::Point& position2);
-        double get_distance(const geometry_msgs::msg::Pose& position1, const geometry_msgs::msg::Pose& position2);
-        double get_distance(const geometry_msgs::msg::PoseStamped& position1, const geometry_msgs::msg::PoseStamped& position2);
-        double get_distance(const nav_msgs::msg::Odometry& position1, const nav_msgs::msg::Odometry& position2);
+        double get_distance(const geometry_msgs::msg::Point &position1, const geometry_msgs::msg::Point &position2);
+        double get_distance(const geometry_msgs::msg::Pose &position1, const geometry_msgs::msg::Pose &position2);
+        double get_distance(const geometry_msgs::msg::PoseStamped &position1, const geometry_msgs::msg::PoseStamped &position2);
+        double get_distance(const nav_msgs::msg::Odometry &position1, const nav_msgs::msg::Odometry &position2);
 
         // void print_pose(const geometry_msgs::msg::Pose& pose);
         // void print_pose(const geometry_msgs::msg::PoseStamped& pose);
         // void print_pose(const nav_msgs::msg::Odometry& pose);
         // void print_pose(const Pose& p);
 
-        void broadcast_frame(tf2_ros::TransformBroadcaster& bc, std::string child_frame_id, const geometry_msgs::msg::PoseStamped& pose_stamp);
-        void broadcast_frame(tf2_ros::TransformBroadcaster& bc, std::string parent_frame_id, std::string child_frame_id, const geometry_msgs::msg::Pose& pose);
-        void broadcast_frame(tf2_ros::TransformBroadcaster& bc, const nav_msgs::msg::Odometry& odom);
-        
-        geometry_msgs::msg::PoseStamped get_tf(const tf2_ros::Buffer &buffer, const geometry_msgs::msg::PoseStamped& pose_in, const std::string target_frame_id);
-        geometry_msgs::msg::PointStamped get_tf(const tf2_ros::Buffer &buffer, const geometry_msgs::msg::PointStamped& point_in, const std::string target_frame_id);
-        geometry_msgs::msg::PoseStamped get_tf(const tf2_ros::Buffer &buffer, const nav_msgs::msg::Odometry& pose_in, const std::string target_frame_id);
+        void broadcast_frame(tf2_ros::TransformBroadcaster &bc, std::string child_frame_id, const geometry_msgs::msg::PoseStamped &pose_stamp);
+        void broadcast_frame(tf2_ros::TransformBroadcaster &bc, std::string parent_frame_id, std::string child_frame_id, const geometry_msgs::msg::Pose &pose);
+        void broadcast_frame(tf2_ros::TransformBroadcaster &bc, const nav_msgs::msg::Odometry &odom);
+
+        geometry_msgs::msg::PoseStamped get_tf(const tf2_ros::Buffer &buffer, const geometry_msgs::msg::PoseStamped &pose_in, const std::string target_frame_id);
+        geometry_msgs::msg::PointStamped get_tf(const tf2_ros::Buffer &buffer, const geometry_msgs::msg::PointStamped &point_in, const std::string target_frame_id);
+        geometry_msgs::msg::PoseStamped get_tf(const tf2_ros::Buffer &buffer, const nav_msgs::msg::Odometry &pose_in, const std::string target_frame_id);
         // void get_tf(const tf2_ros::Buffer &buffer, const potbot_msgs::msg::Obstacle& obstacle_in, const std::string target_frame_id, potbot_msgs::msg::Obstacle& obstacle_out);
         // void get_tf(const tf2_ros::Buffer &buffer, const potbot_msgs::msg::ObstacleArray& obscales_in, const std::string target_frame_id, potbot_msgs::msg::ObstacleArray& obscales_out);
-        void get_tf(const tf2_ros::Buffer &buffer, const nav_msgs::msg::Path& path_in, const std::string target_frame_id, nav_msgs::msg::Path& path_out);
+        void get_tf(const tf2_ros::Buffer &buffer, const nav_msgs::msg::Path &path_in, const std::string target_frame_id, nav_msgs::msg::Path &path_out);
 
         geometry_msgs::msg::PoseStamped get_frame_pose(const tf2_ros::Buffer &buffer, const std::string source_frame_id, const std::string target_frame_id);
 
         geometry_msgs::msg::Point get_map_coordinate(int index, nav_msgs::msg::MapMetaData info);
-        int get_map_index(double x, double y, const nav_msgs::msg::MapMetaData& info);
+        int get_map_index(double x, double y, const nav_msgs::msg::MapMetaData &info);
 
-        void set_path_orientation(std::vector<geometry_msgs::msg::PoseStamped>& path);
+        void set_path_orientation(std::vector<geometry_msgs::msg::PoseStamped> &path);
 
-        int get_path_index(const std::vector<geometry_msgs::msg::PoseStamped>& path, const geometry_msgs::msg::Point& position);
-        int get_path_index(const std::vector<geometry_msgs::msg::PoseStamped>& path, const geometry_msgs::msg::Pose& position);
-        int get_path_index(const std::vector<geometry_msgs::msg::PoseStamped>& path, const geometry_msgs::msg::PoseStamped& position);
-        int get_path_index(const std::vector<geometry_msgs::msg::PoseStamped>& path, const nav_msgs::msg::Odometry& position);
+        std::vector<Pose> get_path(std::vector<geometry_msgs::msg::PoseStamped> &path_msg);
+        std::vector<Pose> get_path(nav_msgs::msg::Path &path_msg);
+        std::vector<geometry_msgs::msg::PoseStamped> get_path(std::vector<Pose> &path);
 
-        int get_path_index(const nav_msgs::msg::Path& path, const geometry_msgs::msg::Point& position);
-        int get_path_index(const nav_msgs::msg::Path& path, const geometry_msgs::msg::Pose& position);
-        int get_path_index(const nav_msgs::msg::Path& path, const geometry_msgs::msg::PoseStamped& position);
-        int get_path_index(const nav_msgs::msg::Path& path, const nav_msgs::msg::Odometry& position);
+        int get_path_index(const std::vector<geometry_msgs::msg::PoseStamped> &path, const geometry_msgs::msg::Point &position);
+        int get_path_index(const std::vector<geometry_msgs::msg::PoseStamped> &path, const geometry_msgs::msg::Pose &position);
+        int get_path_index(const std::vector<geometry_msgs::msg::PoseStamped> &path, const geometry_msgs::msg::PoseStamped &position);
+        int get_path_index(const std::vector<geometry_msgs::msg::PoseStamped> &path, const nav_msgs::msg::Odometry &position);
 
-        double get_path_length(const std::vector<geometry_msgs::msg::PoseStamped>& path);
-        double get_path_length(const nav_msgs::msg::Path& path);
+        int get_path_index(const nav_msgs::msg::Path &path, const geometry_msgs::msg::Point &position);
+        int get_path_index(const nav_msgs::msg::Path &path, const geometry_msgs::msg::Pose &position);
+        int get_path_index(const nav_msgs::msg::Path &path, const geometry_msgs::msg::PoseStamped &position);
+        int get_path_index(const nav_msgs::msg::Path &path, const nav_msgs::msg::Odometry &position);
+
+        double get_path_length(const std::vector<geometry_msgs::msg::PoseStamped> &path);
+        double get_path_length(const nav_msgs::msg::Path &path);
 
         // void associate_obstacle(potbot_msgs::msg::ObstacleArray& obstacle_input, const potbot_msgs::msg::ObstacleArray& obstacle_compare, const tf2_ros::Buffer &buffer);
 
-        void to_msg(const std::vector<Eigen::Vector2d>& vectors, std::vector<geometry_msgs::msg::PoseStamped>& msg);
-        void to_msg(const std::vector<Eigen::Vector2d>& vectors, nav_msgs::msg::Path& msg);
-        void to_msg(const std::vector<Pose>& poses, std::vector<geometry_msgs::msg::PoseStamped>& msg);
-        void to_msg(const std::vector<Pose>& poses, nav_msgs::msg::Path& msg);
-        void to_mat(const std::vector<geometry_msgs::msg::PoseStamped>& msg, std::vector<Eigen::Vector2d>& vectors);
-        void to_mat(const nav_msgs::msg::Path& msg, std::vector<Eigen::Vector2d>& vectors);
-        void to_mat(const std::vector<Pose>& path, std::vector<Eigen::Vector2d>& vectors);
+        void to_msg(const std::vector<Eigen::Vector2d> &vectors, std::vector<geometry_msgs::msg::PoseStamped> &msg);
+        void to_msg(const std::vector<Eigen::Vector2d> &vectors, nav_msgs::msg::Path &msg);
+        void to_msg(const std::vector<Pose> &poses, std::vector<geometry_msgs::msg::PoseStamped> &msg);
+        void to_msg(const std::vector<Pose> &poses, nav_msgs::msg::Path &msg);
+        void to_mat(const std::vector<geometry_msgs::msg::PoseStamped> &msg, std::vector<Eigen::Vector2d> &vectors);
+        void to_mat(const nav_msgs::msg::Path &msg, std::vector<Eigen::Vector2d> &vectors);
+        void to_mat(const std::vector<Pose> &path, std::vector<Eigen::Vector2d> &vectors);
 
-        std_msgs::msg::Float64MultiArray matrix_to_multiarray(const Eigen::MatrixXd& mat);
-        Eigen::MatrixXd multiarray_to_matrix(const std_msgs::msg::Float64MultiArray& multiarray);
+        std_msgs::msg::Float64MultiArray matrix_to_multiarray(const Eigen::MatrixXd &mat);
+        Eigen::MatrixXd multiarray_to_matrix(const std_msgs::msg::Float64MultiArray &multiarray);
 
         // void obstacle_array_to_marker_array(const potbot_msgs::msg::ObstacleArray& obstacle_array, visualization_msgs::msg::MarkerArray& marker_array);
 
         // void field_to_pcl2(std::vector<potential::FieldGrid>& field, sensor_msgs::msg::PointCloud2& pcl_msg);
 
-        // void to_agent(const geometry_msgs::msg::Pose& msg, class potbot_lib::DiffDriveAgent& agent);
-        // void to_agent(const geometry_msgs::msg::PoseStamped& msg, class potbot_lib::DiffDriveAgent& agent);
-        // void to_agent(const geometry_msgs::msg::Twist& msg, class potbot_lib::DiffDriveAgent& agent);
-        // void to_agent(const nav_msgs::msg::Odometry& msg, class potbot_lib::DiffDriveAgent& agent);
+        void to_agent(const geometry_msgs::msg::Pose &msg, class potbot_lib::DiffDriveAgent &agent);
+        void to_agent(const geometry_msgs::msg::PoseStamped &msg, class potbot_lib::DiffDriveAgent &agent);
+        void to_agent(const geometry_msgs::msg::Twist &msg, class potbot_lib::DiffDriveAgent &agent);
+        void to_agent(const nav_msgs::msg::Odometry &msg, class potbot_lib::DiffDriveAgent &agent);
 
-        // void to_msg(class potbot_lib::DiffDriveAgent& agent, geometry_msgs::msg::Pose& msg);
-        // void to_msg(class potbot_lib::DiffDriveAgent& agent, geometry_msgs::msg::Twist& msg);
-        // void to_msg(class potbot_lib::DiffDriveAgent& agent, nav_msgs::msg::Odometry& msg);
-        // void to_msg(const potbot_msgs::msg::Obstacle& obs, visualization_msgs::msg::Marker& msg);
-        // void to_msg(const potbot_msgs::msg::ObstacleArray& obs, visualization_msgs::msg::MarkerArray& msg, double life_time = 0, int type = 0, int action = 0);
+        void to_msg(class potbot_lib::DiffDriveAgent &agent, geometry_msgs::msg::Pose &msg);
+        void to_msg(class potbot_lib::DiffDriveAgent &agent, geometry_msgs::msg::Twist &msg);
+        void to_msg(class potbot_lib::DiffDriveAgent &agent, nav_msgs::msg::Odometry &msg);
+        // void to_msg(const potbot_msgs::msg::Obstacle &obs, visualization_msgs::msg::Marker &msg);
+        // void to_msg(const potbot_msgs::msg::ObstacleArray &obs, visualization_msgs::msg::MarkerArray &msg, double life_time = 0, int type = 0, int action = 0);
 
         // typedef struct {
         //     bool running                = false;
@@ -157,4 +161,4 @@ namespace potbot_lib
     }
 }
 
-#endif	// H_POTBOT_LIB_UTILITY_ROS_
+#endif // HPP_POTBOT_LIB_UTILITY_ROS_
