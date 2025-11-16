@@ -19,6 +19,7 @@ add_library(potbot_lib_utility
   src/interpolate.cpp
   src/utility.cpp
   src/diff_drive_agent.cpp
+  src/pid.cpp
   src/optimal_path_follower.cpp
 )
 
