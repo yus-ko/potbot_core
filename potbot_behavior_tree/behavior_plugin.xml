@@ -1,0 +1,7 @@
+<class_libraries>
+	<library path="behavior_rotate_to_goal_direction">
+	  <class name="potbot_nav/RotateToGoalDirection" type="potbot_nav::behavior::RotateToGoalDirection" base_class_type="nav2_core::Behavior">
+	    <description></description>
+	  </class>
+	</library>
+</class_libraries>
