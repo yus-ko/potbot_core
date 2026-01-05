@@ -1,0 +1,34 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>potbot_plugin</name>
+  <version>0.0.0</version>
+  <description>The potbot_plugin package</description>
+
+  <maintainer email="ros@todo.todo">ros</maintainer>
+
+  <license>TODO</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <build_depend>potbot_lib</build_depend>
+
+  <depend>rclcpp</depend>
+  <depend>nav2_costmap_2d</depend>
+  <depend>pluginlib</depend>
+  <depend>tf2</depend>
+  <depend>tf2_ros</depend>
+  <depend>tf2_geometry_msgs</depend>
+  <depend>yolo_msgs</depend>
+
+
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+
+  <export>
+    <!-- <nav_core plugin="${prefix}/plugin_nav_core.xml" /> -->
+    <costmap_2d plugin="${prefix}/plugin_costmap_2d.xml" />
+    <!-- <potbot_base plugin="${prefix}/plugin_base.xml" /> -->
+    <build_type>ament_cmake</build_type>
+  </export>
+  
+</package>

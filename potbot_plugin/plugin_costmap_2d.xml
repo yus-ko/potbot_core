@@ -1,0 +1,8 @@
+<library path="potbot_plugin">
+  <!-- <class type="potbot_nav::StateLayer" base_class_type="costmap_2d::Layer">
+    <description>Similar to obstacle costmap, but uses 3D voxel grid to store data.</description>
+  </class> -->
+  <class type="potbot_plugin::HumanPoseLayer" base_class_type="nav2_costmap_2d::Layer">
+    <description></description>
+  </class>
+</library>
