@@ -7,6 +7,7 @@
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
+  <depend>yolo_msgs</depend>
   <depend>potbot_lib</depend>
 
   <test_depend>ament_lint_auto</test_depend>
