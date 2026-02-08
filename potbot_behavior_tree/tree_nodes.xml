@@ -1,0 +1,38 @@
+<?xml version="1.0"?>
+<!--
+  For instructions on using Groot and description of the following BehaviorTree nodes,
+  please refer to the groot_instructions.md and REAMDE.md respectively located in the
+  nav2_behavior_tree package.
+-->
+<root>
+  <TreeNodesModel>
+    <!-- ############################### ACTION NODES ################################# -->
+    <Action ID="PotbotWait">
+      <input_port name="wait_duration">Wait time</input_port>
+      <input_port name="server_name">Server name</input_port>
+      <input_port name="server_timeout">Server timeout</input_port>
+    </Action>
+
+    <Action ID="RotateToGoalDirection">
+    </Action>
+
+    <!-- ############################### CONDITION NODES ############################## -->
+    <!-- <Condition ID="GoalReached">
+        <input_port name="goal">Destination</input_port>
+        <input_port name="global_frame">Reference frame</input_port>
+        <input_port name="robot_base_frame">Robot base frame</input_port>
+    </Condition> -->
+
+    <!-- ############################### CONTROL NODES ################################ -->
+
+    <!-- <Control ID="RecoveryNode">
+      <input_port name="number_of_retries">Number of retries</input_port>
+    </Control> -->
+
+    <!-- ############################### DECORATOR NODES ############################## -->
+    <!-- <Decorator ID="RateController">
+      <input_port name="hz">Rate</input_port>
+    </Decorator> -->
+
+  </TreeNodesModel>
+</root>
