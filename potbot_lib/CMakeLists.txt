@@ -21,6 +21,7 @@ add_library(potbot_lib_utility
   src/diff_drive_agent.cpp
   src/pid.cpp
   src/optimal_path_follower.cpp
+  src/field.cpp
 )
 
 ament_target_dependencies(potbot_lib_utility

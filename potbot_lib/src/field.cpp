@@ -1,4 +1,4 @@
-#include <potbot_lib/field.h>
+#include <potbot_lib/field.hpp>
 
 namespace potbot_lib{
     namespace potential{

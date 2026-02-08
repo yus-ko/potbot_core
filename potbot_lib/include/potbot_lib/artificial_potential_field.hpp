@@ -1,8 +1,8 @@
 #ifndef H_POTENTIALFIELD_
 #define H_POTENTIALFIELD_
 
-#include <potbot_lib/utility.h>
-#include <potbot_lib/field.h>
+#include <potbot_lib/utility.hpp>
+#include <potbot_lib/field.hpp>
 #include <eigen3/Eigen/Dense>
 #include <pcl_conversions/pcl_conversions.h>
 

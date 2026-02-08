@@ -1,4 +1,4 @@
-#include <potbot_lib/artificial_potential_field.h>
+#include <potbot_lib/artificial_potential_field.hpp>
 
 namespace potbot_lib{
 

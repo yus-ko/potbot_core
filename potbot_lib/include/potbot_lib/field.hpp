@@ -1,7 +1,7 @@
-#ifndef H_POTBOT_LIB_FIELD_
-#define H_POTBOT_LIB_FIELD_
+#ifndef HPP_POTBOT_LIB_FIELD_
+#define HPP_POTBOT_LIB_FIELD_
 
-#include <potbot_lib/utility.h>
+#include <potbot_lib/utility.hpp>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -94,4 +94,4 @@ namespace potbot_lib{
     }
 }
 
-#endif	// H_POTBOT_LIB_FIELD_
+#endif // HPP_POTBOT_LIB_FIELD_
