@@ -14,7 +14,7 @@
 #include "nav2_util/lifecycle_node.hpp"
 #include "nav2_costmap_2d/costmap_2d_ros.hpp"
 
-#include "potbot_lib/artificial_potential_field.hpp"
+#include "potbot_ros/artificial_potential_field.hpp"
 
 namespace potbot_nav
 {
@@ -55,6 +55,7 @@ namespace potbot_nav
       nav2_util::LifecycleNode::SharedPtr node_;
 
       // Global Costmap
+      std::shared_ptr<nav2_costmap_2d::Costmap2DROS> costmap_ros_;
       nav2_costmap_2d::Costmap2D *costmap_;
 
       // The global frame of the costmap
@@ -62,7 +63,7 @@ namespace potbot_nav
 
       double interpolation_resolution_;
 
-      std::shared_ptr<potbot_lib::ArtificialPotentialField> apf_;
+      std::shared_ptr<potbot_lib::ArtificialPotentialFieldROS> apfros_;
     };
 
   } // namespace planner

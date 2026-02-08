@@ -2,7 +2,7 @@
 
 namespace potbot_lib{
 
-    ArtificialPotentialFieldROS::ArtificialPotentialFieldROS(const rclcpp::Node::SharedPtr _node) : node_(_node)
+    ArtificialPotentialFieldROS::ArtificialPotentialFieldROS(const rclcpp_lifecycle::LifecycleNode::SharedPtr _node) : node_(_node)
     {
         apf_ = new ArtificialPotentialField();
         initNode("apf");
@@ -33,7 +33,7 @@ namespace potbot_lib{
                                 costmap->getOriginX() + costmap->getSizeInMetersX()/2, costmap->getOriginY() + costmap->getSizeInMetersY()/2);
     }
 
-    void ArtificialPotentialFieldROS::initPotentialField(nav2_costmap_2d::Costmap2DROS* costmap_ros)
+    void ArtificialPotentialFieldROS::initPotentialField(std::shared_ptr<nav2_costmap_2d::Costmap2DROS> costmap_ros)
     {
         frame_id_global_ = costmap_ros->getGlobalFrameID();
         initPotentialField(costmap_ros->getCostmap());

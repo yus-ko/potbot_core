@@ -19,7 +19,7 @@ namespace potbot_lib{
 
     class ArtificialPotentialFieldROS{
         private:
-            std::shared_ptr<rclcpp::Node> node_;
+            rclcpp_lifecycle::LifecycleNode::SharedPtr node_;
 
             rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub_potential_field_;
             
@@ -30,12 +30,12 @@ namespace potbot_lib{
             ArtificialPotentialField* apf_;
         public:
             
-            ArtificialPotentialFieldROS(const rclcpp::Node::SharedPtr _node);
+            ArtificialPotentialFieldROS(const rclcpp_lifecycle::LifecycleNode::SharedPtr _node);
             ~ArtificialPotentialFieldROS(){};
 
             void initNode(const std::string &name);
             void initPotentialField(const nav2_costmap_2d::Costmap2D* costmap);
-            void initPotentialField(nav2_costmap_2d::Costmap2DROS *costmap_ros);
+            void initPotentialField(std::shared_ptr<nav2_costmap_2d::Costmap2DROS> costmap_ros);
             void initPotentialField();
 
             ArtificialPotentialField* getApf();

@@ -17,19 +17,22 @@ namespace potbot_nav
       node_ = parent.lock();
       name_ = name;
       tf_ = tf;
-      costmap_ = costmap_ros->getCostmap();
-      global_frame_ = costmap_ros->getGlobalFrameID();
+      costmap_ros_ = costmap_ros;
+      costmap_ = costmap_ros_->getCostmap();
+      global_frame_ = costmap_ros_->getGlobalFrameID();
 
-      apf_ = std::make_shared<potbot_lib::ArtificialPotentialField>(
-          100,
-          100,
-          0.05
-          // double weight_attraction_field = (0.1),
-          // double weight_repulsion_field = (0.1),
-          // double distance_threshold_repulsion_field = (0.3),
-          // double field_origin_x = (0.0),
-          // double field_origin_y = (0.0)
-        );
+      apfros_ = std::make_shared<potbot_lib::ArtificialPotentialFieldROS>(node_);
+
+      // apf_ = std::make_shared<potbot_lib::ArtificialPotentialField>(
+      //     100,
+      //     100,
+      //     0.05
+      //     // double weight_attraction_field = (0.1),
+      //     // double weight_repulsion_field = (0.1),
+      //     // double distance_threshold_repulsion_field = (0.3),
+      //     // double field_origin_x = (0.0),
+      //     // double field_origin_y = (0.0)
+      //   );
 
       // Parameter initialization
       nav2_util::declare_parameter_if_not_declared(
@@ -63,6 +66,10 @@ namespace potbot_nav
         const geometry_msgs::msg::PoseStamped &goal)
     {
       nav_msgs::msg::Path global_path;
+
+      apfros_->initPotentialField(costmap_ros_);
+      apfros_->createPotentialField();
+      apfros_->publishPotentialField();
 
       // Checking if the goal and start state is in the global frame
       if (start.header.frame_id != global_frame_)
