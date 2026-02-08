@@ -22,6 +22,7 @@ add_library(potbot_lib_utility
   src/pid.cpp
   src/optimal_path_follower.cpp
   src/field.cpp
+  src/artificial_potential_field.cpp
 )
 
 ament_target_dependencies(potbot_lib_utility

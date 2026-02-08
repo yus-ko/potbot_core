@@ -1,10 +1,9 @@
-#ifndef H_POTENTIALFIELD_
-#define H_POTENTIALFIELD_
+#ifndef HPP_POTBOT_LIB_ARTIFICIAL_POTENTIAL_FIELD_
+#define HPP_POTBOT_LIB_ARTIFICIAL_POTENTIAL_FIELD_
 
 #include <potbot_lib/utility.hpp>
 #include <potbot_lib/field.hpp>
 #include <eigen3/Eigen/Dense>
-#include <pcl_conversions/pcl_conversions.h>
 
 namespace potbot_lib{
 
@@ -59,4 +58,4 @@ namespace potbot_lib{
     };
 }
 
-#endif	// H_POTENTIALFIELD_
+#endif // HPP_POTBOT_LIB_ARTIFICIAL_POTENTIAL_FIELD_
