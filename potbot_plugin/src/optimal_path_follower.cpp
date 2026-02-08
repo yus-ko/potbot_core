@@ -144,7 +144,7 @@ namespace potbot_nav
         {
             (void)velocity;
             (void)goal_checker;
-            return geometry_msgs::msg::TwistStamped();
+            // return geometry_msgs::msg::TwistStamped();
 
             auto transformed_plan = transformGlobalPlan(pose);
 
