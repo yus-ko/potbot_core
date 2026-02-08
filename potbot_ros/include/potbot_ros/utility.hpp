@@ -1,5 +1,5 @@
-#ifndef HPP_POTBOT_LIB_UTILITY_ROS_
-#define HPP_POTBOT_LIB_UTILITY_ROS_
+#ifndef HPP_POTBOT_ROS_UTILITY_
+#define HPP_POTBOT_ROS_UTILITY_
 
 #include <random>
 
@@ -20,10 +20,10 @@
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 // #include <visualization_msgs/MarkerArray.h>
 
-// #include <pcl_conversions/pcl_conversions.h>
+#include <pcl_conversions/pcl_conversions.h>
 
 #include <potbot_lib/utility.hpp>
-// #include <potbot_lib/field.h>
+#include <potbot_lib/field.hpp>
 #include <potbot_lib/diff_drive_agent.hpp>
 
 namespace potbot_lib
@@ -127,7 +127,7 @@ namespace potbot_lib
 
         // void obstacle_array_to_marker_array(const potbot_msgs::msg::ObstacleArray& obstacle_array, visualization_msgs::msg::MarkerArray& marker_array);
 
-        // void field_to_pcl2(std::vector<potential::FieldGrid>& field, sensor_msgs::msg::PointCloud2& pcl_msg);
+        void field_to_pcl2(std::vector<potential::FieldGrid>& field, sensor_msgs::msg::PointCloud2& pcl_msg);
 
         void to_agent(const geometry_msgs::msg::Pose &msg, class potbot_lib::DiffDriveAgent &agent);
         void to_agent(const geometry_msgs::msg::PoseStamped &msg, class potbot_lib::DiffDriveAgent &agent);
@@ -161,4 +161,4 @@ namespace potbot_lib
     }
 }
 
-#endif // HPP_POTBOT_LIB_UTILITY_ROS_
+#endif // HPP_POTBOT_ROS_UTILITY_

@@ -1,26 +1,31 @@
-#include <potbot_lib/artificial_potential_field_ros.h>
+#include <potbot_ros/artificial_potential_field.hpp>
 
 namespace potbot_lib{
 
-    ArtificialPotentialFieldROS::ArtificialPotentialFieldROS(std::string name)
+    ArtificialPotentialFieldROS::ArtificialPotentialFieldROS(const rclcpp::Node::SharedPtr _node) : node_(_node)
     {
         apf_ = new ArtificialPotentialField();
-        initNode(name);
+        initNode("apf");
     }
 
-    void ArtificialPotentialFieldROS::initNode(std::string name)
+    void ArtificialPotentialFieldROS::initNode(const std::string &name)
     {
-        ros::NodeHandle private_nh("~/" + name);
-        private_nh.getParam("frame_id_global",           frame_id_global_);
-        pub_potential_field_ = private_nh.advertise<sensor_msgs::PointCloud2>("field/potential", 1);
+        try
+        {
+            node_->declare_parameter("frame_id_global", rclcpp::ParameterValue("map"));
+        }
+        catch (const std::exception& e)
+        {
+            // RCLCPP_ERROR(node_->get_logger(), "initNode parameter error: %s", e.what());
+            // return;
+        }
 
-        dsrv_ = new dynamic_reconfigure::Server<potbot_lib::PotentialFieldConfig>(private_nh);
-        dynamic_reconfigure::Server<potbot_lib::PotentialFieldConfig>::CallbackType cb = boost::bind(&ArtificialPotentialFieldROS::reconfigureCB, this, _1, _2);
-        dsrv_->setCallback(cb);
-        
+        frame_id_global_ = node_->get_parameter("frame_id_global").as_string();
+
+        pub_potential_field_ = node_->create_publisher<sensor_msgs::msg::PointCloud2>(name + "/field/potential", 1);
     }
 
-    void ArtificialPotentialFieldROS::initPotentialField(costmap_2d::Costmap2D* costmap)
+    void ArtificialPotentialFieldROS::initPotentialField(const nav2_costmap_2d::Costmap2D *costmap)
     {
         apf_->initPotentialField(
                                 costmap->getSizeInCellsY(), costmap->getSizeInCellsX(), 
@@ -28,11 +33,11 @@ namespace potbot_lib{
                                 costmap->getOriginX() + costmap->getSizeInMetersX()/2, costmap->getOriginY() + costmap->getSizeInMetersY()/2);
     }
 
-    void ArtificialPotentialFieldROS::initPotentialField(costmap_2d::Costmap2DROS* costmap_ros)
+    void ArtificialPotentialFieldROS::initPotentialField(nav2_costmap_2d::Costmap2DROS* costmap_ros)
     {
         frame_id_global_ = costmap_ros->getGlobalFrameID();
         initPotentialField(costmap_ros->getCostmap());
-        geometry_msgs::PoseStamped ps;
+        geometry_msgs::msg::PoseStamped ps;
 
         #if defined(ROS_VERSION_KINETIC)
 
@@ -56,15 +61,15 @@ namespace potbot_lib{
         apf_->initField();
     }
 
-    void ArtificialPotentialFieldROS::reconfigureCB(const potbot_lib::PotentialFieldConfig& param, uint32_t level)
-    {
-        Point o = apf_->getOrigin();
-        // apf_->initPotentialField(param.potential_field_rows, param.potential_field_cols, param.potential_field_resolution, o.x, o.y);
-        ROS_INFO("apf, %f, %f, %f", param.weight_attraction_field, param.weight_repulsion_field, param.distance_threshold_repulsion_field);
-        apf_->setParams(param.weight_attraction_field, param.weight_repulsion_field, param.distance_threshold_repulsion_field);
-        apf_->setHeader(param.potential_field_rows, param.potential_field_cols, param.potential_field_resolution);
-        apf_->initField();
-    }
+    // void ArtificialPotentialFieldROS::reconfigureCB(const potbot_lib::PotentialFieldConfig& param, uint32_t level)
+    // {
+    //     Point o = apf_->getOrigin();
+    //     // apf_->initPotentialField(param.potential_field_rows, param.potential_field_cols, param.potential_field_resolution, o.x, o.y);
+    //     ROS_INFO("apf, %f, %f, %f", param.weight_attraction_field, param.weight_repulsion_field, param.distance_threshold_repulsion_field);
+    //     apf_->setParams(param.weight_attraction_field, param.weight_repulsion_field, param.distance_threshold_repulsion_field);
+    //     apf_->setHeader(param.potential_field_rows, param.potential_field_cols, param.potential_field_resolution);
+    //     apf_->initField();
+    // }
 
     ArtificialPotentialField* ArtificialPotentialFieldROS::getApf()
     {
@@ -81,27 +86,27 @@ namespace potbot_lib{
         return frame_id_global_;
     }
 
-    void ArtificialPotentialFieldROS::setGoal(const geometry_msgs::PoseStamped& goal)
+    void ArtificialPotentialFieldROS::setGoal(const geometry_msgs::msg::PoseStamped& goal)
     {
         apf_->setGoal(goal.pose.position.x, goal.pose.position.y);
     }
 
-    void ArtificialPotentialFieldROS::setRobot(const geometry_msgs::Pose& robot)
+    void ArtificialPotentialFieldROS::setRobot(const geometry_msgs::msg::Pose &robot)
     {
         apf_->setRobot(robot.position.x, robot.position.y);
     }
 
-    void ArtificialPotentialFieldROS::setRobot(const geometry_msgs::PoseStamped& robot)
+    void ArtificialPotentialFieldROS::setRobot(const geometry_msgs::msg::PoseStamped &robot)
     {
         setRobot(robot.pose);
     }
 
-    void ArtificialPotentialFieldROS::setRobot(const nav_msgs::Odometry& robot)
+    void ArtificialPotentialFieldROS::setRobot(const nav_msgs::msg::Odometry &robot)
     {
         setRobot(robot.pose.pose);
     }
 
-    void ArtificialPotentialFieldROS::setObstacle(const visualization_msgs::Marker& obs)
+    void ArtificialPotentialFieldROS::setObstacle(const visualization_msgs::msg::Marker &obs)
     {
         // return;
         double origin_x = obs.pose.position.x;
@@ -110,7 +115,7 @@ namespace potbot_lib{
         double res = apf_->getHeader().resolution*5;
 
         Eigen::MatrixXd vertexes;
-        if (obs.type == visualization_msgs::Marker::CUBE)
+        if (obs.type == visualization_msgs::msg::Marker::CUBE)
         {
             double width = obs.scale.x;
             double height = obs.scale.y;
@@ -130,7 +135,7 @@ namespace potbot_lib{
             vertexes = rotation*origin_vertexes.transpose() + translation.transpose();
             
         }
-        else if (obs.type == visualization_msgs::Marker::SPHERE)
+        else if (obs.type == visualization_msgs::msg::Marker::SPHERE)
         {
             double width = obs.scale.x;
             double height = obs.scale.y;
@@ -160,19 +165,19 @@ namespace potbot_lib{
         }
     }
 
-    void ArtificialPotentialFieldROS::setObstacle(const std::vector<visualization_msgs::Marker>& obs)
+    void ArtificialPotentialFieldROS::setObstacle(const std::vector<visualization_msgs::msg::Marker> &obs)
     {
         for (const auto& o:obs)
         {
             setObstacle(o);
         }
     }
-    void ArtificialPotentialFieldROS::setObstacle(const geometry_msgs::Point& obs)
+    void ArtificialPotentialFieldROS::setObstacle(const geometry_msgs::msg::Point &obs)
     {
         apf_->setObstacle(obs.x, obs.y);
     }
 
-    void ArtificialPotentialFieldROS::setObstacle(const std::vector<geometry_msgs::Point>& obs)
+    void ArtificialPotentialFieldROS::setObstacle(const std::vector<geometry_msgs::msg::Point> &obs)
     {
         for (const auto& o:obs)
         {
@@ -180,12 +185,12 @@ namespace potbot_lib{
         }
     }
 
-    void ArtificialPotentialFieldROS::setObstacle(const geometry_msgs::PointStamped& obs)
+    void ArtificialPotentialFieldROS::setObstacle(const geometry_msgs::msg::PointStamped &obs)
     {
         setObstacle(obs.point);
     }
 
-    void ArtificialPotentialFieldROS::setObstacle(const std::vector<geometry_msgs::PointStamped>& obs)
+    void ArtificialPotentialFieldROS::setObstacle(const std::vector<geometry_msgs::msg::PointStamped> &obs)
     {
         for (const auto& o:obs)
         {
@@ -193,12 +198,12 @@ namespace potbot_lib{
         }
     }
 
-    void ArtificialPotentialFieldROS::setObstacle(const geometry_msgs::Pose& obs)
+    void ArtificialPotentialFieldROS::setObstacle(const geometry_msgs::msg::Pose &obs)
     {
         setObstacle(obs.position);
     }
 
-    void ArtificialPotentialFieldROS::setObstacle(const std::vector<geometry_msgs::Pose>& obs)
+    void ArtificialPotentialFieldROS::setObstacle(const std::vector<geometry_msgs::msg::Pose> &obs)
     {
         for (const auto& o:obs)
         {
@@ -206,12 +211,12 @@ namespace potbot_lib{
         }
     }
 
-    void ArtificialPotentialFieldROS::setObstacle(const geometry_msgs::PoseStamped& obs)
+    void ArtificialPotentialFieldROS::setObstacle(const geometry_msgs::msg::PoseStamped &obs)
     {
         setObstacle(obs.pose);
     }
 
-    void ArtificialPotentialFieldROS::setObstacle(const std::vector<geometry_msgs::PoseStamped>& obs)
+    void ArtificialPotentialFieldROS::setObstacle(const std::vector<geometry_msgs::msg::PoseStamped> &obs)
     {
         for (const auto& o:obs)
         {
@@ -219,7 +224,7 @@ namespace potbot_lib{
         }
     }
 
-    void ArtificialPotentialFieldROS::setObstacle(costmap_2d::Costmap2D* costmap)
+    void ArtificialPotentialFieldROS::setObstacle(const nav2_costmap_2d::Costmap2D* costmap)
     {
         unsigned char* costs = costmap->getCharMap();
         unsigned int map_size = costmap->getSizeInCellsX()*costmap->getSizeInCellsY();
@@ -249,10 +254,10 @@ namespace potbot_lib{
 
     void ArtificialPotentialFieldROS::publishPotentialField()
     {
-        sensor_msgs::PointCloud2 potential_field_msg;
+        sensor_msgs::msg::PointCloud2 potential_field_msg;
         potbot_lib::utility::field_to_pcl2(*(apf_->getValues()), potential_field_msg);
         potential_field_msg.header.frame_id = frame_id_global_;
-        potential_field_msg.header.stamp = ros::Time::now();
-        pub_potential_field_.publish(potential_field_msg);
+        potential_field_msg.header.stamp = node_->get_clock()->now();
+        pub_potential_field_->publish(potential_field_msg);
     }
 }

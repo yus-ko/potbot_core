@@ -14,6 +14,8 @@
 #include "nav2_util/lifecycle_node.hpp"
 #include "nav2_costmap_2d/costmap_2d_ros.hpp"
 
+#include "potbot_lib/artificial_potential_field.hpp"
+
 namespace potbot_nav
 {
   namespace planner
@@ -59,6 +61,8 @@ namespace potbot_nav
       std::string global_frame_, name_;
 
       double interpolation_resolution_;
+
+      std::shared_ptr<potbot_lib::ArtificialPotentialField> apf_;
     };
 
   } // namespace planner

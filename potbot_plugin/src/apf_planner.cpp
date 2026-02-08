@@ -20,6 +20,17 @@ namespace potbot_nav
       costmap_ = costmap_ros->getCostmap();
       global_frame_ = costmap_ros->getGlobalFrameID();
 
+      apf_ = std::make_shared<potbot_lib::ArtificialPotentialField>(
+          100,
+          100,
+          0.05
+          // double weight_attraction_field = (0.1),
+          // double weight_repulsion_field = (0.1),
+          // double distance_threshold_repulsion_field = (0.3),
+          // double field_origin_x = (0.0),
+          // double field_origin_y = (0.0)
+        );
+
       // Parameter initialization
       nav2_util::declare_parameter_if_not_declared(
           node_, name_ + ".interpolation_resolution", rclcpp::ParameterValue(0.1));
@@ -52,8 +63,6 @@ namespace potbot_nav
         const geometry_msgs::msg::PoseStamped &goal)
     {
       nav_msgs::msg::Path global_path;
-      RCLCPP_INFO(
-            node_->get_logger(), "potbot createPlan");
 
       // Checking if the goal and start state is in the global frame
       if (start.header.frame_id != global_frame_)
