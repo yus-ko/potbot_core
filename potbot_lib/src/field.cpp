@@ -130,9 +130,9 @@ namespace potbot_lib{
             searchFieldInfo(result, {term}, "or");
         }
 
-        int Field::checkIndex(auto index)
+        int Field::checkIndex(size_t index)
         {
-            if(index < 0 || index >= values_.size()) throw std::out_of_range("invalid index argument");
+            if(index >= values_.size()) throw std::out_of_range("invalid index argument");
             return 0;
         }
 

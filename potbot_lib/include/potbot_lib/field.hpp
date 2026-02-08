@@ -73,7 +73,7 @@ namespace potbot_lib{
                 void searchFieldInfo(std::vector<size_t>& result, const std::vector<size_t> terms, const std::string mode = "and");
                 void searchFieldInfo(std::vector<size_t>& result, const size_t term);
 
-                int checkIndex(auto index);
+                int checkIndex(size_t index);
 
                 Point getOrigin();
                 FieldHeader getHeader();
