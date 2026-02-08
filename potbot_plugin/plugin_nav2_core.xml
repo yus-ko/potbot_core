@@ -5,6 +5,11 @@
                 OptimalPathFollower
             </description>
         </class>
+        <class name="potbot_nav::planner::APF" type="potbot_nav::planner::APF" base_class_type="nav2_core::GlobalPlanner">
+            <description>
+                Artificial Potential Field Planner
+            </description>
+        </class>
     </library>
 </class_libraries>
 

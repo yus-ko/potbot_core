@@ -74,7 +74,9 @@ set(dependencies
 )
 
 add_library(potbot_plugin SHARED
-  src/optimal_path_follower.cpp)
+  src/optimal_path_follower.cpp
+  src/apf_planner.cpp
+)
 
 # prevent pluginlib from using boost
 target_compile_definitions(potbot_plugin PUBLIC "PLUGINLIB__DISABLE_BOOST_FUNCTIONS")
