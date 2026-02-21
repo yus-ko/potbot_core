@@ -67,7 +67,37 @@ namespace potbot_nav
     {
       nav_msgs::msg::Path global_path;
 
-      apfros_->initPotentialField(costmap_ros_);
+      // apfros_->initPotentialField(costmap_ros_);
+      // apfros_->clearObstacles();
+      
+      // const auto robot = apfros_->getApf()->getRobot();
+
+      geometry_msgs::msg::PoseStamped robot_pose;
+      costmap_ros_->getRobotPose(robot_pose);
+      const potbot_lib::Point robot = potbot_lib::utility::get_point(robot_pose.pose.position);
+      apfros_->getApf()->initPotentialField(50, 50, 0.05, robot.x, robot.y);
+      apfros_->setGoal(goal);
+
+      unsigned int rmx, rmy;
+      costmap_->worldToMap(robot.x, robot.y, rmx, rmy);
+
+      for (int mx = rmx-50 ; mx < rmx +50; mx++)
+      {
+        for (int my = rmy - 50; my < rmy + 50; my++)
+        {
+          if (mx < 0 || my < 0)
+            continue;
+          const auto c = costmap_->getCost(mx,my);
+          if (c == nav2_costmap_2d::LETHAL_OBSTACLE)
+          {
+            double x, y;
+            costmap_->mapToWorld(mx, my, x, y);
+            apfros_->setObstacle(potbot_lib::utility::get_point(x, y));
+          }
+        }
+      }
+
+      
       apfros_->createPotentialField();
       apfros_->publishPotentialField();
 
