@@ -10,6 +10,7 @@ RUN apt update && apt install -y \
     ros-humble-turtlebot3-navigation2 \
     ros-humble-domain-bridge \
     ros-humble-pcl-* \
+    python3-pip \
     && rm -rf /var/lib/apt/lists/*
 
 RUN pip3 install rosbags matplotlib numpy
