@@ -1,0 +1,19 @@
+# Name of the domain bridge, used for node naming and logging
+name: gazebo
+from_domain: 0
+to_domain: 1
+topics:
+  clock:
+    type: rosgraph_msgs/msg/Clock
+  tf:
+    type: tf2_msgs/msg/TFMessage
+  tf_static:
+    type: tf2_msgs/msg/TFMessage
+  cmd_vel:
+    type: geometry_msgs/msg/Twist
+    reversed: True
+  odom:
+    type: nav_msgs/msg/Odometry
+  scan:
+    type: sensor_msgs/msg/LaserScan
+  

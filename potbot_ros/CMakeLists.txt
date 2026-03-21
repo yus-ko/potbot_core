@@ -14,6 +14,8 @@ find_package(geometry_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(interactive_markers REQUIRED)
+find_package(pcl_conversions REQUIRED)
+find_package(nav2_costmap_2d REQUIRED)
 
 find_package(potbot_lib REQUIRED)
 find_package(yaml-cpp REQUIRED)
@@ -23,6 +25,8 @@ include_directories(include)
 add_library(potbot_ros_utility
   src/utility.cpp
   src/interactive_marker_manager.cpp
+  src/artificial_potential_field.cpp
+  src/apf_path_planner.cpp
 )
 
 ament_target_dependencies(potbot_ros_utility
@@ -36,6 +40,8 @@ ament_target_dependencies(potbot_ros_utility
   nav_msgs
   sensor_msgs
   interactive_markers
+  pcl_conversions
+  nav2_costmap_2d
   potbot_lib
 )
 target_link_libraries(potbot_ros_utility yaml-cpp)
@@ -69,6 +75,8 @@ ament_export_dependencies(
   nav_msgs
   sensor_msgs
   interactive_markers
+  pcl_conversions
+  nav2_costmap_2d
   potbot_lib
   yaml-cpp
 )

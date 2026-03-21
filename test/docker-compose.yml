@@ -1,0 +1,50 @@
+x-common-setting: &common_setting
+  build:
+      context: .
+      dockerfile: ./Dockerfile
+  image: ros/potbot:humble
+  network_mode: bridge
+  stdin_open: true
+  tty: true
+
+x-common-environment: &common_environment
+  TERM:
+  DISPLAY:
+  TURTLEBOT3_MODEL: waffle_pi
+
+services:
+
+  gazebo:
+    <<: *common_setting
+    container_name: gazebo
+    environment:
+      <<: *common_environment
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      - ./.gazebo:/root/.gazebo
+      - ../../../:/root/ros2_ws
+      - ./entrypoint.sh:/entrypoint.sh
+    entrypoint: /entrypoint.sh
+    command: ros2 launch potbot_example turtlebot3_with_garage.launch.py
+
+  domain_bridge:
+    <<: *common_setting
+    container_name: domain_bridge
+    volumes:
+     - ./bridge_config.yaml:/bridge_config.yaml
+    command: ros2 run domain_bridge domain_bridge /bridge_config.yaml
+
+  potbot:
+    <<: *common_setting
+    container_name: potbot
+    environment:
+      <<: *common_environment
+      ROS_DOMAIN_ID: 1
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      - ../../../:/root/ros2_ws
+      - ./entrypoint.sh:/entrypoint.sh
+      - ./:/root/test
+    entrypoint: /entrypoint.sh
+    command: ros2 launch /root/test/turtlebot3_navigation.launch.py use_sim_time:=true
+    

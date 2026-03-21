@@ -21,6 +21,9 @@ add_library(potbot_lib_utility
   src/diff_drive_agent.cpp
   src/pid.cpp
   src/optimal_path_follower.cpp
+  src/field.cpp
+  src/artificial_potential_field.cpp
+  src/apf_path_planner.cpp
 )
 
 ament_target_dependencies(potbot_lib_utility
@@ -63,5 +66,64 @@ ament_export_dependencies(
   sensor_msgs
 )
 ament_export_include_directories(include)
+
+# ============================================================
+# テスト
+# ============================================================
+if(BUILD_TESTING)
+  find_package(ament_cmake_gtest REQUIRED)
+
+  set(TEST_LIBS
+    potbot_lib_utility
+  )
+
+  ament_add_gtest(test_utility test/test_utility.cpp)
+  target_include_directories(test_utility PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  )
+  target_link_libraries(test_utility ${TEST_LIBS})
+
+  ament_add_gtest(test_diff_drive_agent test/test_diff_drive_agent.cpp)
+  target_include_directories(test_diff_drive_agent PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  )
+  target_link_libraries(test_diff_drive_agent ${TEST_LIBS})
+
+  ament_add_gtest(test_pid test/test_pid.cpp)
+  target_include_directories(test_pid PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  )
+  target_link_libraries(test_pid ${TEST_LIBS})
+
+  ament_add_gtest(test_field test/test_field.cpp)
+  target_include_directories(test_field PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  )
+  target_link_libraries(test_field ${TEST_LIBS})
+
+  ament_add_gtest(test_artificial_potential_field test/test_artificial_potential_field.cpp)
+  target_include_directories(test_artificial_potential_field PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  )
+  target_link_libraries(test_artificial_potential_field ${TEST_LIBS})
+
+  ament_add_gtest(test_apf_path_planner test/test_apf_path_planner.cpp)
+  target_include_directories(test_apf_path_planner PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  )
+  target_link_libraries(test_apf_path_planner ${TEST_LIBS})
+
+  ament_add_gtest(test_optimal_path_follower test/test_optimal_path_follower.cpp)
+  target_include_directories(test_optimal_path_follower PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  )
+  target_link_libraries(test_optimal_path_follower ${TEST_LIBS})
+
+  ament_add_gtest(test_interpolate test/test_interpolate.cpp)
+  target_include_directories(test_interpolate PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  )
+  target_link_libraries(test_interpolate ${TEST_LIBS})
+endif()
 
 ament_package()

@@ -865,29 +865,29 @@ namespace potbot_lib
         //         }
         //     }
 
-        //     void field_to_pcl2(std::vector<potential::FieldGrid>& field, sensor_msgs::msg::PointCloud2& pcl_msg)
-        //     {
-        //         // std::vector<pcl::PointXYZ> を作成
-        //         std::vector<pcl::PointXYZ> pointVector;
-        //         for (auto value : field)
-        //         {
-        //             double x = value.x;
-        //             double y = value.y;
-        //             double z = value.value;
-        //             pcl::PointXYZ point(x,y,z);
-        //             pointVector.push_back(point);
-        //         }
+        void field_to_pcl2(std::vector<potential::FieldGrid>& field, sensor_msgs::msg::PointCloud2& pcl_msg)
+        {
+            // std::vector<pcl::PointXYZ> を作成
+            std::vector<pcl::PointXYZ> pointVector;
+            for (auto value : field)
+            {
+                double x = value.x;
+                double y = value.y;
+                double z = value.value;
+                pcl::PointXYZ point(x,y,z);
+                pointVector.push_back(point);
+            }
 
-        //         // std::vector<pcl::PointXYZ> を pcl::PointCloud に変換
-        //         pcl::PointCloud<pcl::PointXYZ>::Ptr pclPointCloud(new pcl::PointCloud<pcl::PointXYZ>);
-        //         pclPointCloud->points.resize(pointVector.size());
-        //         for (size_t i = 0; i < pointVector.size(); ++i) {
-        //             pclPointCloud->points[i] = pointVector[i];
-        //         }
+            // std::vector<pcl::PointXYZ> を pcl::PointCloud に変換
+            pcl::PointCloud<pcl::PointXYZ>::Ptr pclPointCloud(new pcl::PointCloud<pcl::PointXYZ>);
+            pclPointCloud->points.resize(pointVector.size());
+            for (size_t i = 0; i < pointVector.size(); ++i) {
+                pclPointCloud->points[i] = pointVector[i];
+            }
 
-        //         // pcl::PointCloud を sensor_msgs::msg::PointCloud2 に変換
-        //         pcl::toROSMsg(*pclPointCloud, pcl_msg);
-        //     }
+            // pcl::PointCloud を sensor_msgs::msg::PointCloud2 に変換
+            pcl::toROSMsg(*pclPointCloud, pcl_msg);
+        }
 
         void to_agent(const geometry_msgs::msg::Pose &msg, DiffDriveAgent &agent)
         {
