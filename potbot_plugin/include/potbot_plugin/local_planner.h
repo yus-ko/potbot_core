@@ -34,8 +34,8 @@
 *
 * Author: Eitan Marder-Eppstein
 *********************************************************************/
-#ifndef POTBOT_LOCAL_PLANNER_H_
-#define POTBOT_LOCAL_PLANNER_H_
+#ifndef POTBOT_PLUGIN__LOCAL_PLANNER_H_
+#define POTBOT_PLUGIN__LOCAL_PLANNER_H_
 
 #include <potbot_lib/utility_ros.h>
 #include <potbot_base/base_controller.h>
@@ -61,10 +61,6 @@
 
 #include <tf2_ros/buffer.h>
 
-#include <boost/thread.hpp>
-
-#include <string>
-
 #include <angles/angles.h>
 
 #include <nav_core/base_local_planner.h>
@@ -79,119 +75,130 @@
 // #include <base_local_planner/trajectory_planner_ros.h>
 #include <potbot_plugin/PotbotLocalPlannerConfig.h>
 
-namespace potbot_nav {
-  using namespace base_local_planner;
+#include <string>
+#include <vector>
 
-  /**
-   * @class PotbotLocalPlanner
-   * @brief A ROS wrapper for the trajectory controller that queries the param server to construct a controller
-   */
-  // class PotbotLocalPlanner : private base_local_planner::TrajectoryPlannerROS {
-  class PotbotLocalPlanner : public nav_core::BaseLocalPlanner {
-    public:
-      /**
-       * @brief  Default constructor for the ros wrapper
-       */
-      PotbotLocalPlanner();
+#include <boost/thread.hpp>
 
-      /**
-       * @brief  Constructs the ros wrapper
-       * @param name The name to give this instance of the trajectory planner
-       * @param tf A pointer to a transform listener
-       * @param costmap The cost map to use for assigning costs to trajectories
-       */
-      PotbotLocalPlanner(std::string name,
-                           tf2_ros::Buffer* tf,
-                           costmap_2d::Costmap2DROS* costmap_ros);
+namespace potbot_nav
+{
+  using namespace base_local_planner; // NOLINT
 
-      /**
-       * @brief  Constructs the ros wrapper
-       * @param name The name to give this instance of the trajectory planner
-       * @param tf A pointer to a transform listener
-       * @param costmap The cost map to use for assigning costs to trajectories
-       */
-      void initialize(std::string name, tf2_ros::Buffer* tf,
-          costmap_2d::Costmap2DROS* costmap_ros);
+/**
+ * @class PotbotLocalPlanner
+ * @brief A ROS wrapper for the trajectory controller that queries the
+ * param server to construct a controller
+ */
+// class PotbotLocalPlanner : private base_local_planner::TrajectoryPlannerROS {
+  class PotbotLocalPlanner: public nav_core::BaseLocalPlanner {
+public:
+    /**
+     * @brief  Default constructor for the ros wrapper
+     */
+    PotbotLocalPlanner();
 
-      /**
-       * @brief  Destructor for the wrapper
-       */
-      ~PotbotLocalPlanner(){};
-      
-      /**
-       * @brief  Given the current position, orientation, and velocity of the robot,
-       * compute velocity commands to send to the base
-       * @param cmd_vel Will be filled with the velocity command to be passed to the robot base
-       * @return True if a valid trajectory was found, false otherwise
-       */
-      bool computeVelocityCommands(geometry_msgs::Twist& cmd_vel);
+    /**
+     * @brief  Constructs the ros wrapper
+     * @param name The name to give this instance of the trajectory planner
+     * @param tf A pointer to a transform listener
+     * @param costmap The cost map to use for assigning costs to trajectories
+     */
+    PotbotLocalPlanner(
+      std::string name,
+      tf2_ros::Buffer * tf,
+      costmap_2d::Costmap2DROS * costmap_ros);
 
-      /**
-       * @brief  Set the plan that the controller is following
-       * @param orig_global_plan The plan to pass to the controller
-       * @return True if the plan was updated successfully, false otherwise
-       */
-      bool setPlan(const std::vector<geometry_msgs::PoseStamped>& orig_global_plan);
+    /**
+     * @brief  Constructs the ros wrapper
+     * @param name The name to give this instance of the trajectory planner
+     * @param tf A pointer to a transform listener
+     * @param costmap The cost map to use for assigning costs to trajectories
+     */
+    void initialize(
+      std::string name, tf2_ros::Buffer * tf,
+      costmap_2d::Costmap2DROS * costmap_ros);
 
-      /**
-       * @brief  Check if the goal pose has been achieved
-       * @return True if achieved, false otherwise
-       */
-      bool isGoalReached();
+    /**
+     * @brief  Destructor for the wrapper
+     */
+    ~PotbotLocalPlanner() {
+    }
 
-      bool isInitialized() {
-        return initialized_;
-      }
+    /**
+     * @brief  Given the current position, orientation, and velocity of the robot,
+     * compute velocity commands to send to the base
+     * @param cmd_vel Will be filled with the velocity command to be passed to the robot base
+     * @return True if a valid trajectory was found, false otherwise
+     */
+    bool computeVelocityCommands(geometry_msgs::Twist & cmd_vel);
 
-      void createPathThread();
+    /**
+     * @brief  Set the plan that the controller is following
+     * @param orig_global_plan The plan to pass to the controller
+     * @return True if the plan was updated successfully, false otherwise
+     */
+    bool setPlan(const std::vector < geometry_msgs::PoseStamped > & orig_global_plan);
 
-    private:
-      void reconfigureCB(const potbot_plugin::PotbotLocalPlannerConfig& param, uint32_t level);
-      dynamic_reconfigure::Server<potbot_plugin::PotbotLocalPlannerConfig> *dsrv_;
+    /**
+     * @brief  Check if the goal pose has been achieved
+     * @return True if achieved, false otherwise
+     */
+    bool isGoalReached();
 
-      std::string node_name_, control_mode_, control_mode_pre_;
+    bool isInitialized()
+    {
+      return initialized_;
+    }
 
-      costmap_2d::Costmap2DROS* costmap_ros_; ///< @brief The ROS wrapper for the costmap the controller will use
-      costmap_2d::Costmap2D* costmap_; ///< @brief The costmap the controller will use
-      // MapGridVisualizer map_viz_; ///< @brief The map grid visualizer for outputting the potential field generated by the cost function
-      tf2_ros::Buffer* tf_; ///< @brief Used for transforming point clouds
-      std::string global_frame_; ///< @brief The frame in which the controller will run
-      double max_sensor_range_; ///< @brief Keep track of the effective maximum range of our sensors
-      nav_msgs::Odometry base_odom_; ///< @brief Used to get the velocity of the robot
-      std::string robot_base_frame_; ///< @brief Used as the base frame id of the robot
-      double rot_stopped_velocity_, trans_stopped_velocity_;
-      double xy_goal_tolerance_, yaw_goal_tolerance_, min_in_place_vel_th_;
-      std::vector<geometry_msgs::PoseStamped> global_plan_;
-      bool prune_plan_;
-      boost::recursive_mutex odom_lock_;
+    void createPathThread();
 
-      double max_vel_th_, min_vel_th_;
-      double acc_lim_x_, acc_lim_y_, acc_lim_theta_;
-      double sim_period_;
-      bool rotating_to_goal_;
-      bool reached_goal_;
-      bool latch_xy_goal_tolerance_, xy_tolerance_latch_;
+private:
+    void reconfigureCB(const potbot_plugin::PotbotLocalPlannerConfig & param, uint32_t level);
+    dynamic_reconfigure::Server < potbot_plugin::PotbotLocalPlannerConfig > *dsrv_;
 
-      double stop_margin_ = 0.1;
-      double recover_distance_ = 0.3;
+    std::string node_name_, control_mode_, control_mode_pre_;
 
-      ros::Publisher g_plan_pub_, l_plan_pub_;
+    // The ROS wrapper for the costmap the controller will use
+    costmap_2d::Costmap2DROS * costmap_ros_;
+    costmap_2d::Costmap2D * costmap_; ///< @brief The costmap the controller will use
+    tf2_ros::Buffer * tf_; ///< @brief Used for transforming point clouds
+    std::string global_frame_; ///< @brief The frame in which the controller will run
+    double max_sensor_range_; ///< @brief Keep track of the effective maximum range of our sensors
+    nav_msgs::Odometry base_odom_; ///< @brief Used to get the velocity of the robot
+    std::string robot_base_frame_; ///< @brief Used as the base frame id of the robot
+    double rot_stopped_velocity_, trans_stopped_velocity_;
+    double xy_goal_tolerance_, yaw_goal_tolerance_, min_in_place_vel_th_;
+    std::vector < geometry_msgs::PoseStamped > global_plan_;
+    bool prune_plan_;
+    boost::recursive_mutex odom_lock_;
 
-      // dynamic_reconfigure::Server<BaseLocalPlannerConfig> *dsrv_;
-      // base_local_planner::BaseLocalPlannerConfig default_config_;
-      bool setup_;
+    double max_vel_th_, min_vel_th_;
+    double acc_lim_x_, acc_lim_y_, acc_lim_theta_;
+    double sim_period_;
+    bool rotating_to_goal_;
+    bool reached_goal_;
+    bool latch_xy_goal_tolerance_, xy_tolerance_latch_;
 
-      bool initialized_;
+    double stop_margin_ = 0.1;
+    double recover_distance_ = 0.3;
 
-      boost::thread* path_planner_thread_;
+    ros::Publisher g_plan_pub_, l_plan_pub_;
 
-      std::vector<geometry_msgs::Point> footprint_spec_;
+    // dynamic_reconfigure::Server<BaseLocalPlannerConfig> *dsrv_;
+    // base_local_planner::BaseLocalPlannerConfig default_config_;
+    bool setup_;
 
-      boost::shared_ptr<potbot_base::Controller> controller_;
-      boost::shared_ptr<potbot_base::Controller> recover_;
-      pluginlib::ClassLoader<potbot_base::Controller> controller_loader_;
-      boost::shared_ptr<potbot_base::PathPlanner> planner_;
-		  pluginlib::ClassLoader<potbot_base::PathPlanner> planner_loader_;
+    bool initialized_;
+
+    boost::thread * path_planner_thread_;
+
+    std::vector < geometry_msgs::Point > footprint_spec_;
+
+    boost::shared_ptr < potbot_base::Controller > controller_;
+    boost::shared_ptr < potbot_base::Controller > recover_;
+    pluginlib::ClassLoader < potbot_base::Controller > controller_loader_;
+    boost::shared_ptr < potbot_base::PathPlanner > planner_;
+    pluginlib::ClassLoader < potbot_base::PathPlanner > planner_loader_;
   };
-};
-#endif
+}  // namespace potbot_nav
+#endif  // POTBOT_PLUGIN__LOCAL_PLANNER_H_

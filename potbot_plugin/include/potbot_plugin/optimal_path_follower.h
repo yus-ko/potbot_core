@@ -1,5 +1,6 @@
-#ifndef H_POTBOT_NAV_OPTIMAL_PATH_FOLLOWER_
-#define H_POTBOT_NAV_OPTIMAL_PATH_FOLLOWER_
+// Copyright 2024 potbot
+#ifndef POTBOT_PLUGIN__OPTIMAL_PATH_FOLLOWER_H_
+#define POTBOT_PLUGIN__OPTIMAL_PATH_FOLLOWER_H_
 
 #include <potbot_base/base_controller.h>
 #include <potbot_lib/optimal_path_follower.h>
@@ -8,41 +9,46 @@
 #include <dynamic_reconfigure/server.h>
 #include <potbot_plugin/OptimalPathFollowerConfig.h>
 
+#include <string>
+#include <vector>
+
 namespace potbot_nav
 {
-    namespace controller
+  namespace controller
+  {
+    class OptimalPathFollower: public potbot_base::Controller
     {
-        class OptimalPathFollower : public potbot_base::Controller
-        {
-            private:
-                potbot_lib::controller::OptimalPathFollower optimizer_;
-                ros::Publisher pub_plans_, pub_best_plan_, pub_split_path_, pub_objective_function_;
-                std::string frame_id_global_ = "map";
-                dynamic_reconfigure::Server<potbot_plugin::OptimalPathFollowerConfig> *dsrv_;
+private:
+      potbot_lib::controller::OptimalPathFollower optimizer_;
+      ros::Publisher pub_plans_, pub_best_plan_, pub_split_path_, pub_objective_function_;
+      std::string frame_id_global_ = "map";
+      dynamic_reconfigure::Server < potbot_plugin::OptimalPathFollowerConfig > *dsrv_;
 
-                void reconfigureCB(const potbot_plugin::OptimalPathFollowerConfig& param, uint32_t level);
+      void reconfigureCB(const potbot_plugin::OptimalPathFollowerConfig & param, uint32_t level);
 
-                void getPlans(visualization_msgs::MarkerArray& msg);
-                void getSplitPath(nav_msgs::Path& msg);
-                void getBestPath(nav_msgs::Path& msg);
-                void getBestCmd(geometry_msgs::Twist& cmd);
+      void getPlans(visualization_msgs::MarkerArray & msg);
+      void getSplitPath(nav_msgs::Path & msg);
+      void getBestPath(nav_msgs::Path & msg);
+      void getBestCmd(geometry_msgs::Twist & cmd);
 
-                void publishPlans();
-                void publishBestPlan();
-                void publishSplitPath();
+      void publishPlans();
+      void publishBestPlan();
+      void publishSplitPath();
 
-            public:
-                OptimalPathFollower(){};
-                ~OptimalPathFollower(){};
+public:
+      OptimalPathFollower() {
+      }
+      ~OptimalPathFollower() {
+      }
 
-                void initialize(std::string name, tf2_ros::Buffer* tf);
-                
-                void calculateCommand(geometry_msgs::Twist& cmd_vel);
-                void setTargetPath(const std::vector<geometry_msgs::PoseStamped>& path_msg);
+      void initialize(std::string name, tf2_ros::Buffer * tf);
 
-                bool reachedTarget();
-        };
-    }
-}
+      void calculateCommand(geometry_msgs::Twist & cmd_vel);
+      void setTargetPath(const std::vector < geometry_msgs::PoseStamped > & path_msg);
 
-#endif	// H_POTBOT_NAV_OPTIMAL_PATH_FOLLOWER_
+      bool reachedTarget();
+    };
+  } // namespace controller
+}  // namespace potbot_nav
+
+#endif  // POTBOT_PLUGIN__OPTIMAL_PATH_FOLLOWER_H_

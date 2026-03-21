@@ -1,3 +1,4 @@
+// Copyright 2024 potbot
 /**
  * @file test_apf_planner.cpp
  * @brief potbot_nav::planner::APF クラスのユニットテスト
@@ -65,7 +66,8 @@ TEST_F(APFPlannerTest, PlanReturnTypeIsPath)
 // 複数インスタンスを同時に生成しても干渉しないことを確認する
 TEST_F(APFPlannerTest, MultipleInstancesNoInterference)
 {
-  EXPECT_NO_THROW({
+  EXPECT_NO_THROW(
+  {
     potbot_nav::planner::APF planner1;
     potbot_nav::planner::APF planner2;
     potbot_nav::planner::APF planner3;

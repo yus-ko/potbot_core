@@ -40,10 +40,11 @@
 #include <costmap_2d/cost_values.h>
 #include <costmap_2d/costmap_2d.h>
 
-//register this planner as a BaseGlobalPlanner plugin
+// register this planner as a BaseGlobalPlanner plugin
 PLUGINLIB_EXPORT_CLASS(potbot_nav::PotbotPlanner, nav_core::BaseGlobalPlanner)
 
-namespace potbot_nav {
+namespace potbot_nav
+{
 
 // void PotbotPlanner::outlineMap(unsigned char* costarr, int nx, int ny, unsigned char value) {
 //     unsigned char* pc = costarr;
@@ -60,15 +61,18 @@ namespace potbot_nav {
 //         *pc = value;
 // }
 
-PotbotPlanner::PotbotPlanner() :
-        costmap_(NULL), initialized_(false)
-        {
+PotbotPlanner::PotbotPlanner()
+: costmap_(NULL), initialized_(false)
+{
 }
 
-PotbotPlanner::PotbotPlanner(std::string name, costmap_2d::Costmap2D* costmap, std::string frame_id) :
-        PotbotPlanner() {
-    //initialize the planner
-    initialize(name, costmap, frame_id);
+PotbotPlanner::PotbotPlanner(
+  std::string name, costmap_2d::Costmap2D * costmap,
+  std::string frame_id)
+: PotbotPlanner()
+{
+  // initialize the planner
+  initialize(name, costmap, frame_id);
 }
 
 // PotbotPlanner::~PotbotPlanner() {
@@ -82,31 +86,38 @@ PotbotPlanner::PotbotPlanner(std::string name, costmap_2d::Costmap2D* costmap, s
 //         delete dsrv_;
 // }
 
-void PotbotPlanner::initialize(std::string name, costmap_2d::Costmap2DROS* costmap_ros) {
-    initialize(name, costmap_ros->getCostmap(), costmap_ros->getGlobalFrameID());
+void PotbotPlanner::initialize(std::string name, costmap_2d::Costmap2DROS * costmap_ros)
+{
+  initialize(name, costmap_ros->getCostmap(), costmap_ros->getGlobalFrameID());
 }
 
-void PotbotPlanner::initialize(std::string name, costmap_2d::Costmap2D* costmap, std::string frame_id) {
-    if (!initialized_) {
-        ros::NodeHandle private_nh("~/" + name);
-        costmap_ = costmap;
-        frame_id_ = frame_id;
+void PotbotPlanner::initialize(
+  std::string name, costmap_2d::Costmap2D * costmap,
+  std::string frame_id)
+{
+  if (!initialized_) {
+    ros::NodeHandle private_nh("~/" + name);
+    costmap_ = costmap;
+    frame_id_ = frame_id;
 
-        plan_pub_ = private_nh.advertise<nav_msgs::Path>("plan", 1);
+    plan_pub_ = private_nh.advertise<nav_msgs::Path>("plan", 1);
 
-        private_nh.param("default_tolerance", default_tolerance_, 0.0);
+    private_nh.param("default_tolerance", default_tolerance_, 0.0);
 
-        make_plan_srv_ = private_nh.advertiseService("make_plan", &PotbotPlanner::makePlanService, this);
+    make_plan_srv_ =
+      private_nh.advertiseService("make_plan", &PotbotPlanner::makePlanService, this);
 
-        // dsrv_ = new dynamic_reconfigure::Server<global_planner::GlobalPlannerConfig>(ros::NodeHandle("~/" + name));
-        // dynamic_reconfigure::Server<global_planner::GlobalPlannerConfig>::CallbackType cb = boost::bind(
-        //         &PotbotPlanner::reconfigureCB, this, _1, _2);
-        // dsrv_->setCallback(cb);
+    // dsrv_ = new dynamic_reconfigure::Server<
+    //   global_planner::GlobalPlannerConfig>(ros::NodeHandle("~/" + name));
+    // dynamic_reconfigure::Server<
+    //   global_planner::GlobalPlannerConfig>::CallbackType cb = boost::bind(
+    //     &PotbotPlanner::reconfigureCB, this, _1, _2);
+    // dsrv_->setCallback(cb);
 
-        initialized_ = true;
-    } else
-        ROS_WARN("This planner has already been initialized, you can't call it twice, doing nothing");
-
+    initialized_ = true;
+  } else {
+    ROS_WARN("This planner has already been initialized, you can't call it twice, doing nothing");
+  }
 }
 
 // void PotbotPlanner::reconfigureCB(global_planner::GlobalPlannerConfig& config, uint32_t level) {
@@ -119,10 +130,13 @@ void PotbotPlanner::initialize(std::string name, costmap_2d::Costmap2D* costmap,
 //     orientation_filter_->setWindowSize(config.orientation_window_size);
 // }
 
-// void PotbotPlanner::clearRobotCell(const geometry_msgs::PoseStamped& global_pose, unsigned int mx, unsigned int my) {
-//     if (!initialized_) {
-//         ROS_ERROR(
-//                 "This planner has not been initialized yet, but it is being used, please call initialize() before use");
+// void PotbotPlanner::clearRobotCell(
+//   const geometry_msgs::PoseStamped& global_pose,
+//   unsigned int mx, unsigned int my) {
+//   if (!initialized_) {
+//     ROS_ERROR(
+//       "This planner has not been initialized yet, "
+//       "but it is being used, please call initialize() before use");
 //         return;
 //     }
 
@@ -130,13 +144,16 @@ void PotbotPlanner::initialize(std::string name, costmap_2d::Costmap2D* costmap,
 //     costmap_->setCost(mx, my, costmap_2d::FREE_SPACE);
 // }
 
-bool PotbotPlanner::makePlanService(nav_msgs::GetPlan::Request& req, nav_msgs::GetPlan::Response& resp) {
-    makePlan(req.start, req.goal, resp.plan.poses);
+bool PotbotPlanner::makePlanService(
+  nav_msgs::GetPlan::Request & req,
+  nav_msgs::GetPlan::Response & resp)
+{
+  makePlan(req.start, req.goal, resp.plan.poses);
 
-    resp.plan.header.stamp = ros::Time::now();
-    resp.plan.header.frame_id = frame_id_;
+  resp.plan.header.stamp = ros::Time::now();
+  resp.plan.header.frame_id = frame_id_;
 
-    return true;
+  return true;
 }
 
 // void PotbotPlanner::mapToWorld(double mx, double my, double& wx, double& wy) {
@@ -160,172 +177,191 @@ bool PotbotPlanner::makePlanService(nav_msgs::GetPlan::Request& req, nav_msgs::G
 //     return false;
 // }
 
-bool PotbotPlanner::makePlan(const geometry_msgs::PoseStamped& start, const geometry_msgs::PoseStamped& goal,
-                           std::vector<geometry_msgs::PoseStamped>& plan) {
-    return makePlan(start, goal, default_tolerance_, plan);
+bool PotbotPlanner::makePlan(
+  const geometry_msgs::PoseStamped & start, const geometry_msgs::PoseStamped & goal,
+  std::vector<geometry_msgs::PoseStamped> & plan)
+{
+  return makePlan(start, goal, default_tolerance_, plan);
 }
 
-bool PotbotPlanner::makePlan(const geometry_msgs::PoseStamped& start, const geometry_msgs::PoseStamped& goal,
-                           double tolerance, std::vector<geometry_msgs::PoseStamped>& plan) {
-    boost::mutex::scoped_lock lock(mutex_);
-    if (!initialized_) {
-        ROS_ERROR(
-                "This planner has not been initialized yet, but it is being used, please call initialize() before use");
-        return false;
-    }
+bool PotbotPlanner::makePlan(
+  const geometry_msgs::PoseStamped & start, const geometry_msgs::PoseStamped & goal,
+  double tolerance, std::vector<geometry_msgs::PoseStamped> & plan)
+{
+  boost::mutex::scoped_lock lock(mutex_);
+  if (!initialized_) {
+    ROS_ERROR(
+      "This planner has not been initialized yet, but it is being used,"
+      " please call initialize() before use");
+    return false;
+  }
 
-    //clear the plan, just in case
-    plan.clear();
+  // clear the plan, just in case
+  plan.clear();
 
-    ros::NodeHandle n;
-    std::string global_frame = frame_id_;
+  ros::NodeHandle n;
+  std::string global_frame = frame_id_;
 
-    //until tf can handle transforming things that are way in the past... we'll require the goal to be in our global frame
-    if (goal.header.frame_id != global_frame) {
-        ROS_ERROR(
-                "The goal pose passed to this planner must be in the %s frame.  It is instead in the %s frame.", global_frame.c_str(), goal.header.frame_id.c_str());
-        return false;
-    }
+  // until tf can handle transforming things that are way in the past...
+  // we'll require the goal to be in our global frame
+  if (goal.header.frame_id != global_frame) {
+    ROS_ERROR(
+      "The goal pose passed to this planner must be in the %s frame."
+      "  It is instead in the %s frame.",
+      global_frame.c_str(), goal.header.frame_id.c_str());
+    return false;
+  }
 
-    if (start.header.frame_id != global_frame) {
-        ROS_ERROR(
-                "The start pose passed to this planner must be in the %s frame.  It is instead in the %s frame.", global_frame.c_str(), start.header.frame_id.c_str());
-        return false;
-    }
+  if (start.header.frame_id != global_frame) {
+    ROS_ERROR(
+      "The start pose passed to this planner must be in the %s frame."
+      "  It is instead in the %s frame.",
+      global_frame.c_str(), start.header.frame_id.c_str());
+    return false;
+  }
 
-    double wx = start.pose.position.x;
-    double wy = start.pose.position.y;
+  double wx = start.pose.position.x;
+  double wy = start.pose.position.y;
 
-    unsigned int start_x_i, start_y_i, goal_x_i, goal_y_i;
-    double start_x, start_y, goal_x, goal_y;
+  unsigned int start_x_i, start_y_i, goal_x_i, goal_y_i;
+  double start_x, start_y, goal_x, goal_y;
 
-    if (!costmap_->worldToMap(wx, wy, start_x_i, start_y_i)) {
-        ROS_WARN(
-                "The robot's start position is off the global costmap. Planning will always fail, are you sure the robot has been properly localized?");
-        return false;
-    }
+  if (!costmap_->worldToMap(wx, wy, start_x_i, start_y_i)) {
+    ROS_WARN(
+      "The robot's start position is off the global costmap."
+      " Planning will always fail, are you sure the robot has been properly localized?");
+    return false;
+  }
 
-    // if(old_navfn_behavior_){
-    //     start_x = start_x_i;
-    //     start_y = start_y_i;
-    // }else{
-        // worldToMap(wx, wy, start_x, start_y);
-    // }
+  // if(old_navfn_behavior_){
+  //     start_x = start_x_i;
+  //     start_y = start_y_i;
+  // }else{
+  // worldToMap(wx, wy, start_x, start_y);
+  // }
 
-    wx = goal.pose.position.x;
-    wy = goal.pose.position.y;
+  wx = goal.pose.position.x;
+  wy = goal.pose.position.y;
 
-    if (!costmap_->worldToMap(wx, wy, goal_x_i, goal_y_i)) {
-        ROS_WARN_THROTTLE(1.0,
-                "The goal sent to the global planner is off the global costmap. Planning will always fail to this goal.");
-        return false;
-    }
-    // if(old_navfn_behavior_){
-    //     goal_x = goal_x_i;
-    //     goal_y = goal_y_i;
-    // }else{
-        // worldToMap(wx, wy, goal_x, goal_y);
-    // }
+  if (!costmap_->worldToMap(wx, wy, goal_x_i, goal_y_i)) {
+    ROS_WARN_THROTTLE(
+      1.0,
+      "The goal sent to the global planner is off the global costmap."
+      " Planning will always fail to this goal.");
+    return false;
+  }
+  // if(old_navfn_behavior_){
+  //     goal_x = goal_x_i;
+  //     goal_y = goal_y_i;
+  // }else{
+  // worldToMap(wx, wy, goal_x, goal_y);
+  // }
 
-    // //clear the starting cell within the costmap because we know it can't be an obstacle
-    // clearRobotCell(start, start_x_i, start_y_i);
+  // //clear the starting cell within the costmap because we know it can't be an obstacle
+  // clearRobotCell(start, start_x_i, start_y_i);
 
-    // int nx = costmap_->getSizeInCellsX(), ny = costmap_->getSizeInCellsY();
+  // int nx = costmap_->getSizeInCellsX(), ny = costmap_->getSizeInCellsY();
 
-    // //make sure to resize the underlying array that Navfn uses
-    // p_calc_->setSize(nx, ny);
-    // planner_->setSize(nx, ny);
-    // path_maker_->setSize(nx, ny);
-    // potential_array_ = new float[nx * ny];
+  // //make sure to resize the underlying array that Navfn uses
+  // p_calc_->setSize(nx, ny);
+  // planner_->setSize(nx, ny);
+  // path_maker_->setSize(nx, ny);
+  // potential_array_ = new float[nx * ny];
 
-    // if(outline_map_)
-    //     outlineMap(costmap_->getCharMap(), nx, ny, costmap_2d::LETHAL_OBSTACLE);
+  // if(outline_map_)
+  //     outlineMap(costmap_->getCharMap(), nx, ny, costmap_2d::LETHAL_OBSTACLE);
 
-    // bool found_legal = planner_->calculatePotentials(costmap_->getCharMap(), start_x, start_y, goal_x, goal_y,
-    //                                                 nx * ny * 2, potential_array_);
+  // bool found_legal = planner_->calculatePotentials(
+  //   costmap_->getCharMap(), start_x, start_y, goal_x, goal_y,
+  //   nx * ny * 2, potential_array_);
 
-    // if(!old_navfn_behavior_)
-    //     planner_->clearEndpoint(costmap_->getCharMap(), potential_array_, goal_x_i, goal_y_i, 2);
-    // if(publish_potential_)
-    //     publishPotential(potential_array_);
+  // if(!old_navfn_behavior_)
+  //     planner_->clearEndpoint(costmap_->getCharMap(), potential_array_, goal_x_i, goal_y_i, 2);
+  // if(publish_potential_)
+  //     publishPotential(potential_array_);
 
-    // if (found_legal) {
-    //     //extract the plan
-    //     if (getPlanFromPotential(start_x, start_y, goal_x, goal_y, goal, plan)) {
-    //         //make sure the goal we push on has the same timestamp as the rest of the plan
-    //         geometry_msgs::PoseStamped goal_copy = goal;
-    //         goal_copy.header.stamp = ros::Time::now();
-    //         plan.push_back(goal_copy);
-    //     } else {
-    //         ROS_ERROR("Failed to get a plan from potential when a legal potential was found. This shouldn't happen.");
-    //     }
-    // }else{
-    //     ROS_ERROR("Failed to get a plan.");
-    // }
+  // if (found_legal) {
+  //     //extract the plan
+  //     if (getPlanFromPotential(start_x, start_y, goal_x, goal_y, goal, plan)) {
+  //         //make sure the goal we push on has the same timestamp as the rest of the plan
+  //         geometry_msgs::PoseStamped goal_copy = goal;
+  //         goal_copy.header.stamp = ros::Time::now();
+  //         plan.push_back(goal_copy);
+  //     } else {
+  //         ROS_ERROR(
+  //           "Failed to get a plan from potential when a legal potential was found."
+  //           " This shouldn't happen.");
+  //     }
+  // }else{
+  //     ROS_ERROR("Failed to get a plan.");
+  // }
 
-    ROS_INFO("PotbotPlanner make plan");
-    // cmap_->getRobotPose(global_pose);
-    // potbot_lib::utility::print_Pose(start);
-    // potbot_lib::utility::print_Pose(goal);
-    start_x = start.pose.position.x;
-    start_y = start.pose.position.y;
-    goal_x = goal.pose.position.x;
-    goal_y = goal.pose.position.y;
-    ros::Time now = ros::Time::now();
-    for (double t = 0; t < 1.0; t+=0.05)
-    {
-        geometry_msgs::PoseStamped p;
-        p.header.stamp = now;
-        p.header.frame_id = frame_id_;
-        p.pose.position.x = (1.0-t)*start_x + t*goal_x;
-        p.pose.position.y = (1.0-t)*start_y + t*goal_y;
-        p.pose.position.z = 0;
-        p.pose.orientation.x = 0;
-        p.pose.orientation.y = 0;
-        p.pose.orientation.z = 0;
-        p.pose.orientation.w = 1;
+  ROS_INFO("PotbotPlanner make plan");
+  // cmap_->getRobotPose(global_pose);
+  // potbot_lib::utility::print_Pose(start);
+  // potbot_lib::utility::print_Pose(goal);
+  start_x = start.pose.position.x;
+  start_y = start.pose.position.y;
+  goal_x = goal.pose.position.x;
+  goal_y = goal.pose.position.y;
+  ros::Time now = ros::Time::now();
+  for (double t = 0; t < 1.0; t += 0.05) {
+    geometry_msgs::PoseStamped p;
+    p.header.stamp = now;
+    p.header.frame_id = frame_id_;
+    p.pose.position.x = (1.0 - t) * start_x + t * goal_x;
+    p.pose.position.y = (1.0 - t) * start_y + t * goal_y;
+    p.pose.position.z = 0;
+    p.pose.orientation.x = 0;
+    p.pose.orientation.y = 0;
+    p.pose.orientation.z = 0;
+    p.pose.orientation.w = 1;
 
-        plan.push_back(p);
-    }
-    plan.push_back(goal);
+    plan.push_back(p);
+  }
+  plan.push_back(goal);
 
-    // // add orientations if needed
-    // orientation_filter_->processPath(start, plan);
+  // // add orientations if needed
+  // orientation_filter_->processPath(start, plan);
 
-    //publish the plan for visualization purposes
-    publishPlan(plan);
-    // delete[] potential_array_;
-    return !plan.empty();
+  // publish the plan for visualization purposes
+  publishPlan(plan);
+  // delete[] potential_array_;
+  return !plan.empty();
 }
 
-void PotbotPlanner::publishPlan(const std::vector<geometry_msgs::PoseStamped>& path) {
-    if (!initialized_) {
-        ROS_ERROR(
-                "This planner has not been initialized yet, but it is being used, please call initialize() before use");
-        return;
-    }
+void PotbotPlanner::publishPlan(const std::vector<geometry_msgs::PoseStamped> & path)
+{
+  if (!initialized_) {
+    ROS_ERROR(
+      "This planner has not been initialized yet, but it is being used,"
+      " please call initialize() before use");
+    return;
+  }
 
-    //create a message for the plan
-    nav_msgs::Path gui_path;
-    gui_path.poses.resize(path.size());
+  // create a message for the plan
+  nav_msgs::Path gui_path;
+  gui_path.poses.resize(path.size());
 
-    gui_path.header.frame_id = frame_id_;
-    gui_path.header.stamp = ros::Time::now();
+  gui_path.header.frame_id = frame_id_;
+  gui_path.header.stamp = ros::Time::now();
 
-    // Extract the plan in world co-ordinates, we assume the path is all in the same frame
-    for (unsigned int i = 0; i < path.size(); i++) {
-        gui_path.poses[i] = path[i];
-    }
+  // Extract the plan in world co-ordinates, we assume the path is all in the same frame
+  for (unsigned int i = 0; i < path.size(); i++) {
+    gui_path.poses[i] = path[i];
+  }
 
-    plan_pub_.publish(gui_path);
+  plan_pub_.publish(gui_path);
 }
 
-// bool PotbotPlanner::getPlanFromPotential(double start_x, double start_y, double goal_x, double goal_y,
-//                                       const geometry_msgs::PoseStamped& goal,
-//                                        std::vector<geometry_msgs::PoseStamped>& plan) {
-//     if (!initialized_) {
-//         ROS_ERROR(
-//                 "This planner has not been initialized yet, but it is being used, please call initialize() before use");
+// bool PotbotPlanner::getPlanFromPotential(
+//   double start_x, double start_y, double goal_x, double goal_y,
+//   const geometry_msgs::PoseStamped& goal,
+//   std::vector<geometry_msgs::PoseStamped>& plan) {
+//   if (!initialized_) {
+//     ROS_ERROR(
+//       "This planner has not been initialized yet, "
+//       "but it is being used, please call initialize() before use");
 //         return false;
 //     }
 
@@ -407,4 +443,4 @@ void PotbotPlanner::publishPlan(const std::vector<geometry_msgs::PoseStamped>& p
 //     potential_pub_.publish(grid);
 // }
 
-} //end namespace potbot_nav
+}  // namespace potbot_nav

@@ -103,8 +103,11 @@ install(DIRECTORY include/
 if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
   find_package(ament_lint_auto REQUIRED)
+  find_package(ament_cmake_cpplint REQUIRED)
   set(ament_cmake_copyright_FOUND TRUE)
+  set(AMENT_LINT_AUTO_EXCLUDE ament_cmake_cpplint)
   ament_lint_auto_find_test_dependencies()
+  ament_cpplint(FILTERS "-runtime/indentation_namespace,-whitespace/comments")
 
   set(PLUGIN_TEST_DEPS
     rclcpp
