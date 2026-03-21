@@ -50,6 +50,28 @@ M4 で GitHub Actions CI を整備することで、すべての PR・プッシ�
 - `onCycleUpdate()`: PID 制御により目標方向への回転を継続する
 - 内部状態: `gain_p_`, `gain_i_`, `gain_d_`, `tolerance_angle_`, `goal_pose_`, `controller_`（PID）
 
+#### RotateToGoalDirection パラメータ
+
+| パラメータ名 | 型 | デフォルト値 | 説明 |
+|---|---|---|---|
+| `gain_p` | double | 1.0 | PID 比例ゲイン |
+| `gain_i` | double | 0.1 | PID 積分ゲイン |
+| `gain_d` | double | 0.01 | PID 微分ゲイン |
+| `tolerance_angle` | double | 0.01 | 目標方向への角度許容誤差（ラジアン） |
+
+#### GoalPose.action 定義
+
+`RotateToGoalDirection` が使用するアクションインターフェース（`potbot_msgs/action/GoalPose.action`）の定義は以下の通りである。
+
+| セクション | フィールド | 型 | 説明 |
+|---|---|---|---|
+| Goal | pose | geometry_msgs/PoseStamped | 目標姿勢 |
+| Goal | time_allowance | builtin_interfaces/Duration | 許容時間 |
+| Result | message | string | 結果メッセージ |
+| Result | total_elapsed_time | builtin_interfaces/Duration | 総経過時間 |
+| Feedback | left_duration | float32 | 残り時間（秒） |
+| Feedback | angular_distance_traveled | float32 | 累積回転角度（ラジアン） |
+
 **`potbot_nav::SpinAction`**（`rotate_to_goal_direction_action.hpp`）:
 
 - `nav2_behavior_tree::BtActionNode<potbot_msgs::action::GoalPose>` を継承する BT アクションノード
