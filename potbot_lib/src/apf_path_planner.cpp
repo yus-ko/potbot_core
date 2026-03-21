@@ -164,11 +164,12 @@ namespace potbot_lib{
                 theta_pre   = atan2(py-path_.back().position.y,px-path_.back().position.x);
                 //経路点が2連続で同じ場所の場合処理を終わらせる
                 Pose p{px,py};
-                if (p == path_.end()[-1] && (p == path_.end()[-2])) break;
+                // バグ1: path_.size() < 2 のときpath_.end()[-2]は未定義動作になるためガードを追加
+                if (path_.size() >= 2 && p == path_.end()[-1] && p == path_.end()[-2]) break;
 
                 path_.push_back(Pose{px, py});
                 (*field_values)[pf_idx_min].states[potential::GridInfo::IS_PLANNED_PATH] = true;
-                
+
             }
             return true;
         }
@@ -186,6 +187,11 @@ namespace potbot_lib{
             size_t range        = path_search_range_;
             std::vector<potential::FieldGrid>* field_values;
             field_values = apf_->getValues();
+
+            // バグ5: ゴール方向への進捗がない連続ステップ数を追跡してループを防ぐ
+            double prev_dist_to_goal = std::numeric_limits<double>::infinity();
+            int no_progress_count = 0;
+            const int no_progress_limit = 15;
 
             double distance_threshold_repulsion_field = apf_->getDistanceThresholdRepulsionField();
 
@@ -221,7 +227,9 @@ namespace potbot_lib{
 
             bool solving_local_minimum = false;
             bool change_weight = false;
-            while ((*field_values)[pf_idx_min].states[potential::GridInfo::IS_AROUND_GOAL] == false && 
+            // バグ3: elseブランチ（ローカル最小値解消）から来たか判別するフラグ
+            bool came_from_local_minimum_escape = false;
+            while ((*field_values)[pf_idx_min].states[potential::GridInfo::IS_AROUND_GOAL] == false &&
                     path_length <= max_path_length_)
             {
                 //経路補間に時間がかかってしまうため制御点(path.size())の数に上限を設ける
@@ -270,6 +278,9 @@ namespace potbot_lib{
                     std::vector<potential::FieldGrid> edges_clockwise, edges_counterclockwise;
                     getRepulsionEdges(edges_clockwise, edges_counterclockwise, center_row, center_col);
 
+                    // バグ2: エッジが空の場合は未定義動作を防ぐためbreakする
+                    if (edges_clockwise.empty() && edges_counterclockwise.empty()) break;
+
 
 
 
@@ -310,41 +321,63 @@ namespace potbot_lib{
                             break;
                         }
                     }
-                    
+
+                    // バグ2: 逃走できなかった場合（エッジを辿り切れなかった）はbreakする
+                    if (path_length_clockwise == edges_clockwise.size()/2 && path_length_counterclockwise == edges_counterclockwise.size()/2) break;
+
                     if(path_length_clockwise < path_length_counterclockwise)
                     {
+                        // バグ4: エッジ追加時にpath_lengthを累積する
                         for (size_t i = 0; i < path_length_clockwise; i++)
                         {
-                            path_.push_back(Pose{edges_clockwise[i].x, edges_clockwise[i].y});
+                            double ex = edges_clockwise[i].x;
+                            double ey = edges_clockwise[i].y;
+                            path_length += sqrt(pow(ex - path_.back().position.x, 2) + pow(ey - path_.back().position.y, 2));
+                            path_.push_back(Pose{ex, ey});
                             (*field_values)[edges_clockwise[i].index].states[potential::GridInfo::IS_PLANNED_PATH] = true;
+                            if (path_length > max_path_length_ || path_.size() > 100) break;
                         }
                         pf_idx_min = edges_clockwise[path_length_clockwise].index;
                     }
                     else
                     {
+                        // バグ4: エッジ追加時にpath_lengthを累積する
                         for (size_t i = 0; i < path_length_counterclockwise; i++)
                         {
-                            path_.push_back(Pose{edges_counterclockwise[i].x, edges_counterclockwise[i].y});
+                            double ex = edges_counterclockwise[i].x;
+                            double ey = edges_counterclockwise[i].y;
+                            path_length += sqrt(pow(ex - path_.back().position.x, 2) + pow(ey - path_.back().position.y, 2));
+                            path_.push_back(Pose{ex, ey});
                             (*field_values)[edges_counterclockwise[i].index].states[potential::GridInfo::IS_PLANNED_PATH] = true;
+                            if (path_length > max_path_length_ || path_.size() > 100) break;
                         }
                         pf_idx_min = edges_counterclockwise[path_length_counterclockwise].index;
                     }
 
+                    // バグ3: elseブランチから来たことをフラグで記録し、J_min_preを逃走点のポテンシャル値で更新する
+                    came_from_local_minimum_escape = true;
+                    J_min_pre = (*field_values)[pf_idx_min].value;
+
                     solving_local_minimum   = false;
                 }
-                
+
                 double px   = (*field_values)[pf_idx_min].x;
                 double py   = (*field_values)[pf_idx_min].y;
                 path_length += sqrt(pow(px - path_.back().position.x,2) + pow(py - path_.back().position.y,2));
                 center_row  = (*field_values)[pf_idx_min].row;
                 center_col  = (*field_values)[pf_idx_min].col;
-                J_min_pre   = J_min;
+                // バグ3: elseブランチから来た場合はJ_min_preを上書きしない（elseブランチ内で逃走点のポテンシャルを設定済み）
+                if (!came_from_local_minimum_escape) {
+                    J_min_pre   = J_min;
+                }
+                came_from_local_minimum_escape = false;
                 x_pre       = px;
                 y_pre       = py;
                 theta_pre   = atan2(py-path_.back().position.y,px-path_.back().position.x);
                 //経路点が2連続で同じ場所の場合処理を終わらせる
                 Pose p{px,py};
-                if ((p == path_.end()[-1] && p == path_.end()[-2])) break;
+                // バグ1: path_.size() < 2 のときpath_.end()[-2]は未定義動作になるためガードを追加
+                if (path_.size() >= 2 && p == path_.end()[-1] && p == path_.end()[-2]) break;
 
                 if ((p.position - path_.back().position).norm()>0.1)
                 {
@@ -359,7 +392,19 @@ namespace potbot_lib{
 
                 path_.push_back(Pose{px, py});
                 (*field_values)[pf_idx_min].states[potential::GridInfo::IS_PLANNED_PATH] = true;
-                
+
+                // バグ5: ゴールに近づかない連続ステップが続く場合はbreakしてループを防ぐ
+                {
+                    double current_dist_to_goal = sqrt(pow(px - goal.x, 2) + pow(py - goal.y, 2));
+                    if (current_dist_to_goal >= prev_dist_to_goal) {
+                        no_progress_count++;
+                    } else {
+                        no_progress_count = 0;
+                    }
+                    prev_dist_to_goal = current_dist_to_goal;
+                    if (no_progress_count >= no_progress_limit) break;
+                }
+
             }
             return true;
         }
