@@ -2,8 +2,12 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## ブランチルール（potbot_core固有）
+- マージ先は `humble` ブランチ（`main` ではない）。
+
 ## ドキュメント
 `docs/` に格納されている。
+コードに変更を加える場合はドキュメントを作成し、内容をコードと一致させる。
 
 ## パッケージ構成
 
@@ -103,7 +107,3 @@ docker-compose up potbot
 - `potbot_ros` の各クラスは `rclcpp_lifecycle::LifecycleNode` を継承
 - Nav2 プラグインは `pluginlib` 経由でロード（`pluginlib_export_plugin_description_file` マクロ使用）
 - ビヘイビアツリーノードは Action Server + BT Node + Nav2 Plugin の3層構造
-
-## ブランチルール（potbot_core固有）
-
-マージ先は `humble` ブランチ（`main` ではない）。
