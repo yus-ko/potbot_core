@@ -96,7 +96,7 @@ def create_figure(odom_data, cmd_vel_data):
     odom_timestamps, odom_xs, odom_ys = odom_data
     cmd_vel_timestamps, cmd_vel_linear_xs, cmd_vel_angular_zs = cmd_vel_data
 
-    fig, axes = plt.subplots(3, 1, figsize=(10, 12))
+    fig, axes = plt.subplots(3, 1, figsize=(10, 12), constrained_layout=True)
 
     # パネル1: XY軌跡プロット
     ax_xy = axes[0]
@@ -127,7 +127,6 @@ def create_figure(odom_data, cmd_vel_data):
     ax_ang.grid(True)
     ax_ang.set_title('Angular Velocity (cmd_vel)')
 
-    plt.tight_layout()
     return fig
 
 
