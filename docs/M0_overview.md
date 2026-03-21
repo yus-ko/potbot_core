@@ -55,19 +55,32 @@ potbot_core は ROS 1 (Melodic) から ROS 2 (Humble) へ移行中のロボッ�
 
 ### テスト対象クラス（T-001）
 
-| クラス | テストファイル | テスト件数 |
-|---|---|---|
-| `Utility` (Point/Pose/関数群) | `test_utility.cpp` | 27件 |
-| `DiffDriveAgent` | `test_diff_drive_agent.cpp` | 17件 |
-| `PID` | `test_pid.cpp` | 16件 |
-| `Field` | `test_field.cpp` | 20件 |
-| `ArtificialPotentialField` | `test_artificial_potential_field.cpp` | 19件 |
-| `ApfPathPlanner` | `test_apf_path_planner.cpp` | 11件 |
-| **合計** | 6ファイル | **116件** |
+| クラス | 継承関係 | テストファイル | テスト件数 |
+|---|---|---|---|
+| `Utility` (Point/Pose/関数群) | — | `test_utility.cpp` | 27件 |
+| `DiffDriveAgent` | — | `test_diff_drive_agent.cpp` | 17件 |
+| `PID` | `DiffDriveAgent` を継承 | `test_pid.cpp` | 16件 |
+| `Field` | — | `test_field.cpp` | 20件 |
+| `ArtificialPotentialField` | `Field` を継承 | `test_artificial_potential_field.cpp` | 19件 |
+| `ApfPathPlanner` | — | `test_apf_path_planner.cpp` | 11件 |
+| **合計** | | 6ファイル | **116件** |
+
+### クラス継承階層
+
+`potbot_lib` のコアクラスは以下の継承関係を持つ：
+
+```
+DiffDriveAgent
+├─ PID（PID制御器）
+└─ OptimalPathFollower（最適経路追従制御）
+
+potential::Field
+└─ ArtificialPotentialField（APFアルゴリズム）
+```
 
 ### 未テストクラス（スコープ外）
 
-- `OptimalPathFollower`: 経路追従制御器（複雑な依存関係のため今回は対象外）
+- `OptimalPathFollower`（`DiffDriveAgent` を継承）: 経路追従制御器（複雑な依存関係のため今回は対象外）
 - `Interpolate`: Bezier曲線ユーティリティ関数群（今後のマイルストーンで対応予定）
 
 ---
