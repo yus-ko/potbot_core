@@ -156,6 +156,7 @@ if(BUILD_TESTING)
   target_link_libraries(test_apf_param ${TEST_LIBS})
 
   add_subdirectory(test/integration)
+  add_subdirectory(test/regression)
 endif()
 
 ament_package()
