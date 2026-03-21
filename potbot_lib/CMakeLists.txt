@@ -124,6 +124,36 @@ if(BUILD_TESTING)
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   )
   target_link_libraries(test_interpolate ${TEST_LIBS})
+
+  ament_add_gtest(test_diff_drive_agent_param test/test_diff_drive_agent_param.cpp)
+  target_include_directories(test_diff_drive_agent_param PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  )
+  target_link_libraries(test_diff_drive_agent_param ${TEST_LIBS})
+
+  ament_add_gtest(test_pid_param test/test_pid_param.cpp)
+  target_include_directories(test_pid_param PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  )
+  target_link_libraries(test_pid_param ${TEST_LIBS})
+
+  ament_add_gtest(test_apf_path_planner_param test/test_apf_path_planner_param.cpp)
+  target_include_directories(test_apf_path_planner_param PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  )
+  target_link_libraries(test_apf_path_planner_param ${TEST_LIBS})
+
+  ament_add_gtest(test_field_param test/test_field_param.cpp)
+  target_include_directories(test_field_param PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  )
+  target_link_libraries(test_field_param ${TEST_LIBS})
+
+  ament_add_gtest(test_apf_param test/test_apf_param.cpp)
+  target_include_directories(test_apf_param PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  )
+  target_link_libraries(test_apf_param ${TEST_LIBS})
 endif()
 
 ament_package()
