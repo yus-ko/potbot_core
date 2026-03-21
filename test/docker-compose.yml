@@ -68,15 +68,21 @@ services:
     profiles: [test]
     <<: *common_setting
     container_name: colcon-test
+    environment:
+      ROS_DISTRO: humble
+      TURTLEBOT3_MODEL: waffle_pi
     volumes:
       - ../../../:/root/ros2_ws
     # entrypoint.sh は install/setup.bash を事前に source するため上書き
     entrypoint: /bin/bash
+    # potbot_example は Gazebo が必要な E2E テストのみのためスキップ
+    # 古いテスト結果を削除してから実行することで test-result に混入しない
     command: >
-      -c "source /opt/ros/$ROS_DISTRO/setup.bash
+      -c "source /opt/ros/humble/setup.bash
       && cd /root/ros2_ws
       && colcon build
       && source install/setup.bash
-      && colcon test
+      && rm -rf build/potbot_example/test_results build/potbot_example/Testing
+      && colcon test --packages-skip potbot_example
       && colcon test-result --verbose"
 
