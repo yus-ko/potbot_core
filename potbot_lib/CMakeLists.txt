@@ -124,6 +124,18 @@ if(BUILD_TESTING)
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   )
   target_link_libraries(test_interpolate ${TEST_LIBS})
+
+  ament_add_gtest(test_optimal_path_follower_param test/test_optimal_path_follower_param.cpp)
+  target_include_directories(test_optimal_path_follower_param PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  )
+  target_link_libraries(test_optimal_path_follower_param ${TEST_LIBS})
+
+  ament_add_gtest(test_interpolate_param test/test_interpolate_param.cpp)
+  target_include_directories(test_interpolate_param PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  )
+  target_link_libraries(test_interpolate_param ${TEST_LIBS})
 endif()
 
 ament_package()
