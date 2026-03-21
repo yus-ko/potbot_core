@@ -14,7 +14,9 @@
 
 `OptimalPathFollower` および `Interpolate` クラスに対して `TEST_P` パラメータ化テストを追加した。
 
-- `OptimalPathFollower`: 経路長・最適化手法・目標方向の各観点をパラメータ化し、到達判定・速度制限・コマンド出力を検証
+`OptimalPathFollower` は `DiffDriveAgent` を継承しており、親クラスの運動モデルを利用して最適経路追従の速度コマンドを計算する。
+
+- `OptimalPathFollower`（`DiffDriveAgent` を継承）: 経路長・最適化手法・目標方向の各観点をパラメータ化し、到達判定・速度制限・コマンド出力を検証
 - `Interpolate`: Bezier曲線（Vector2d版・Pose版）および線形補間の出力点数・制御点数を変えた多値検証
 
 ---

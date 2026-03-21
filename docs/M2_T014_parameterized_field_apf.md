@@ -14,8 +14,10 @@
 
 `Field` および `ArtificialPotentialField` クラスに対して `TEST_P` パラメータ化テストを追加した。
 
+`ArtificialPotentialField` は `Field` を継承しており、親クラスのグリッド管理機能の上に引力・斥力ポテンシャル計算を実装する。
+
 - `Field`: グリッドサイズ・解像度・境界インデックス・フィールド情報（IS_OBSTACLE 等）の各観点を複数パラメータセットで検証
-- `ArtificialPotentialField`: ゲイン組み合わせ・引力ゲインスケール比較・障害物距離（dtr）閾値・ゴール位置・複数障害物の各観点を検証
+- `ArtificialPotentialField`（`Field` を継承）: ゲイン組み合わせ・引力ゲインスケール比較・障害物距離（dtr）閾値・ゴール位置・複数障害物の各観点を検証
 
 ---
 

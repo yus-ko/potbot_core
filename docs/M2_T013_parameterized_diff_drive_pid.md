@@ -14,8 +14,10 @@
 
 `DiffDriveAgent` および `PID` クラスに対して Google Test の `TEST_P` マクロを使用したパラメータ化テストを追加した。
 
+`PID` は `DiffDriveAgent` を継承しており、親クラスの運動モデル（位置・速度状態・`update()` メソッド等）を利用して PID 制御コマンドを計算する。
+
 - `DiffDriveAgent`: 速度・角速度・タイムステップの組み合わせによる `update()` の数値検証、距離・角度計算の多方向検証
-- `PID`: 速度リミットクランプ、到達判定、ゲイン収束特性、`initPID()` 状態リセットの各観点をパラメータ化
+- `PID`（`DiffDriveAgent` を継承）: 速度リミットクランプ、到達判定、ゲイン収束特性、`initPID()` 状態リセットの各観点をパラメータ化
 
 各テストは `INSTANTIATE_TEST_SUITE_P` で具体値を注入し、テストロジックは1つの `TEST_P` 関数として記述する Navigation 2 スタイルを採用した。
 

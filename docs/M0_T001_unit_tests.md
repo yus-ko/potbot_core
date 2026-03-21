@@ -18,7 +18,16 @@
 
 ---
 
-## 2. テストファイル構成
+## 2. クラス継承階層
+
+クラス階層の詳細は `M0_overview.md` の「クラス継承階層」セクションを参照。主な継承関係は以下の通り：
+
+- `PID` および `OptimalPathFollower` は `DiffDriveAgent` を継承
+- `ArtificialPotentialField` は `potential::Field` を継承
+
+---
+
+## 3. テストファイル構成
 
 | ファイル | 行数 | テストケース数 | 対象クラス |
 |---|---|---|---|
@@ -32,9 +41,9 @@
 
 ---
 
-## 3. 各クラスのテスト仕様
+## 4. 各クラスのテスト仕様
 
-### 3.1 `Point` / `Pose` 構造体 (test_utility.cpp)
+### 4.1 `Point` / `Pose` 構造体 (test_utility.cpp)
 
 #### テストスイート: `PointTest`
 
@@ -80,7 +89,9 @@
 
 ---
 
-### 3.2 `DiffDriveAgent` (test_diff_drive_agent.cpp)
+### 4.2 `DiffDriveAgent` (test_diff_drive_agent.cpp)
+
+`DiffDriveAgent` は差動駆動ロボットの運動モデルを実装する基底クラスである。`PID` および `OptimalPathFollower` がこのクラスを継承する。
 
 #### テストスイート: `DiffDriveAgentTest`
 
@@ -106,7 +117,7 @@
 
 ---
 
-### 3.3 `PID` (test_pid.cpp)
+### 4.3 `PID` (test_pid.cpp)（`DiffDriveAgent` を継承）
 
 #### テストスイート: `PIDTest`
 
@@ -131,7 +142,9 @@
 
 ---
 
-### 3.4 `Field` (test_field.cpp)
+### 4.4 `Field` (test_field.cpp)
+
+`Field` はポテンシャルフィールドのグリッド管理を行う基底クラスである。`ArtificialPotentialField` がこのクラスを継承する。
 
 #### テストスイート: `FieldTest`
 
@@ -161,7 +174,7 @@
 
 ---
 
-### 3.5 `ArtificialPotentialField` (test_artificial_potential_field.cpp)
+### 4.5 `ArtificialPotentialField` (test_artificial_potential_field.cpp)（`Field` を継承）
 
 #### テストスイート: `APFTest`
 
@@ -189,7 +202,7 @@
 
 ---
 
-### 3.6 `APFPathPlanner` (test_apf_path_planner.cpp)
+### 4.6 `APFPathPlanner` (test_apf_path_planner.cpp)
 
 #### テストスイート: `APFPathPlannerTest`
 
@@ -209,7 +222,7 @@
 
 ---
 
-## 4. テストコマンド
+## 5. テストコマンド
 
 ### ビルド（テスト有効化）
 
@@ -243,7 +256,7 @@ ctest --test-dir build/potbot_lib --output-on-failure
 
 ---
 
-## 5. テストカバレッジ状況
+## 6. テストカバレッジ状況
 
 ### テスト済みクラス
 
@@ -262,14 +275,14 @@ ctest --test-dir build/potbot_lib --output-on-failure
 
 | クラス | 実装ファイル | 行数目安 | 備考 |
 |---|---|---|---|
-| `OptimalPathFollower` | `src/optimal_path_follower.cpp` | 327 行 | 経路追従制御器 |
+| `OptimalPathFollower` | `src/optimal_path_follower.cpp` | 327 行 | 経路追従制御器（`DiffDriveAgent` を継承） |
 | `Interpolate` | `src/interpolate.cpp` | 150 行以上 | Bezier 曲線ユーティリティ |
 
 > `Interpolate` については `APFPathPlanner` の `bezier()` テストを通じて間接的に検証されているが、直接テストは行われていない。
 
 ---
 
-## 6. 使用したテストパターン
+## 7. 使用したテストパターン
 
 ### アサーションマクロ
 
@@ -298,7 +311,7 @@ ctest --test-dir build/potbot_lib --output-on-failure
 
 ---
 
-## 7. CMakeLists.txt テスト設定
+## 8. CMakeLists.txt テスト設定
 
 `potbot_lib/CMakeLists.txt` に以下の設定が追加された：
 
@@ -325,13 +338,13 @@ endif()
 
 ---
 
-## 8. 今後の課題
+## 9. 今後の課題
 
 ### 未テストクラスへの対応
 
-1. **`OptimalPathFollower` のユニットテスト追加**
+1. **`OptimalPathFollower` のユニットテスト追加**（`DiffDriveAgent` を継承）
    - 経路追従制御器であり、速度コマンド出力・目標収束・制限適用を検証する必要がある
-   - `DiffDriveAgent` と組み合わせた統合テストも検討
+   - `DiffDriveAgent` を継承しているため、親クラスの運動モデルを活用した統合テストも検討
 
 2. **`Interpolate` のユニットテスト追加**
    - Bezier 曲線補間の数値精度を独立したテストで検証
