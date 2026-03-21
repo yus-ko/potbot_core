@@ -47,4 +47,30 @@ services:
       - ./:/root/test
     entrypoint: /entrypoint.sh
     command: ros2 launch /root/test/turtlebot3_navigation.launch.py use_sim_time:=true
-    
+
+  nav-test:
+    <<: *common_setting
+    container_name: nav-test
+    environment:
+      <<: *common_environment
+      ROS_DOMAIN_ID: 1
+    depends_on:
+      - potbot
+    volumes:
+      - ../../../:/root/ros2_ws
+      - ./entrypoint.sh:/entrypoint.sh
+      - ./:/root/test
+    entrypoint: /entrypoint.sh
+    # Nav2 の起動完了（約30秒）を待ってからテストを実行
+    command: bash -c "sleep 30 && bash /root/test/run_navigation_test.sh"
+
+  colcon-test:
+    profiles: [test]
+    <<: *common_setting
+    container_name: colcon-test
+    volumes:
+      - ../../../:/root/ros2_ws
+      - ./entrypoint.sh:/entrypoint.sh
+    entrypoint: /entrypoint.sh
+    command: bash -c "cd /root/ros2_ws && colcon build && colcon test && colcon test-result --verbose"
+
