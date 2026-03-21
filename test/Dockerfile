@@ -12,6 +12,8 @@ RUN apt update && apt install -y \
     ros-humble-pcl-* \
     && rm -rf /var/lib/apt/lists/*
 
+RUN pip3 install rosbags matplotlib numpy
+
 RUN echo "source /opt/ros/humble/setup.bash" >> /root/.bashrc && \
     echo "source /root/ros2_ws/install/setup.bash" >> /root/.bashrc && \
     echo "source /usr/share/colcon_argcomplete/hook/colcon-argcomplete.bash" >> /root/.bashrc
