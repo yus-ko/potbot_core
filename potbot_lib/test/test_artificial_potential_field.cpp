@@ -300,6 +300,172 @@ TEST(APFTest, SetParams)
     EXPECT_DOUBLE_EQ(apf.getDistanceThresholdRepulsionField(), 0.5);
 }
 
+// ============================================================
+// 複数障害物での斥力干渉テスト
+// ============================================================
+
+TEST(APFTest, MultipleObstaclesCreateRepulsionAtAllLocations)
+{
+    // 3つの障害物を設置してcreateObstacle()後、
+    // 3箇所すべてに斥力フィールドが存在すること
+    // 11x11, res=1.0, wa=0.0, wr=1.0, dtr=2.0, origin=(0,0)
+    ArtificialPotentialField apf(11, 11, 1.0, 0.0, 1.0, 2.0, 0.0, 0.0);
+
+    apf.setObstacle(-3.0, 0.0);
+    apf.setObstacle(0.0, 0.0);
+    apf.setObstacle(3.0, 0.0);
+    apf.createPotentialField();
+
+    auto* values = apf.getValues();
+
+    // 各障害物付近（距離 < 1.0）に斥力が存在するか確認
+    bool repulsion_near_obs1 = false;
+    bool repulsion_near_obs2 = false;
+    bool repulsion_near_obs3 = false;
+
+    for (const auto& v : (*values))
+    {
+        double dist1 = std::hypot(v.x - (-3.0), v.y - 0.0);
+        double dist2 = std::hypot(v.x - 0.0,   v.y - 0.0);
+        double dist3 = std::hypot(v.x - 3.0,   v.y - 0.0);
+
+        if (dist1 > 0.0 && dist1 < 1.0 && v.repulsion > 0.0) repulsion_near_obs1 = true;
+        if (dist2 > 0.0 && dist2 < 1.0 && v.repulsion > 0.0) repulsion_near_obs2 = true;
+        if (dist3 > 0.0 && dist3 < 1.0 && v.repulsion > 0.0) repulsion_near_obs3 = true;
+    }
+
+    EXPECT_TRUE(repulsion_near_obs1) << "障害物1付近に斥力が存在すべき";
+    EXPECT_TRUE(repulsion_near_obs2) << "障害物2付近に斥力が存在すべき";
+    EXPECT_TRUE(repulsion_near_obs3) << "障害物3付近に斥力が存在すべき";
+}
+
+// ============================================================
+// clearObstacles() 後の斥力ゼロ確認
+// ============================================================
+
+TEST(APFTest, ClearObstaclesThenRepulsionIsZero)
+{
+    // 障害物を設置してcreateObstacle()後、clearObstacles()して
+    // createPotentialField()を再実行すると斥力がゼロになること
+    // 11x11, res=1.0, wa=0.0, wr=1.0, dtr=3.0, origin=(0,0)
+    ArtificialPotentialField apf(11, 11, 1.0, 0.0, 1.0, 3.0, 0.0, 0.0);
+
+    apf.setObstacle(0.0, 0.0);
+    apf.createPotentialField();
+
+    // 障害物をクリアして再計算
+    apf.clearObstacles();
+    apf.createPotentialField();
+
+    auto* values = apf.getValues();
+    for (const auto& v : (*values))
+    {
+        EXPECT_DOUBLE_EQ(v.repulsion, 0.0) << "clearObstacles()後は斥力がゼロであるべき";
+    }
+}
+
+// ============================================================
+// setParams() でweight変更後のポテンシャル変化テスト
+// ============================================================
+
+TEST(APFTest, SetParamsWeightAttractionAffectsPotential)
+{
+    // wa=1.0 と wa=2.0 で同じゴール位置の吸引ポテンシャルを比較し、
+    // wa=2.0 の方が大きいこと
+    // 11x11, res=1.0, origin=(0,0)
+    ArtificialPotentialField apf1(11, 11, 1.0, 1.0, 0.0, 100.0, 0.0, 0.0);
+    ArtificialPotentialField apf2(11, 11, 1.0, 2.0, 0.0, 100.0, 0.0, 0.0);
+
+    apf1.setGoal(0.0, 0.0);
+    apf1.createPotentialField();
+
+    apf2.setGoal(0.0, 0.0);
+    apf2.createPotentialField();
+
+    // ゴールから離れた点（距離 > 2.0）での吸引ポテンシャルを比較
+    auto* values1 = apf1.getValues();
+    auto* values2 = apf2.getValues();
+    ASSERT_EQ(values1->size(), values2->size());
+
+    bool found_larger = false;
+    for (size_t i = 0; i < values1->size(); ++i)
+    {
+        double dist = std::hypot((*values1)[i].x, (*values1)[i].y);
+        if (dist > 2.0)
+        {
+            // wa=2.0 の方が吸引ポテンシャルが大きいはず
+            EXPECT_GT((*values2)[i].attraction, (*values1)[i].attraction)
+                << "wa=2.0の吸引ポテンシャルはwa=1.0より大きいべき (dist=" << dist << ")";
+            found_larger = true;
+        }
+    }
+    EXPECT_TRUE(found_larger) << "距離 > 2.0 のグリッドが少なくとも1つ存在すべき";
+}
+
+// ============================================================
+// initPotentialField() での再初期化テスト
+// ============================================================
+
+TEST(APFTest, InitPotentialFieldResetsToZero)
+{
+    // 一度createPotentialField()後にinitPotentialField()を呼ぶと
+    // ポテンシャルが0にリセットされること
+    ArtificialPotentialField apf(7, 7, 1.0, 1.0, 1.0, 2.0, 0.0, 0.0);
+
+    apf.setGoal(0.0, 0.0);
+    apf.setObstacle(2.0, 0.0);
+    apf.createPotentialField();
+
+    // 再初期化
+    apf.initPotentialField(7, 7, 1.0, 0.0, 0.0);
+
+    auto* values = apf.getValues();
+    for (const auto& v : (*values))
+    {
+        EXPECT_DOUBLE_EQ(v.potential,  0.0) << "initPotentialField()後はpotentialが0であるべき";
+        EXPECT_DOUBLE_EQ(v.attraction, 0.0) << "initPotentialField()後はattractionが0であるべき";
+        EXPECT_DOUBLE_EQ(v.repulsion,  0.0) << "initPotentialField()後はrepulsionが0であるべき";
+    }
+}
+
+// ============================================================
+// Robot == Goal 位置でのクラッシュなしテスト
+// ============================================================
+
+TEST(APFTest, RobotAndGoalSamePositionNoCrash)
+{
+    // setRobot(0,0)とsetGoal(0,0)で同じ位置にしても
+    // createPotentialField()がクラッシュしないこと
+    ArtificialPotentialField apf(7, 7, 1.0, 1.0, 1.0, 2.0, 0.0, 0.0);
+
+    apf.setRobot(0.0, 0.0);
+    apf.setGoal(0.0, 0.0);
+    apf.setObstacle(1.0, 0.0);
+
+    // クラッシュしないことを確認
+    EXPECT_NO_THROW(apf.createPotentialField());
+}
+
+// ============================================================
+// searchFieldInfo(IS_REPULSION_FIELD_INSIDE) テスト
+// ============================================================
+
+TEST(APFTest, SearchRepulsionFieldInsideDetected)
+{
+    // 障害物を設置してcreateObstacle()後、
+    // IS_REPULSION_FIELD_INSIDEが1つ以上検出されること
+    // 11x11, res=1.0, wa=0.0, wr=1.0, dtr=3.0, origin=(0,0)
+    ArtificialPotentialField apf(11, 11, 1.0, 0.0, 1.0, 3.0, 0.0, 0.0);
+
+    apf.setObstacle(0.0, 0.0);
+    apf.createPotentialField();
+
+    std::vector<size_t> result;
+    apf.searchFieldInfo(result, GridInfo::IS_REPULSION_FIELD_INSIDE);
+
+    EXPECT_GE(result.size(), 1u) << "IS_REPULSION_FIELD_INSIDEが少なくとも1つ検出されるべき";
+}
+
 int main(int argc, char **argv)
 {
     ::testing::InitGoogleTest(&argc, argv);
