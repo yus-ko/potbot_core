@@ -26,6 +26,7 @@ add_library(potbot_ros_utility
   src/utility.cpp
   src/interactive_marker_manager.cpp
   src/artificial_potential_field.cpp
+  src/apf_path_planner.cpp
 )
 
 ament_target_dependencies(potbot_ros_utility

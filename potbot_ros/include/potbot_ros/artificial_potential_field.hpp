@@ -39,6 +39,7 @@ namespace potbot_lib{
             void initPotentialField();
 
             ArtificialPotentialField* getApf();
+            rclcpp_lifecycle::LifecycleNode::SharedPtr getNode();
 
             void setFrameIdGlobal(std::string frame_id);
             std::string getFrameIdGlobal();

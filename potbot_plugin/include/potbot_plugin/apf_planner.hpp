@@ -15,6 +15,7 @@
 #include "nav2_costmap_2d/costmap_2d_ros.hpp"
 
 #include "potbot_ros/artificial_potential_field.hpp"
+#include "potbot_ros/apf_path_planner.hpp"
 
 namespace potbot_nav
 {

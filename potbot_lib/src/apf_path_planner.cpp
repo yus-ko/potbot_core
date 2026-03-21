@@ -1,4 +1,4 @@
-#include <potbot_lib/apf_path_planner.h>
+#include <potbot_lib/apf_path_planner.hpp>
 
 namespace potbot_lib{
 
@@ -150,7 +150,6 @@ namespace potbot_lib{
                         w_theta                 = 1.0-wu;
                         random_range = (*random_generator_double_)((*random_engine_))*10+1;
                     }
-                    ROS_INFO("[apfpp] pot: %f, pos: %f range: %d", w_theta, j2, random_range);
                 }
                 
                 double px   = (*field_values)[pf_idx_min].x;

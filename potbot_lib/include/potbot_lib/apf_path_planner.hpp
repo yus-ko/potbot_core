@@ -1,9 +1,9 @@
-#ifndef H_APF_PATH_PLANNER_
-#define H_APF_PATH_PLANNER_
+#ifndef HPP_POTBOT_LIB_APF_PATH_PLANNER_
+#define HPP_POTBOT_LIB_APF_PATH_PLANNER_
 
 #include <random>
-#include <potbot_lib/utility.h>
-#include <potbot_lib/artificial_potential_field.h>
+#include <potbot_lib/utility.hpp>
+#include <potbot_lib/artificial_potential_field.hpp>
 
 namespace potbot_lib{
 
@@ -46,4 +46,4 @@ namespace potbot_lib{
     }
 }
 
-#endif	// H_APF_PATH_PLANNER_
+#endif // HPP_POTBOT_LIB_APF_PATH_PLANNER_

@@ -76,6 +76,7 @@ namespace potbot_nav
       costmap_ros_->getRobotPose(robot_pose);
       const potbot_lib::Point robot = potbot_lib::utility::get_point(robot_pose.pose.position);
       apfros_->getApf()->initPotentialField(50, 50, 0.05, robot.x, robot.y);
+      apfros_->setRobot(robot_pose);
       apfros_->setGoal(goal);
 
       unsigned int rmx, rmy;
@@ -97,9 +98,20 @@ namespace potbot_nav
         }
       }
 
-      
       apfros_->createPotentialField();
       apfros_->publishPotentialField();
+
+      std::shared_ptr<potbot_lib::path_planner::APFPathPlannerROS> planner
+        = std::make_shared<potbot_lib::path_planner::APFPathPlannerROS>(apfros_);
+      planner->createPath();
+      // planner->publishPath();
+      // planner->publishRawPath();
+
+      global_path.poses.clear();
+      planner->getPath(global_path);
+      global_path.header.stamp = node_->now();
+      global_path.header.frame_id = global_frame_;
+      return global_path;
 
       // Checking if the goal and start state is in the global frame
       if (start.header.frame_id != global_frame_)

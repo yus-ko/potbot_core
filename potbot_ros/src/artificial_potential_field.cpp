@@ -75,6 +75,11 @@ namespace potbot_lib{
     {
         return apf_;
     }
+    
+    rclcpp_lifecycle::LifecycleNode::SharedPtr ArtificialPotentialFieldROS::getNode()
+    { 
+        return node_; 
+    }
 
     void ArtificialPotentialFieldROS::setFrameIdGlobal(std::string frame_id)
     {
