@@ -70,7 +70,13 @@ services:
     container_name: colcon-test
     volumes:
       - ../../../:/root/ros2_ws
-      - ./entrypoint.sh:/entrypoint.sh
-    entrypoint: /entrypoint.sh
-    command: bash -c "cd /root/ros2_ws && colcon build && colcon test && colcon test-result --verbose"
+    # entrypoint.sh は install/setup.bash を事前に source するため上書き
+    entrypoint: /bin/bash
+    command: >
+      -c "source /opt/ros/$ROS_DISTRO/setup.bash
+      && cd /root/ros2_ws
+      && colcon build
+      && source install/setup.bash
+      && colcon test
+      && colcon test-result --verbose"
 
