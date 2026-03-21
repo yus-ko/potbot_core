@@ -68,7 +68,7 @@ M0 では `potbot_lib` の主要6クラスに対して合計 116 件のユニッ
 | `potbot_lib/test/test_field.cpp` | 追加 | 20件 | 26件 | +6件 |
 | `potbot_lib/test/test_artificial_potential_field.cpp` | 追加 | 19件 | 25件 | +6件 |
 | `potbot_lib/test/test_apf_path_planner.cpp` | 追加 | 11件 | 16件 | +5件 |
-| **合計** | | **110件** | **202件** | **+92件** |
+| **合計** | | **116件** | **208件** | **+92件** |
 
 ---
 
