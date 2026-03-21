@@ -13,7 +13,9 @@ test/
 ├── turtlebot3_navigation.launch.py  # Nav2 起動ランチファイル
 ├── navigation2.rviz             # RViz 設定
 ├── run_navigation_test.sh       # E2E ナビゲーションテストスクリプト
-└── test_navigation_pipeline.py  # launch_testing ベースの E2E テスト
+├── analyze_rosbag.py            # rosbag 解析・可視化スクリプト
+├── test_navigation_pipeline.py  # launch_testing ベースの E2E テスト
+└── results/                     # テスト結果出力ディレクトリ（gitignore）
 ```
 
 ---
@@ -166,6 +168,44 @@ docker compose --profile test up colcon-test
 ```bash
 docker compose logs colcon-test
 ```
+
+---
+
+## 5. rosbag 記録と解析
+
+E2E ナビゲーションテストでは、テスト中のトピックデータを rosbag2 で自動記録し、テスト完了後に解析・可視化を行います。
+
+### 自動記録（run_navigation_test.sh）
+
+`run_navigation_test.sh` を実行すると、以下のトピックが自動的に記録されます：
+
+| トピック | 内容 |
+|---------|------|
+| `/odom` | オドメトリ（ロボットの位置・速度） |
+| `/cmd_vel` | 速度指令 |
+| `/scan` | LiDAR スキャンデータ |
+| `/tf` | 座標変換 |
+| `/tf_static` | 静的座標変換 |
+
+記録データは `/root/test/results/rosbag2` に保存されます。
+
+### 解析結果の見方
+
+テスト完了後、解析スクリプト (`analyze_rosbag.py`) が自動実行され、以下のファイルが生成されます：
+
+- **`results/navigation_result.png`** — ナビゲーション軌跡と速度プロファイルの可視化グラフ
+
+### 手動で解析を実行する
+
+Docker Compose の `analysis` プロファイルを使用して、既存の rosbag データに対して手動で解析を実行できます：
+
+```bash
+cd /home/rtx3090/potbot/ros2_ws/src/potbot_core/test
+
+docker compose --profile analysis run --rm rosbag-analysis
+```
+
+解析結果は `test/results/` ディレクトリに出力されます。
 
 ---
 
