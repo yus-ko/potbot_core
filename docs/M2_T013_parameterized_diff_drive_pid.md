@@ -84,7 +84,7 @@
 
 `PID::reachedTarget()` がマージン内外で正しい真偽値を返すことを検証する。ロボットは原点（デフォルト）。
 
-| # | target (x, y) | margin_dist | margin_angle | expected | 説明 |
+| # | target (x, y) | stop_margin_distance | stop_margin_angle | expected | 説明 |
 |---|---|---|---|---|---|
 | 0 | (0, 0) | 0.03 | 0.1 | true | ロボット=ゴール |
 | 1 | (10, 10) | 0.03 | 0.1 | false | マージン外 |
