@@ -77,7 +77,7 @@ services:
       - ./entrypoint.sh:/entrypoint.sh
       - ./:/root/test
     entrypoint: /entrypoint.sh
-    command: ros2 bag record -o /root/test/results/rosbag2 /odom /cmd_vel /scan /tf /tf_static
+    command: ros2 bag record -o /root/test/results/rosbag2 /odom /cmd_vel /scan /tf /tf_static /plan
 
   rosbag-analysis:
     profiles: [analysis]
