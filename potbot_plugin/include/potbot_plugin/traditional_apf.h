@@ -1,5 +1,6 @@
-#ifndef H_POTBOT_NAV_TRADITIONAL_APF_
-#define H_POTBOT_NAV_TRADITIONAL_APF_
+// Copyright 2024 potbot
+#ifndef POTBOT_PLUGIN__TRADITIONAL_APF_H_
+#define POTBOT_PLUGIN__TRADITIONAL_APF_H_
 
 #include <potbot_lib/pid.h>
 #include <potbot_base/base_controller.h>
@@ -10,57 +11,61 @@
 #include <visualization_msgs/MarkerArray.h>
 #include <sensor_msgs/LaserScan.h>
 
+#include <string>
+#include <vector>
+
 namespace potbot_nav
 {
-    namespace controller
+  namespace controller
+  {
+    typedef struct
     {
-        typedef struct
-        {
-            Eigen::Vector2d attraction, repulsion, potential;
-        } PotentialVector;
+      Eigen::Vector2d attraction, repulsion, potential;
+    } PotentialVector;
 
-        class TraditionalAPF : public potbot_base::Controller
-        {
-            private:
-                std::string frame_id_global_ = "map";
-                double weight_attraction_field_ = 0.1;
-                double weight_repulsion_field_ = 0.1;
-                double distance_threshold_repulsion_field_ = 0.5;
+    class TraditionalAPF: public potbot_base::Controller
+    {
+private:
+      std::string frame_id_global_ = "map";
+      double weight_attraction_field_ = 0.1;
+      double weight_repulsion_field_ = 0.1;
+      double distance_threshold_repulsion_field_ = 0.5;
 
-                double visualization_potential_scale_ = 5;
-                double max_linear_velocity_ = 0.5;
-                double max_angular_velocity_ = 1.0;
+      double visualization_potential_scale_ = 5;
+      double max_linear_velocity_ = 0.5;
+      double max_angular_velocity_ = 1.0;
 
-                ros::Publisher pub_potential_vector_;
-                ros::Subscriber sub_scan_;
+      ros::Publisher pub_potential_vector_;
+      ros::Subscriber sub_scan_;
 
-                PotentialVector potential_;
-                sensor_msgs::LaserScan scan_;
+      PotentialVector potential_;
+      sensor_msgs::LaserScan scan_;
 
-                dynamic_reconfigure::Server<potbot_plugin::TraditionalAPFConfig> *dsrv_;
+      dynamic_reconfigure::Server < potbot_plugin::TraditionalAPFConfig > *dsrv_;
 
-                void reconfigureCB(const potbot_plugin::TraditionalAPFConfig& param, uint32_t level); 
-                void laserScanCallback(const sensor_msgs::LaserScanConstPtr& msg);
+      void reconfigureCB(const potbot_plugin::TraditionalAPFConfig & param, uint32_t level);
+      void laserScanCallback(const sensor_msgs::LaserScanConstPtr & msg);
 
-                Eigen::Vector2d get_visualize_vector(Eigen::Vector2d vec);
+      Eigen::Vector2d get_visualize_vector(Eigen::Vector2d vec);
 
-                void calculatePotential();
-                void publishPotential();
+      void calculatePotential();
+      void publishPotential();
 
-            public:
-                TraditionalAPF(){};
-                ~TraditionalAPF(){};
+public:
+      TraditionalAPF() {
+      }
+      ~TraditionalAPF() {
+      }
 
-                void initialize(std::string name, tf2_ros::Buffer* tf);
-                
-                void calculateCommand(geometry_msgs::Twist& cmd_vel);
-                void setTargetPose(const geometry_msgs::PoseStamped& pose_msg);
-                void setTargetPath(const std::vector<geometry_msgs::PoseStamped>& path_msg);
+      void initialize(std::string name, tf2_ros::Buffer * tf);
 
-                bool reachedTarget();
+      void calculateCommand(geometry_msgs::Twist & cmd_vel);
+      void setTargetPose(const geometry_msgs::PoseStamped & pose_msg);
+      void setTargetPath(const std::vector < geometry_msgs::PoseStamped > & path_msg);
 
-        };
-    }
-}
+      bool reachedTarget();
+    };
+  } // namespace controller
+}  // namespace potbot_nav
 
-#endif	// H_POTBOT_NAV_TRADITIONAL_APF_
+#endif  // POTBOT_PLUGIN__TRADITIONAL_APF_H_

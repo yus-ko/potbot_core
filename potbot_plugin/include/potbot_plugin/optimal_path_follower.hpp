@@ -1,5 +1,6 @@
-#ifndef HPP_POTBOT_NAV_OPTIMAL_PATH_FOLLOWER_
-#define HPP_POTBOT_NAV_OPTIMAL_PATH_FOLLOWER_
+// Copyright 2024 potbot
+#ifndef POTBOT_PLUGIN__OPTIMAL_PATH_FOLLOWER_HPP_
+#define POTBOT_PLUGIN__OPTIMAL_PATH_FOLLOWER_HPP_
 
 #include <string>
 #include <vector>
@@ -17,66 +18,66 @@
 
 namespace potbot_nav
 {
-    namespace controller
-    {
+namespace controller
+{
 
-        class OptimalPathFollower : public nav2_core::Controller
-        {
-        private:
-            potbot_lib::controller::OptimalPathFollower optimizer_;
+class OptimalPathFollower : public nav2_core::Controller
+{
+private:
+  potbot_lib::controller::OptimalPathFollower optimizer_;
 
-        public:
-            OptimalPathFollower() = default;
-            ~OptimalPathFollower() override = default;
+public:
+  OptimalPathFollower() = default;
+  ~OptimalPathFollower() override = default;
 
-            void configure(
-                const rclcpp_lifecycle::LifecycleNode::WeakPtr &parent,
-                std::string name, const std::shared_ptr<tf2_ros::Buffer> tf,
-                const std::shared_ptr<nav2_costmap_2d::Costmap2DROS> costmap_ros) override;
+  void configure(
+    const rclcpp_lifecycle::LifecycleNode::WeakPtr & parent,
+    std::string name, const std::shared_ptr<tf2_ros::Buffer> tf,
+    const std::shared_ptr<nav2_costmap_2d::Costmap2DROS> costmap_ros) override;
 
-            void cleanup() override;
-            void activate() override;
-            void deactivate() override;
-            void setSpeedLimit(const double &speed_limit, const bool &percentage) override;
+  void cleanup() override;
+  void activate() override;
+  void deactivate() override;
+  void setSpeedLimit(const double & speed_limit, const bool & percentage) override;
 
-            geometry_msgs::msg::TwistStamped computeVelocityCommands(
-                const geometry_msgs::msg::PoseStamped &pose,
-                const geometry_msgs::msg::Twist &velocity,
-                nav2_core::GoalChecker *goal_checker) override;
+  geometry_msgs::msg::TwistStamped computeVelocityCommands(
+    const geometry_msgs::msg::PoseStamped & pose,
+    const geometry_msgs::msg::Twist & velocity,
+    nav2_core::GoalChecker * goal_checker) override;
 
-            void setPlan(const nav_msgs::msg::Path &path) override;
+  void setPlan(const nav_msgs::msg::Path & path) override;
 
-        protected:
-            nav_msgs::msg::Path transformGlobalPlan(const geometry_msgs::msg::PoseStamped &pose);
+protected:
+  nav_msgs::msg::Path transformGlobalPlan(const geometry_msgs::msg::PoseStamped & pose);
 
-            bool transformPose(
-                const std::shared_ptr<tf2_ros::Buffer> tf,
-                const std::string frame,
-                const geometry_msgs::msg::PoseStamped &in_pose,
-                geometry_msgs::msg::PoseStamped &out_pose,
-                const rclcpp::Duration &transform_tolerance) const;
+  bool transformPose(
+    const std::shared_ptr<tf2_ros::Buffer> tf,
+    const std::string frame,
+    const geometry_msgs::msg::PoseStamped & in_pose,
+    geometry_msgs::msg::PoseStamped & out_pose,
+    const rclcpp::Duration & transform_tolerance) const;
 
-            rclcpp_lifecycle::LifecycleNode::WeakPtr node_;
-            std::shared_ptr<tf2_ros::Buffer> tf_;
-            std::string plugin_name_;
-            std::shared_ptr<nav2_costmap_2d::Costmap2DROS> costmap_ros_;
-            rclcpp::Logger logger_{rclcpp::get_logger("PurePursuitController")};
-            rclcpp::Clock::SharedPtr clock_;
+  rclcpp_lifecycle::LifecycleNode::WeakPtr node_;
+  std::shared_ptr<tf2_ros::Buffer> tf_;
+  std::string plugin_name_;
+  std::shared_ptr<nav2_costmap_2d::Costmap2DROS> costmap_ros_;
+  rclcpp::Logger logger_{rclcpp::get_logger("PurePursuitController")};
+  rclcpp::Clock::SharedPtr clock_;
 
-            double max_vel_x_;
-            double min_vel_x_;
-            double max_vel_theta_;
-            double sim_time_;
-            double vx_samples_;
-            double vtheta_samples_;
-            double max_iteration_;
-            rclcpp::Duration transform_tolerance_{0, 0};
+  double max_vel_x_;
+  double min_vel_x_;
+  double max_vel_theta_;
+  double sim_time_;
+  double vx_samples_;
+  double vtheta_samples_;
+  double max_iteration_;
+  rclcpp::Duration transform_tolerance_{0, 0};
 
-            nav_msgs::msg::Path global_plan_;
-            std::shared_ptr<rclcpp_lifecycle::LifecyclePublisher<nav_msgs::msg::Path>> global_pub_;
-        };
-    }
+  nav_msgs::msg::Path global_plan_;
+  std::shared_ptr<rclcpp_lifecycle::LifecyclePublisher<nav_msgs::msg::Path>> global_pub_;
+};
+}  // namespace controller
 
-}
+}  // namespace potbot_nav
 
-#endif // HPP_POTBOT_NAV_OPTIMAL_PATH_FOLLOWER_
+#endif  // POTBOT_PLUGIN__OPTIMAL_PATH_FOLLOWER_HPP_

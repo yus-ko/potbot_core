@@ -35,10 +35,8 @@
  * Author: Eitan Marder-Eppstein
  *         David V. Lu!!
  *********************************************************************/
-#ifndef POTBOT_NAV_STATE_LAYER_H_
-#define POTBOT_NAV_STATE_LAYER_H_
-
-#include <regex>
+#ifndef POTBOT_PLUGIN__STATE_LAYER_H_
+#define POTBOT_PLUGIN__STATE_LAYER_H_
 
 #include <ros/ros.h>
 #include <costmap_2d/obstacle_layer.h>
@@ -65,8 +63,6 @@
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 
-#include <opencv2/opencv.hpp>
-#include <opencv2/objdetect.hpp>
 #include <cv_bridge/cv_bridge.h>
 
 #include <geometry_msgs/Polygon.h>
@@ -79,7 +75,14 @@
 #include <potbot_lib/unscented_kalman_filter.h>
 #include <potbot_lib/pcl_clustering.h>
 
-using namespace costmap_2d;
+#include <regex>
+#include <string>
+#include <vector>
+
+#include <opencv2/opencv.hpp>
+#include <opencv2/objdetect.hpp>
+
+using namespace costmap_2d;  // NOLINT
 
 #define KALMAN_FILTER 0
 #define EXTENDED_KALMAN_FILTER 1
@@ -87,87 +90,98 @@ using namespace costmap_2d;
 
 namespace potbot_nav
 {
-    class KalmanFilterROS
+  class KalmanFilterROS
+  {
+public:
+    KalmanFilterROS() {
+    }
+    ~KalmanFilterROS() {
+    }
+    void set_state_estimator(int value);
+    void set_ukf_scaling(double value) {kappa_ = value;}
+    void set_covariances(double q, double r, double p) {sigma_q_ = q; sigma_r_ = r; sigma_p_ = p;}
+    void update(potbot_msgs::ObstacleArray & obstacles);
+
+private:
+    std::vector < int > ukf_id_;
+    std::vector < potbot_lib::KalmanFilter > states_kf_;
+    std::vector < potbot_lib::UnscentedKalmanFilter > states_ukf_;
+
+    double kappa_ = -2;
+    double sigma_q_ = 0.00001;
+    double sigma_r_ = 0.00001;
+    double sigma_p_ = 1;
+    int state_estimator_ = UNSCENTED_KALMAN_FILTER;
+
+    double time_pre_ = -1;
+  };
+
+  class StateLayer: public costmap_2d::Layer
+  {
+public:
+    StateLayer()
     {
-    public:
-        KalmanFilterROS(){};
-        ~KalmanFilterROS(){};
-        void set_state_estimator(int value);
-        void set_ukf_scaling(double value){kappa_=value;};
-        void set_covariances(double q,double r,double p){sigma_q_=q; sigma_r_=r; sigma_p_=p;};
-        void update(potbot_msgs::ObstacleArray& obstacles);
-        
-    private:
-        std::vector<int> ukf_id_;
-        std::vector<potbot_lib::KalmanFilter> states_kf_;
-        std::vector<potbot_lib::UnscentedKalmanFilter> states_ukf_;
+      // costmap_ = NULL; // this is the unsigned char* member of parent class Costmap2D.
+    }
 
-        double kappa_ = -2;
-        double sigma_q_ = 0.00001;
-        double sigma_r_ = 0.00001;
-        double sigma_p_ = 1;
-        int state_estimator_ = UNSCENTED_KALMAN_FILTER;
+    virtual ~StateLayer();
+    virtual void onInitialize();
+    virtual void updateBounds(
+      double origin_x, double origin_y, double origin_yaw, double * min_x,
+      double * min_y, double * max_x, double * max_y);
+    virtual void updateCosts(
+      costmap_2d::Costmap2D & master_grid, int min_i, int min_j, int max_i,
+      int max_j);
 
-        double time_pre_ = -1;
-    };
+    /**
+     * @brief  A callback to handle buffering LaserScan messages
+     * @param message The message returned from a message notifier
+     */
+    void laserScanCallback(const sensor_msgs::LaserScanConstPtr & message);
 
-    class StateLayer : public costmap_2d::Layer
-    {
-    public:
-        StateLayer()
-        {
-            // costmap_ = NULL; // this is the unsigned char* member of parent class Costmap2D.
-        }
+    void pointCloud2Callback(const sensor_msgs::PointCloud2ConstPtr & message);
+    void imageCallback(
+      const sensor_msgs::Image::ConstPtr & rgb_msg,
+      const sensor_msgs::Image::ConstPtr & depth_msg,
+      const sensor_msgs::CameraInfo::ConstPtr & info_msg);
 
-        virtual ~StateLayer();
-        virtual void onInitialize();
-        virtual void updateBounds(double origin_x, double origin_y, double origin_yaw, double* min_x, double* min_y, double* max_x, double* max_y);
-        virtual void updateCosts(costmap_2d::Costmap2D& master_grid, int min_i, int min_j, int max_i, int max_j);
+    void applyCloud(const potbot_msgs::ObstacleArray & obstacles);
 
-        /**
-         * @brief  A callback to handle buffering LaserScan messages
-         * @param message The message returned from a message notifier
-         */
-        void laserScanCallback(const sensor_msgs::LaserScanConstPtr &message);
+protected:
+    virtual void setupDynamicReconfigure(ros::NodeHandle & nh);
 
-        void pointCloud2Callback(const sensor_msgs::PointCloud2ConstPtr& message);
-        void imageCallback(const sensor_msgs::Image::ConstPtr& rgb_msg, const sensor_msgs::Image::ConstPtr& depth_msg, const sensor_msgs::CameraInfo::ConstPtr& info_msg);
+private:
+    std::string global_frame_;
 
-        void applyCloud(const potbot_msgs::ObstacleArray& obstacles);
+    ros::Subscriber sub_scan_, sub_pcl2_, sub_image_;
+    ros::Publisher pub_scan_clustering_, pub_state_marker_, pub_obstacles_scan_estimate_,
+      pub_scan_range_, pub_pcl_clustering_, pub_camera_image_, pub_camera_points_;
+    message_filters::Subscriber < sensor_msgs::Image > sub_rgb_;
+    message_filters::Subscriber < sensor_msgs::Image > sub_depth_;
+    message_filters::Subscriber < sensor_msgs::CameraInfo > sub_info_;
 
-    protected:
-        virtual void setupDynamicReconfigure(ros::NodeHandle &nh);
+    KalmanFilterROS kf_scan_, kf_pcl_, kf_camera_;
 
-    private:
-        std::string global_frame_;
+    bool debug_ = false;
+    double apply_cluster_to_localmap_ = 100;
+    double max_estimated_linear_velocity_ = 100;
+    double max_estimated_angular_velocity_ = 100;
+    double prediction_time_ = 2;
 
-        ros::Subscriber sub_scan_, sub_pcl2_, sub_image_;
-        ros::Publisher pub_scan_clustering_, pub_state_marker_, pub_obstacles_scan_estimate_, pub_scan_range_, pub_pcl_clustering_, pub_camera_image_, pub_camera_points_;
-        message_filters::Subscriber<sensor_msgs::Image> sub_rgb_;
-        message_filters::Subscriber<sensor_msgs::Image> sub_depth_;
-        message_filters::Subscriber<sensor_msgs::CameraInfo> sub_info_;
+    double euclidean_cluster_tolerance_ = 0.5;
+    int euclidean_min_cluster_size_ = 100;
 
-        KalmanFilterROS kf_scan_, kf_pcl_, kf_camera_;
+    pcl::PointCloud < pcl::PointXYZ > scan_cloud_;
 
-        bool debug_ = false;
-        double apply_cluster_to_localmap_ = 100;
-        double max_estimated_linear_velocity_ = 100;
-        double max_estimated_angular_velocity_ = 100;
-        double prediction_time_ = 2;
+    dynamic_reconfigure::Server < potbot_plugin::StatePluginConfig > *dsrv_;
 
-        double euclidean_cluster_tolerance_         = 0.5;
-        int euclidean_min_cluster_size_             = 100;
+    typedef message_filters::sync_policies::ApproximateTime < sensor_msgs::Image,
+      sensor_msgs::Image, sensor_msgs::CameraInfo > MySyncPolicy;
+    boost::shared_ptr < message_filters::Synchronizer < MySyncPolicy >> sync_;
 
-        pcl::PointCloud<pcl::PointXYZ> scan_cloud_;
+    void reconfigureCB(potbot_plugin::StatePluginConfig & config, uint32_t level);
+  };
 
-        dynamic_reconfigure::Server<potbot_plugin::StatePluginConfig> *dsrv_;
+}  // namespace potbot_nav
 
-        typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Image, sensor_msgs::CameraInfo> MySyncPolicy;
-        boost::shared_ptr<message_filters::Synchronizer<MySyncPolicy>> sync_;
-
-        void reconfigureCB(potbot_plugin::StatePluginConfig &config, uint32_t level);
-    };
-
-} // namespace potbot_nav
-
-#endif // POTBOT_NAV_STATE_LAYER_H_
+#endif  // POTBOT_PLUGIN__STATE_LAYER_H_

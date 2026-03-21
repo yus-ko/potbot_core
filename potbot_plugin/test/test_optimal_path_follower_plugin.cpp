@@ -1,3 +1,4 @@
+// Copyright 2024 potbot
 /**
  * @file test_optimal_path_follower_plugin.cpp
  * @brief potbot_nav::controller::OptimalPathFollower クラスのユニットテスト
@@ -42,7 +43,8 @@ public:
 TEST_F(OptimalPathFollowerPluginTest, ConstructorNoThrow)
 {
   // OptimalPathFollower オブジェクトをデフォルト構築できることを確認する
-  EXPECT_NO_THROW({
+  EXPECT_NO_THROW(
+  {
     potbot_nav::controller::OptimalPathFollower controller;
   });
 }
@@ -54,7 +56,8 @@ TEST_F(OptimalPathFollowerPluginTest, ConstructorNoThrow)
 TEST_F(OptimalPathFollowerPluginTest, InstanceIsValid)
 {
   // ヒープ上でのオブジェクト生成が成功し、nullptr でないことを確認する
-  auto controller = std::make_unique<potbot_nav::controller::OptimalPathFollower>();
+  auto controller =
+    std::make_unique<potbot_nav::controller::OptimalPathFollower>();
   EXPECT_NE(controller, nullptr);
 }
 
@@ -66,7 +69,8 @@ TEST_F(OptimalPathFollowerPluginTest, InheritsControllerInterface)
 {
   // OptimalPathFollower が nav2_core::Controller の派生クラスであることを確認する
   // dynamic_cast が成功すれば継承関係が正しい
-  auto controller = std::make_shared<potbot_nav::controller::OptimalPathFollower>();
+  auto controller =
+    std::make_shared<potbot_nav::controller::OptimalPathFollower>();
   auto base_ptr = std::dynamic_pointer_cast<nav2_core::Controller>(controller);
   EXPECT_NE(base_ptr, nullptr);
 }
@@ -80,7 +84,8 @@ TEST_F(OptimalPathFollowerPluginTest, SetSpeedLimitAbsolute)
   // setSpeedLimit() の実装は引数を無視する no-op であるため
   // configure 前でも安全に呼び出せることを確認する
   potbot_nav::controller::OptimalPathFollower controller;
-  EXPECT_NO_THROW({
+  EXPECT_NO_THROW(
+  {
     controller.setSpeedLimit(0.5, false);
   });
 }
@@ -94,7 +99,8 @@ TEST_F(OptimalPathFollowerPluginTest, SetSpeedLimitPercentage)
   // setSpeedLimit() は percentage フラグを受け取るが、実装は no-op であるため
   // configure 前でも安全に呼び出せることを確認する
   potbot_nav::controller::OptimalPathFollower controller;
-  EXPECT_NO_THROW({
+  EXPECT_NO_THROW(
+  {
     controller.setSpeedLimit(50.0, true);
   });
 }
@@ -105,8 +111,10 @@ TEST_F(OptimalPathFollowerPluginTest, SetSpeedLimitPercentage)
 
 TEST_F(OptimalPathFollowerPluginTest, MultipleInstancesCanBeCreated)
 {
-  // 複数の OptimalPathFollower オブジェクトを同時に生成しても干渉しないことを確認する
-  EXPECT_NO_THROW({
+  // 複数の OptimalPathFollower オブジェクトを同時に生成しても
+  // 干渉しないことを確認する
+  EXPECT_NO_THROW(
+  {
     potbot_nav::controller::OptimalPathFollower controller1;
     potbot_nav::controller::OptimalPathFollower controller2;
     potbot_nav::controller::OptimalPathFollower controller3;
