@@ -124,6 +124,8 @@ if(BUILD_TESTING)
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   )
   target_link_libraries(test_interpolate ${TEST_LIBS})
+
+  add_subdirectory(test/integration)
 endif()
 
 ament_package()
