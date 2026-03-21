@@ -4,12 +4,6 @@
 
 set -e
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-WS_DIR="/home/rtx3090/potbot/ros2_ws"
-
-source /opt/ros/humble/setup.bash
-source "${WS_DIR}/install/setup.bash"
-
 echo "=== Gazebo + Navigation2 E2E テスト ==="
 echo "前提: Gazebo と Navigation2 が起動済みであること"
 echo ""
