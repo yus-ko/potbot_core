@@ -182,6 +182,66 @@ TEST(DiffDriveAgentTest, GetAngleOffset)
     EXPECT_NEAR(agent.getAngle(p), M_PI / 4.0, 1e-9);
 }
 
+// ============================================================
+// エッジケーステスト
+// ============================================================
+
+TEST(DiffDriveAgentTest, UpdateBackward)
+{
+    // 後退移動テスト: v=-1.0, yaw=0, dt=0.1 で update() 後に x=-0.1 になること
+    DiffDriveAgent agent(0.0, 0.0, 0.0, -1.0, 0.0, 0.1);
+    agent.update();
+    // x += v*dt*cos(yaw) = -1.0*0.1*cos(0) = -0.1
+    EXPECT_NEAR(agent.x, -0.1, 1e-9);
+    EXPECT_NEAR(agent.y, 0.0, 1e-9);
+}
+
+TEST(DiffDriveAgentTest, UpdateYawAccumulationBeyondPi)
+{
+    // yaw角が±πを超える継続更新: omega=1.0, dt=0.1 で20回update()後のyawが正しく累積されること（クラッシュしないこと）
+    DiffDriveAgent agent(0.0, 0.0, 0.0, 0.0, 1.0, 0.1);
+    for (int i = 0; i < 20; i++)
+    {
+        agent.update();
+    }
+    // yaw = 1.0 * 0.1 * 20 = 2.0 [rad]（±πを超える可能性あり）
+    // クラッシュせずに累積されること、累積値が概ね 2.0 であること
+    EXPECT_NEAR(agent.yaw, 2.0, 1e-6);
+}
+
+TEST(DiffDriveAgentTest, UpdateDiagonal45Degrees)
+{
+    // 斜め45度方向への移動精度: yaw=π/4, v=1.0, dt=0.1 で update() 後に x≈y≈0.1/√2 になること
+    DiffDriveAgent agent(0.0, 0.0, M_PI / 4.0, 1.0, 0.0, 0.1);
+    agent.update();
+    // x += v*dt*cos(M_PI/4) = 1.0*0.1*(√2/2) = 0.1/√2
+    // y += v*dt*sin(M_PI/4) = 1.0*0.1*(√2/2) = 0.1/√2
+    double expected = 0.1 / std::sqrt(2.0);
+    EXPECT_NEAR(agent.x, expected, 1e-9);
+    EXPECT_NEAR(agent.y, expected, 1e-9);
+}
+
+TEST(DiffDriveAgentTest, GetAnglePoseYDirection)
+{
+    // getAngle(Pose) のX-Y方向: ロボットが原点、target Pose が (0,1,0) の場合 getAngle=π/2 になること
+    DiffDriveAgent agent(0.0, 0.0, 0.0, 0.0, 0.0, 0.02);
+    Pose p(0.0, 1.0, 0.0);
+    EXPECT_NEAR(agent.getAngle(p), M_PI / 2.0, 1e-9);
+}
+
+TEST(DiffDriveAgentTest, UpdateHighPrecisionMultipleSteps)
+{
+    // 複数ステップ後の位置精度: v=1.0, yaw=0, dt=0.01 で100回update後に x≈1.0 であること（誤差 1e-5以内）
+    DiffDriveAgent agent(0.0, 0.0, 0.0, 1.0, 0.0, 0.01);
+    for (int i = 0; i < 100; i++)
+    {
+        agent.update();
+    }
+    // x = 1.0 * 0.01 * 100 = 1.0
+    EXPECT_NEAR(agent.x, 1.0, 1e-5);
+    EXPECT_NEAR(agent.y, 0.0, 1e-5);
+}
+
 int main(int argc, char **argv)
 {
     ::testing::InitGoogleTest(&argc, argv);

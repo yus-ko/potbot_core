@@ -245,6 +245,105 @@ TEST(FieldTest, HeaderWithNonZeroOrigin)
     EXPECT_NEAR(h.y_max, 5.0, 1e-9);   // 4/2+3 = 5
 }
 
+// ============================================================
+// setValue() テスト
+// ============================================================
+
+TEST(FieldTest, SetValueUpdatesGrid)
+{
+    // setValue() で特定インデックスの値を更新し getValue() で取得できること
+    Field field(3, 3, 1.0, 0.0, 0.0);
+    FieldGrid g;
+    g.index = 4;       // 中心セル
+    g.value = 99.0;
+    field.setValue(g);
+    FieldGrid result = field.getValue(static_cast<size_t>(4));
+    EXPECT_EQ(result.index, 4u);
+    EXPECT_DOUBLE_EQ(result.value, 99.0);
+}
+
+// ============================================================
+// setValues() テスト
+// ============================================================
+
+TEST(FieldTest, SetValuesReplacesVector)
+{
+    // setValues() で新しいベクターを設定し getValues() で取得できること
+    Field field(3, 3, 1.0, 0.0, 0.0);
+    auto* original = field.getValues();
+    std::vector<FieldGrid> newvals = *original;  // 同サイズのコピーを作成
+    newvals[0].value = 42.0;
+    newvals[8].value = 84.0;
+    field.setValues(newvals);
+    auto* updated = field.getValues();
+    EXPECT_DOUBLE_EQ((*updated)[0].value, 42.0);
+    EXPECT_DOUBLE_EQ((*updated)[8].value, 84.0);
+}
+
+// ============================================================
+// getFieldCoordinate() テスト
+// ============================================================
+
+TEST(FieldTest, GetFieldCoordinateCenter)
+{
+    // 5x5フィールドのindex=12（中心）で getFieldCoordinate(12) が正しいx,y座標を返すこと
+    // x_shift = -5/2 = -2.5, y_shift = -2.5
+    // index=12 -> row=2, col=2 -> x = 2*1.0 + (-2.5) = -0.5, y = -0.5
+    Field field(5, 5, 1.0, 0.0, 0.0);
+    std::vector<double> coord = field.getFieldCoordinate(12);
+    ASSERT_EQ(coord.size(), 2u);
+    EXPECT_NEAR(coord[0], -0.5, 1e-9);  // x座標
+    EXPECT_NEAR(coord[1], -0.5, 1e-9);  // y座標
+}
+
+// ============================================================
+// setOrigin() テスト
+// ============================================================
+
+TEST(FieldTest, SetOriginAndGetFieldIndex)
+{
+    // setOrigin(1.0, 2.0) 後に getFieldIndex(1.0, 2.0) が中心付近のインデックスを返すこと
+    // origin=(1.0, 2.0), 5x5, resolution=1.0
+    // x_shift = -5/2 + 1.0 = -1.5, y_shift = -5/2 + 2.0 = -0.5
+    // (1.0, 2.0) -> col = (1.0 - (-1.5))/1.0 = 2, row = (2.0 - (-0.5))/1.0 = 2, idx = 2*5+2 = 12
+    Field field(5, 5, 1.0, 0.0, 0.0);
+    field.setOrigin(1.0, 2.0);
+    field.setHeader(5, 5, 1.0);
+    field.initField();
+    size_t idx = field.getFieldIndex(1.0, 2.0);
+    EXPECT_EQ(idx, 12u);
+}
+
+// ============================================================
+// getFieldIndex(Point) テスト
+// ============================================================
+
+TEST(FieldTest, GetFieldIndexByPoint)
+{
+    // getFieldIndex(Point(0.0, 0.0, 0.0)) が5x5フィールドのindex=12を返すこと
+    // origin=(0,0), x_shift=-2.5, y_shift=-2.5
+    // (0,0) -> col=2, row=2, idx=12
+    Field field(5, 5, 1.0, 0.0, 0.0);
+    Point p(0.0, 0.0, 0.0);
+    size_t idx = field.getFieldIndex(p);
+    EXPECT_EQ(idx, 12u);
+}
+
+// ============================================================
+// setHeader() テスト
+// ============================================================
+
+TEST(FieldTest, SetHeaderUpdatesHeaderInfo)
+{
+    // setHeader(7, 7, 0.5) 後に getHeader() が rows=7, cols=7, resolution=0.5 を返すこと
+    Field field(3, 3, 1.0, 0.0, 0.0);
+    field.setHeader(7, 7, 0.5);
+    FieldHeader h = field.getHeader();
+    EXPECT_EQ(h.rows, 7u);
+    EXPECT_EQ(h.cols, 7u);
+    EXPECT_DOUBLE_EQ(h.resolution, 0.5);
+}
+
 int main(int argc, char **argv)
 {
     ::testing::InitGoogleTest(&argc, argv);

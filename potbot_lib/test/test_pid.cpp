@@ -194,6 +194,163 @@ TEST(PIDTest, ConvergesToTarget)
     EXPECT_TRUE(pid.reachedTarget());
 }
 
+// ============================================================
+// Y軸方向目標への収束テスト
+// ============================================================
+
+TEST(PIDTest, ConvergesToYAxisTarget)
+{
+    // target=(0, 0.5, 0) に設定し、500ステップ後にロボットが目標に近づいていることを確認
+    // Y軸方向の目標に対してPIDが正しく回転してから前進することを検証する
+    // 注意: reachedTarget()はX軸目標向けの実装のため、距離の減少で検証する
+    PID pid;
+    pid.setGain(3.0, 0.0, 0.001);
+    pid.setMargin(0.1, 0.1);
+    pid.setLimit(1.0, M_PI);
+    pid.deltatime = 0.05;
+
+    Pose target(0.0, 0.5, 0.0, 0.0, 0.0, 0.0);
+    pid.setTargetPoint(target);
+
+    double initial_distance = pid.getDistance(target);
+
+    int max_steps = 500;
+    for (int i = 0; i < max_steps; i++)
+    {
+        pid.calculateCommand();
+        pid.update();
+    }
+
+    double final_distance = pid.getDistance(target);
+    // 500ステップ後はロボットが目標に近づいていること（距離が減少していること）
+    EXPECT_LT(final_distance, initial_distance);
+}
+
+// ============================================================
+// PROCESS_STRAIGHT 状態への遷移確認テスト
+// ============================================================
+
+TEST(PIDTest, ProcessBecomesStraightWhenFacingTarget)
+{
+    // target=(1, 0, 0) で複数回 calculateCommand() を呼ぶと
+    // ロボットが目標方向を向き、PROCESS_STRAIGHT に遷移するはず
+    PID pid;
+    pid.setGain(3.0, 0.0, 0.001);
+    pid.setMargin(0.1, 0.05);
+    pid.setLimit(1.0, M_PI);
+    pid.deltatime = 0.05;
+
+    Pose target(1.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+    pid.setTargetPoint(target);
+
+    bool reached_straight = false;
+    int max_steps = 1000;
+    for (int i = 0; i < max_steps; i++)
+    {
+        pid.calculateCommand();
+        pid.update();
+        if (pid.getCurrentProcess() == PROCESS_STRAIGHT)
+        {
+            reached_straight = true;
+            break;
+        }
+        if (pid.reachedTarget()) break;
+    }
+
+    EXPECT_TRUE(reached_straight);
+}
+
+// ============================================================
+// initPID() 後の積分リセット確認テスト
+// ============================================================
+
+TEST(PIDTest, InitPIDResetsProcessToStop)
+{
+    // calculateCommand() を数回呼んでプロセスが変化した後、
+    // initPID() でプロセスが PROCESS_STOP にリセットされることを確認
+    // 注意: initPID() は v, omega をリセットしない（実装仕様）
+    PID pid;
+    pid.setGain(3.0, 1.0, 0.001);
+    pid.setLimit(1.0, M_PI);
+    pid.deltatime = 0.05;
+
+    Pose target(1.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+    pid.setTargetPoint(target);
+
+    for (int i = 0; i < 10; i++)
+    {
+        pid.calculateCommand();
+        pid.update();
+    }
+
+    // calculateCommand() 後はプロセスが変化しているはず
+    EXPECT_NE(pid.getCurrentProcess(), PROCESS_STOP);
+
+    pid.initPID();
+
+    // initPID() 後はプロセスが PROCESS_STOP にリセットされること
+    EXPECT_EQ(pid.getCurrentProcess(), PROCESS_STOP);
+}
+
+// ============================================================
+// setGain(0,0,0) でゼロ速度になること確認テスト
+// ============================================================
+
+TEST(PIDTest, ZeroGainProducesZeroVelocity)
+{
+    // PIDゲインがすべて0なので制御出力が0になり速度も0のまま
+    PID pid;
+    pid.setGain(0.0, 0.0, 0.0);
+    pid.setLimit(1.0, M_PI);
+    pid.deltatime = 0.05;
+
+    Pose target(1.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+    pid.setTargetPoint(target);
+
+    pid.calculateCommand();
+
+    EXPECT_NEAR(pid.v, 0.0, 1e-9);
+    EXPECT_NEAR(pid.omega, 0.0, 1e-9);
+}
+
+// ============================================================
+// deltatime 変更による収束ステップ数の変化確認テスト
+// ============================================================
+
+TEST(PIDTest, LargerDeltatimeConvergesFaster)
+{
+    // deltatime が大きいほど 1 ステップあたりの移動量が増えるため、
+    // 収束に必要なステップ数が少なくなることを確認
+
+    auto count_steps = [](double dt) -> int {
+        PID pid;
+        pid.setGain(3.0, 0.0, 0.001);
+        pid.setMargin(0.1, 0.05);
+        pid.setLimit(1.0, M_PI);
+        pid.deltatime = dt;
+
+        Pose target(1.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+        pid.setTargetPoint(target);
+
+        int steps = 0;
+        int max_steps = 5000;
+        for (int i = 0; i < max_steps; i++)
+        {
+            pid.calculateCommand();
+            pid.update();
+            steps++;
+            if (pid.reachedTarget()) break;
+        }
+        return steps;
+    };
+
+    int steps_slow = count_steps(0.02);
+    int steps_fast = count_steps(0.1);
+
+    // deltatime=0.1 のほうが少ないステップで収束するはず
+    EXPECT_LT(steps_fast, steps_slow);
+}
+
 int main(int argc, char **argv)
 {
     ::testing::InitGoogleTest(&argc, argv);

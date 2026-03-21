@@ -205,6 +205,134 @@ TEST(APFPathPlannerTest, BezierAfterCreatePath)
     }
 }
 
+// ============================================================
+// パス品質ベンチマーク（障害物なし）
+// ============================================================
+
+TEST(APFPathPlannerTest, PathLengthNearEuclideanDistance)
+{
+    // 障害物なしで経路長がユークリッド距離の1.5倍以内であること
+    // 41x41, res=0.05, robot=(-0.9,0), goal=(0.9,0), ユークリッド距離=1.8m
+    ArtificialPotentialField apf(41, 41, 0.05, 1.0, 0.0, 10.0, 0.0, 0.0);
+    apf.setRobot(-0.9, 0.0);
+    apf.setGoal(0.9, 0.0);
+    apf.createPotentialField();
+
+    APFPathPlanner planner(&apf);
+    planner.setParams(3.0, 1, 1.0, 0.0);
+    planner.createPath(0.0);
+
+    std::vector<Pose> path;
+    planner.getPath(path);
+    ASSERT_GT(path.size(), 1u);
+
+    // 経路長を計算
+    double path_length = 0.0;
+    for (size_t i = 1; i < path.size(); i++)
+    {
+        double dx = path[i].position.x - path[i-1].position.x;
+        double dy = path[i].position.y - path[i-1].position.y;
+        path_length += std::hypot(dx, dy);
+    }
+    double euclidean_dist = 1.8;
+    // 経路長はユークリッド距離の1.5倍以内であること
+    EXPECT_LT(path_length, euclidean_dist * 1.5);
+}
+
+// ============================================================
+// createPath() の冪等性テスト
+// ============================================================
+
+TEST(APFPathPlannerTest, CreatePathIdempotent)
+{
+    // createPath()を2回連続で呼んでも2回目の結果が有効であること
+    ArtificialPotentialField apf(41, 41, 0.05, 1.0, 0.0, 10.0, 0.0, 0.0);
+    apf.setRobot(-0.9, 0.0);
+    apf.setGoal(0.9, 0.0);
+    apf.createPotentialField();
+
+    APFPathPlanner planner(&apf);
+    planner.setParams(3.0, 1, 1.0, 0.0);
+    planner.createPath(0.0);
+    bool result2 = planner.createPath(0.0);
+
+    std::vector<Pose> path;
+    planner.getPath(path);
+    EXPECT_TRUE(result2);
+    EXPECT_GT(path.size(), 0u);
+}
+
+// ============================================================
+// Robot == Goal でクラッシュなし
+// ============================================================
+
+TEST(APFPathPlannerTest, RobotEqualsGoalNocrash)
+{
+    // Robot と Goal が同じ座標(0,0)でもcreatePathがクラッシュしないこと
+    ArtificialPotentialField apf(11, 11, 1.0, 1.0, 0.0, 100.0, 0.0, 0.0);
+    apf.setRobot(0.0, 0.0);
+    apf.setGoal(0.0, 0.0);
+    apf.createPotentialField();
+
+    APFPathPlanner planner(&apf);
+    EXPECT_NO_THROW({
+        planner.createPath(0.0);
+    });
+}
+
+// ============================================================
+// Y軸方向の経路生成
+// ============================================================
+
+TEST(APFPathPlannerTest, CreatePathYDirection)
+{
+    // Robot=(0,-0.9), Goal=(0,0.9) でY軸方向の経路が生成されること
+    ArtificialPotentialField apf(41, 41, 0.05, 1.0, 0.0, 10.0, 0.0, 0.0);
+    apf.setRobot(0.0, -0.9);
+    apf.setGoal(0.0, 0.9);
+    apf.createPotentialField();
+
+    APFPathPlanner planner(&apf);
+    planner.setParams(3.0, 1, 1.0, 0.0);
+    planner.createPath(0.0);
+
+    std::vector<Pose> path;
+    planner.getPath(path);
+    EXPECT_GT(path.size(), 0u);
+}
+
+// ============================================================
+// 経路が単調にゴールに近づくかの確認（障害物なし）
+// ============================================================
+
+TEST(APFPathPlannerTest, PathMonotonicallyApproachesGoal)
+{
+    // 経路の大半の点がゴールに単調に近づいていること
+    ArtificialPotentialField apf(41, 41, 0.05, 1.0, 0.0, 10.0, 0.0, 0.0);
+    apf.setRobot(-0.9, 0.0);
+    apf.setGoal(0.9, 0.0);
+    apf.createPotentialField();
+
+    APFPathPlanner planner(&apf);
+    planner.setParams(3.0, 1, 1.0, 0.0);
+    planner.createPath(0.0);
+
+    std::vector<Pose> path;
+    planner.getPath(path);
+    ASSERT_GT(path.size(), 2u);
+
+    Point goal = apf.getGoal();
+    int monotone_count = 0;
+    for (size_t i = 1; i < path.size(); i++)
+    {
+        double d_prev = std::hypot(path[i-1].position.x - goal.x, path[i-1].position.y - goal.y);
+        double d_curr = std::hypot(path[i].position.x - goal.x, path[i].position.y - goal.y);
+        if (d_curr < d_prev) monotone_count++;
+    }
+    // 大半(70%以上)の点で単調減少すること
+    EXPECT_GT(monotone_count, static_cast<int>(path.size() * 0.7));
+}
+
 int main(int argc, char **argv)
 {
     ::testing::InitGoogleTest(&argc, argv);
