@@ -21,7 +21,7 @@ rm -rf "${BAG_PATH}"
 
 # --- 3. rosbag2 記録をバックグラウンドで開始 ---
 echo "rosbag2 記録を開始..."
-ros2 bag record -o "${BAG_PATH}" /odom /cmd_vel /scan /tf /tf_static &
+ros2 bag record -o "${BAG_PATH}" /odom /cmd_vel /scan /tf /tf_static /plan &
 RECORD_PID=$!
 
 # 記録プロセスを確実に停止するための trap 設定

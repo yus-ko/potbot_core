@@ -83,36 +83,51 @@ namespace potbot_lib
                 }
             }
 
-            // closest_index = path_index_;
-            double v = std::max(abs(linear_velocity_min_), abs(linear_velocity_max_));
-            double total_distance = 0;
-            double limit_ditance = v * time_end_;
-            double inc_distance = v * time_increment_;
-            double downsample_distance = 0;
-            int shift = 0;
-            // if (target_path_.size() - closest_index > 5) shift = 5;
-            for (int i = closest_index + shift; i < target_path_.size(); i++)
-            {
+            double v_max = std::max(abs(linear_velocity_min_), abs(linear_velocity_max_));
+            double limit_distance = v_max * time_end_;
+            double inc_distance = v_max * time_increment_;
+            size_t num_points = static_cast<size_t>(time_end_ / time_increment_);
 
-                if (i < 2)
+            // パスの累積距離を計算
+            std::vector<double> cumulative_dist;
+            cumulative_dist.push_back(0.0);
+            for (size_t i = closest_index + 1; i < target_path_.size(); i++)
+            {
+                double d = (target_path_[i] - target_path_[i - 1]).norm();
+                double total = cumulative_dist.back() + d;
+                cumulative_dist.push_back(total);
+                if (total >= limit_distance)
+                    break;
+            }
+
+            // inc_distance間隔で線形補間してsplit_pathを生成
+            size_t seg = 0;
+            for (size_t j = 0; j < num_points; j++)
+            {
+                double target_dist = inc_distance * (j + 1);
+                if (target_dist > cumulative_dist.back())
                 {
-                    split_path_.push_back(target_path_[i]);
+                    // パス末端を超えた場合、最後の点を繰り返す
+                    split_path_.push_back(target_path_[closest_index + cumulative_dist.size() - 1]);
                     continue;
                 }
-                double distance = (target_path_[i] - target_path_[i - 1]).norm();
-                total_distance += distance;
-                if (total_distance < limit_ditance)
+
+                // target_distが含まれるセグメントを探す
+                while (seg + 1 < cumulative_dist.size() && cumulative_dist[seg + 1] < target_dist)
+                    seg++;
+
+                if (seg + 1 < cumulative_dist.size())
                 {
-                    if (downsample_distance == 0)
-                        split_path_.push_back(target_path_[i]);
+                    double seg_len = cumulative_dist[seg + 1] - cumulative_dist[seg];
+                    double t = (seg_len > 1e-10) ? (target_dist - cumulative_dist[seg]) / seg_len : 0.0;
+                    Eigen::Vector2d p = (1.0 - t) * target_path_[closest_index + seg]
+                                        + t * target_path_[closest_index + seg + 1];
+                    split_path_.push_back(p);
                 }
                 else
                 {
-                    break;
+                    split_path_.push_back(target_path_[closest_index + cumulative_dist.size() - 1]);
                 }
-                downsample_distance += distance;
-                if (downsample_distance >= inc_distance)
-                    downsample_distance = 0;
             }
         }
 
@@ -159,8 +174,8 @@ namespace potbot_lib
             double omega_min = angular_velocity_min_;
             double omega_max = angular_velocity_max_;
 
-            double v = v;
-            double omega = omega;
+            double v = this->v;
+            double omega = this->omega;
 
             double score_min = 1e100;
             double score_min_threshold = 1e-2;

@@ -333,6 +333,77 @@ TEST(APFPathPlannerTest, PathMonotonicallyApproachesGoal)
     EXPECT_GT(monotone_count, static_cast<int>(path.size() * 0.7));
 }
 
+// ============================================================
+// バグ修正検証テスト（M7 T-003）
+// ============================================================
+
+// CreatePathDoesNotLoopWithFarGoal:
+//   ゴールが遠い場合に path が100点未満で終了することを確認（バグ5の検証）
+TEST(APFPathPlannerTest, CreatePathDoesNotLoopWithFarGoal)
+{
+    // 61x61, res=0.1m, robot=(-2.8,0), goal=(2.8,0)で長い経路を試みる
+    // ループが発生しなければpath.size()は100未満で終了するはず
+    ArtificialPotentialField apf(61, 61, 0.1, 1.0, 0.0, 10.0, 0.0, 0.0);
+    apf.setRobot(-2.8, 0.0);
+    apf.setGoal(2.8, 0.0);
+    apf.createPotentialField();
+
+    APFPathPlanner planner(&apf);
+    planner.setParams(10.0, 1, 1.0, 0.0);
+    bool result = planner.createPath(0.0);
+    EXPECT_TRUE(result);
+
+    std::vector<Pose> path;
+    planner.getPath(path);
+    EXPECT_GT(path.size(), 0u);
+    // ループが発生すると path.size() == 101 (>100でbreak) になる。
+    // バグ修正後は15ステップ進捗なしでbreakするため100未満のはず
+    EXPECT_LT(path.size(), 101u);
+}
+
+// CreatePathHandlesEmptyEdges:
+//   障害物がない場合（エッジが空）でもcreatePath()がクラッシュしないことを確認（バグ2の検証）
+TEST(APFPathPlannerTest, CreatePathHandlesEmptyEdges)
+{
+    // 障害物なし（斥力フィールドなし）で斥力エッジが空になる
+    ArtificialPotentialField apf(21, 21, 0.1, 1.0, 0.0, 0.3, 0.0, 0.0);
+    apf.setRobot(-0.9, 0.0);
+    apf.setGoal(0.9, 0.0);
+    apf.createPotentialField();
+
+    APFPathPlanner planner(&apf);
+    planner.setParams(5.0, 1, 1.0, 0.0);
+
+    // 障害物なし（エッジなし）でもクラッシュしないこと
+    EXPECT_NO_THROW({
+        planner.createPath(0.0);
+    });
+
+    std::vector<Pose> path;
+    planner.getPath(path);
+    EXPECT_GT(path.size(), 0u);
+}
+
+// CreatePathDuplicateDetection:
+//   path_.size() < 2 のときに重複検出が安全であることを確認（バグ1の検証）
+TEST(APFPathPlannerTest, CreatePathDuplicateDetection)
+{
+    // Robot と Goal が隣接するグリッドの場合、path_が1点のときに重複検出が呼ばれる可能性がある
+    // バグ修正後は path_.size() >= 2 のガードがあるためクラッシュしない
+    ArtificialPotentialField apf(11, 11, 1.0, 1.0, 0.0, 100.0, 0.0, 0.0);
+    apf.setRobot(-1.0, 0.0);
+    apf.setGoal(1.0, 0.0);
+    apf.createPotentialField();
+
+    APFPathPlanner planner(&apf);
+    planner.setParams(5.0, 1, 1.0, 0.0);
+
+    // path_.size() < 2 のときでもクラッシュしないこと
+    EXPECT_NO_THROW({
+        planner.createPath(0.0);
+    });
+}
+
 int main(int argc, char **argv)
 {
     ::testing::InitGoogleTest(&argc, argv);

@@ -76,15 +76,27 @@ nav_msgs::msg::Path APF::createPlan(
   geometry_msgs::msg::PoseStamped robot_pose;
   costmap_ros_->getRobotPose(robot_pose);
   const potbot_lib::Point robot = potbot_lib::utility::get_point(robot_pose.pose.position);
-  apfros_->getApf()->initPotentialField(50, 50, 0.05, robot.x, robot.y);
+
+  // ロボット-ゴール間の距離に基づいてフィールドサイズを動的に計算し、
+  // ゴールが必ずフィールド内に含まれるようにする。
+  // ゴールがフィールド外の場合、IS_AROUND_GOALが設定されず経路がループする原因となる。
+  const double resolution = 0.05;
+  const int max_half_cells = 100;  // 最大 10m x 10m
+  double dist_x = std::abs(goal.pose.position.x - robot.x);
+  double dist_y = std::abs(goal.pose.position.y - robot.y);
+  double max_dist = std::max({dist_x, dist_y, 1.25});
+  int half_cells = std::min(static_cast<int>(max_dist / resolution) + 5, max_half_cells);
+  int total_cells = 2 * half_cells;
+
+  apfros_->getApf()->initPotentialField(total_cells, total_cells, resolution, robot.x, robot.y);
   apfros_->setRobot(robot_pose);
   apfros_->setGoal(goal);
 
   unsigned int rmx, rmy;
   costmap_->worldToMap(robot.x, robot.y, rmx, rmy);
 
-  for (int mx = rmx - 50; mx < rmx + 50; mx++) {
-    for (int my = rmy - 50; my < rmy + 50; my++) {
+  for (int mx = rmx - half_cells; mx < rmx + half_cells; mx++) {
+    for (int my = rmy - half_cells; my < rmy + half_cells; my++) {
       if (mx < 0 || my < 0) {
         continue;
       }

@@ -57,7 +57,7 @@ namespace potbot_lib{
     void ArtificialPotentialField::setParams(double wa, double wr, double dtr)
     {
         weight_attraction_field_ = wa;
-        weight_attraction_field_ = wr;
+        weight_repulsion_field_ = wr;
         distance_threshold_repulsion_field_ = dtr;
     }
 

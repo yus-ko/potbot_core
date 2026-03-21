@@ -174,13 +174,14 @@ TEST(FieldTest, GetSquareIndexCenter)
 
 TEST(FieldTest, GetSquareIndexCorner)
 {
-    // コーナーでは全部クリアされる（境界外を検知して戻す）
-    // 実装上、境界外にかかるとclearされてreturnする
+    // コーナー(0,0)でrange=1の場合、フィールド内の有効なセルのみが返る。
+    // 旧実装では size_t アンダーフローと全クリアバグにより空が返っていたが、
+    // 修正後は (0,1), (1,0), (1,1) の3セルが返る。
     Field field(5, 5, 1.0, 0.0, 0.0);
     std::vector<size_t> indexes;
     field.getSquareIndex(indexes, 0, 0, 1);
-    // コーナー(0,0)でrange=1の場合は境界外チェックで空になるはず
-    EXPECT_EQ(indexes.size(), 0u);
+    // (row=0,col=1)=1, (row=1,col=0)=5, (row=1,col=1)=6 の3セルが有効
+    EXPECT_EQ(indexes.size(), 3u);
 }
 
 // ============================================================
