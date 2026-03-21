@@ -2,6 +2,9 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## ドキュメント
+`docs/` に格納されている。
+
 ## パッケージ構成
 
 `potbot_core` は以下5パッケージから構成される：
