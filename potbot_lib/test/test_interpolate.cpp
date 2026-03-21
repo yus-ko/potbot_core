@@ -161,6 +161,79 @@ TEST(InterpolateTest, BezierPointEmptyOrPassthrough)
     EXPECT_TRUE(out.empty());
 }
 
+// ============================================================
+// linear() の区間内チェック
+// ============================================================
+
+TEST(InterpolateTest, LinearPointsWithinBounds)
+{
+    // 2点(0,0)-(5,5)のlinear補間結果が全点 [0,5]x[0,5] の範囲内に収まること
+    std::vector<Eigen::Vector2d> in = {{0.0, 0.0}, {5.0, 5.0}};
+    std::vector<Eigen::Vector2d> out;
+    linear(in, 10, out);
+    ASSERT_FALSE(out.empty());
+    for (const auto& p : out)
+    {
+        EXPECT_GE(p.x(), 0.0 - 1e-9);
+        EXPECT_LE(p.x(), 5.0 + 1e-9);
+        EXPECT_GE(p.y(), 0.0 - 1e-9);
+        EXPECT_LE(p.y(), 5.0 + 1e-9);
+    }
+}
+
+// ============================================================
+// spline() のサイズ上限
+// ============================================================
+
+TEST(InterpolateTest, SplineSizeAtMostNumPoints)
+{
+    // 4点入力, num_points=20 の spline() 結果が 20点以下であること
+    // （有限値のみ追加されるため20点以下になりうる）
+    std::vector<Eigen::Vector2d> in = {
+        {0.0, 0.0}, {1.0, 2.0}, {3.0, 1.0}, {4.0, 3.0}
+    };
+    std::vector<Eigen::Vector2d> out;
+    spline(in, 20, out);
+    EXPECT_LE(out.size(), 20u);
+    EXPECT_GE(out.size(), 2u);
+}
+
+// ============================================================
+// bezier(Vector2d) での大量点
+// ============================================================
+
+TEST(InterpolateTest, BezierVector2dLargeNumPoints)
+{
+    // 5点入力, num_points=200 でbezier()を呼んでも出力が空でないこと
+    std::vector<Eigen::Vector2d> in = {
+        {0.0, 0.0}, {1.0, 2.0}, {3.0, 1.0}, {4.0, 3.0}, {5.0, 0.0}
+    };
+    std::vector<Eigen::Vector2d> out;
+    bezier(in, 200, out);
+    EXPECT_FALSE(out.empty());
+}
+
+// ============================================================
+// bezier(Pose) での位置成分の正確性
+// ============================================================
+
+TEST(InterpolateTest, BezierPosePositionAccuracy)
+{
+    // Bezier補間後のPoseの位置成分が正しい範囲に収まること
+    std::vector<Pose> in = {
+        Pose(0.0, 0.0), Pose(2.0, 2.0), Pose(4.0, 0.0)
+    };
+    std::vector<Pose> out;
+    bezier(in, 20, out);
+    ASSERT_FALSE(out.empty());
+    // X座標が [0, 4] の範囲内に収まること
+    for (const auto& p : out)
+    {
+        EXPECT_GE(p.position.x, -0.1);
+        EXPECT_LE(p.position.x, 4.1);
+    }
+}
+
 int main(int argc, char **argv)
 {
     ::testing::InitGoogleTest(&argc, argv);

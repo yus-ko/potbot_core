@@ -397,6 +397,99 @@ TEST(UtilityBezierHighLevelTest, BezierHighLevelMultiplePoints)
     EXPECT_GT(path_interpolated.size(), 0u);
 }
 
+// ============================================================
+// Pose::to_affine() テスト
+// ============================================================
+
+TEST(PoseAffineTest, ToAffineTranslation)
+{
+    // Pose(1,2,3,...) で to_affine().translation() が (1,2,3) を返すこと
+    Pose p(1.0, 2.0, 3.0, 0.0, 0.0, 0.0);
+    Eigen::Affine3d aff = p.to_affine();
+    EXPECT_NEAR(aff.translation().x(), 1.0, 1e-9);
+    EXPECT_NEAR(aff.translation().y(), 2.0, 1e-9);
+    EXPECT_NEAR(aff.translation().z(), 3.0, 1e-9);
+}
+
+TEST(PoseAffineTest, ToAffineIdentityRotation)
+{
+    // ゼロ回転のPoseで to_affine() の回転成分が単位行列に近いこと
+    Pose p(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+    Eigen::Affine3d aff = p.to_affine();
+    Eigen::Matrix3d R = aff.rotation();
+    Eigen::Matrix3d I = Eigen::Matrix3d::Identity();
+    EXPECT_NEAR((R - I).norm(), 0.0, 1e-9);
+}
+
+// ============================================================
+// Point::to_rotation() の直交行列テスト
+// ============================================================
+
+TEST(PointRotationTest, ToRotationOrthogonal)
+{
+    // Point(0, 0, π/4) で to_rotation() が直交行列（R*R.T ≈ I）であること
+    Point p(0.0, 0.0, M_PI / 4.0);
+    Eigen::Matrix3d R = p.to_rotation();
+    Eigen::Matrix3d RRt = R * R.transpose();
+    Eigen::Matrix3d I = Eigen::Matrix3d::Identity();
+    EXPECT_NEAR((RRt - I).norm(), 0.0, 1e-9);
+}
+
+TEST(PointRotationTest, ToRotationDeterminantOne)
+{
+    // to_rotation() の行列式が1であること（回転行列の条件）
+    Point p(0.1, 0.2, 0.3);
+    Eigen::Matrix3d R = p.to_rotation();
+    EXPECT_NEAR(R.determinant(), 1.0, 1e-9);
+}
+
+// ============================================================
+// utility::is_containing() テスト
+// ============================================================
+
+TEST(UtilityIsContainingTest, IsContainingTrue)
+{
+    // is_containing(3, {1,2,3,4}) が true を返すこと
+    std::vector<int> v = {1, 2, 3, 4};
+    EXPECT_TRUE(utility::is_containing(3, v));
+}
+
+TEST(UtilityIsContainingTest, IsContainingFalse)
+{
+    // is_containing(5, {1,2,3,4}) が false を返すこと
+    std::vector<int> v = {1, 2, 3, 4};
+    EXPECT_FALSE(utility::is_containing(5, v));
+}
+
+TEST(UtilityIsContainingTest, IsContainingEqualsContains)
+{
+    // is_containing() が contains() と同じ結果を返すこと
+    std::vector<int> v = {1, 2, 3, 4};
+    EXPECT_EQ(utility::is_containing(3, v), utility::contains(3, v));
+    EXPECT_EQ(utility::is_containing(5, v), utility::contains(5, v));
+}
+
+// ============================================================
+// utility::get_vec(Pose) の Affine3d translation テスト
+// ============================================================
+
+TEST(UtilityGetVecAffineTest, GetVecPoseAffineTranslation)
+{
+    // 複数のPoseを get_vec() で変換して Affine3d の translation が正しいこと
+    std::vector<Pose> poses = {
+        Pose(1.0, 2.0, 3.0),
+        Pose(4.0, 5.0, 6.0)
+    };
+    auto result = utility::get_vec(poses);
+    ASSERT_EQ(result.size(), 2u);
+    EXPECT_NEAR(result[0].translation().x(), 1.0, 1e-9);
+    EXPECT_NEAR(result[0].translation().y(), 2.0, 1e-9);
+    EXPECT_NEAR(result[0].translation().z(), 3.0, 1e-9);
+    EXPECT_NEAR(result[1].translation().x(), 4.0, 1e-9);
+    EXPECT_NEAR(result[1].translation().y(), 5.0, 1e-9);
+    EXPECT_NEAR(result[1].translation().z(), 6.0, 1e-9);
+}
+
 int main(int argc, char **argv)
 {
     ::testing::InitGoogleTest(&argc, argv);

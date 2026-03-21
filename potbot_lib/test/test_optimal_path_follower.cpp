@@ -201,6 +201,129 @@ TEST(OptimalPathFollowerTest, NotReachedTargetWhenFar)
     EXPECT_FALSE(follower.reachedTarget());
 }
 
+// ============================================================
+// 12. Y軸方向目標への追従
+// ============================================================
+TEST(OptimalPathFollowerTest, YDirectionTarget)
+{
+    // Y軸方向の目標 (0, 1.0) に対して制御コマンドが出ること
+    OptimalPathFollower follower;
+    follower.setLimit(-0.2, 0.2, -1.0, 1.0);
+    follower.setOptimizationMethod("all_search");
+    follower.setTimeIncrement(0.1);
+    follower.setTimeEnd(0.5);
+    follower.setLinearVelocityIncrement(0.1);
+    follower.setAngularVelocityIncrement(0.5);
+
+    auto path = make_path(0.0, 1.0);
+    follower.setTargetPath(path);
+    follower.calculateCommand();
+
+    // v または omega が非ゼロであること
+    bool has_cmd = (std::abs(follower.v) > 1e-9) || (std::abs(follower.omega) > 1e-9);
+    EXPECT_TRUE(has_cmd);
+}
+
+// ============================================================
+// 13. 斜め方向目標
+// ============================================================
+TEST(OptimalPathFollowerTest, DiagonalTarget)
+{
+    // 斜め方向 (1.0, 1.0) の目標で calculateCommand() 後に何らかの制御コマンドが出ること
+    OptimalPathFollower follower;
+    follower.setLimit(-0.2, 0.2, -1.0, 1.0);
+    follower.setOptimizationMethod("all_search");
+    follower.setTimeIncrement(0.1);
+    follower.setTimeEnd(0.5);
+    follower.setLinearVelocityIncrement(0.1);
+    follower.setAngularVelocityIncrement(0.5);
+
+    auto path = make_path(1.0, 1.0);
+    follower.setTargetPath(path);
+    follower.calculateCommand();
+
+    bool has_cmd = (std::abs(follower.v) > 1e-9) || (std::abs(follower.omega) > 1e-9);
+    EXPECT_TRUE(has_cmd);
+}
+
+// ============================================================
+// 14. setLimit(0,0,0,0) では速度がゼロ
+// ============================================================
+TEST(OptimalPathFollowerTest, ZeroLimitProducesZeroVelocity)
+{
+    // v_max=0, v_min=0 に設定後 calculateCommand() で v=0 になること
+    OptimalPathFollower follower;
+    follower.setLimit(0.0, 0.0, 0.0, 0.0);
+    follower.setOptimizationMethod("all_search");
+    follower.setTimeIncrement(0.1);
+    follower.setTimeEnd(0.5);
+    follower.setLinearVelocityIncrement(0.1);
+    follower.setAngularVelocityIncrement(0.5);
+
+    auto path = make_path(1.0, 0.0);
+    follower.setTargetPath(path);
+    follower.calculateCommand();
+
+    EXPECT_NEAR(follower.v, 0.0, 1e-9);
+    EXPECT_NEAR(follower.omega, 0.0, 1e-9);
+}
+
+// ============================================================
+// 15. 収束シミュレーション
+// ============================================================
+TEST(OptimalPathFollowerTest, ConvergenceSimulation)
+{
+    // ロボット状態を更新しながら reachedTarget() まで最大500ステップで収束すること
+    OptimalPathFollower follower;
+    follower.setLimit(-0.3, 0.3, -1.5, 1.5);
+    follower.setOptimizationMethod("all_search");
+    follower.setTimeIncrement(0.1);
+    follower.setTimeEnd(1.0);
+    follower.setLinearVelocityIncrement(0.1);
+    follower.setAngularVelocityIncrement(0.5);
+    follower.deltatime = 0.1;
+
+    auto path = make_path(0.3, 0.0);
+    follower.setTargetPath(path);
+
+    int max_steps = 500;
+    bool reached = false;
+    for (int i = 0; i < max_steps; i++)
+    {
+        if (follower.reachedTarget())
+        {
+            reached = true;
+            break;
+        }
+        follower.calculateCommand();
+        follower.update();
+    }
+    EXPECT_TRUE(reached);
+}
+
+// ============================================================
+// 16. getSplitPath() の非空確認
+// ============================================================
+TEST(OptimalPathFollowerTest, GetSplitPathNonEmpty)
+{
+    // setTargetPath() + calculateCommand() 後に getSplitPath() が空でないこと
+    OptimalPathFollower follower;
+    follower.setLimit(-0.2, 0.2, -1.0, 1.0);
+    follower.setOptimizationMethod("all_search");
+    follower.setTimeIncrement(0.1);
+    follower.setTimeEnd(0.5);
+    follower.setLinearVelocityIncrement(0.1);
+    follower.setAngularVelocityIncrement(0.5);
+
+    auto path = make_path(1.0, 0.0);
+    follower.setTargetPath(path);
+    follower.calculateCommand();
+
+    std::vector<Eigen::Vector2d> split_path;
+    follower.getSplitPath(split_path);
+    EXPECT_GT(split_path.size(), 0u);
+}
+
 int main(int argc, char **argv)
 {
     ::testing::InitGoogleTest(&argc, argv);
