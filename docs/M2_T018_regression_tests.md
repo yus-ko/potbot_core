@@ -58,7 +58,7 @@ Navigation 2 のリグレッションテストパターン（nav2_costmap_2d/tes
 | テスト名 | テスト ID | 背景 | 検証内容 |
 |---|---|---|---|
 | `EmptyPathReachedTargetNoCrash` | REG-011 | `setTargetPath()` 未呼び出し状態で `reachedTarget()` を呼んでもセグメンテーションフォールトが発生しないことを確認 | `EXPECT_NO_THROW`、`reachedTarget() == true` |
-| `ZeroLimitProducesZeroVelocity` | REG-012 | v_max=0, v_min=0 に設定後 `calculateCommand()` を呼んでも v=0, omega=0 を維持することを確認 | `v ≈ 0.0`、`omega ≈ 0.0`（許容 1e-9） |
+| `ZeroLimitProducesZeroVelocity` | REG-012 | linear_velocity_max=0, linear_velocity_min=0 に設定後 `calculateCommand()` を呼んでも v=0, omega=0 を維持することを確認 | `v ≈ 0.0`、`omega ≈ 0.0`（許容 1e-9） |
 
 #### PIDRegression
 

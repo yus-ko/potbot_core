@@ -47,7 +47,7 @@
 
 最適化手法（`all_search` / `gradient`）ごとに `calculateCommand()` の速度出力が制限範囲内であることを検証する。
 
-速度制限設定: `v_min=-0.2`, `v_max=0.2`, `omega_min=-1.0`, `omega_max=1.0`
+速度制限設定: `linear_velocity_min=-0.2`, `linear_velocity_max=0.2`, `angular_velocity_min=-1.0`, `angular_velocity_max=1.0`
 
 | # | method | 説明 |
 |---|---|---|
@@ -58,8 +58,8 @@
 
 | テスト関数名 | 検証内容 |
 |---|---|
-| `LinearVelocityWithinLimit` | `follower.v ∈ [v_min, v_max]` |
-| `AngularVelocityWithinLimit` | `follower.omega ∈ [omega_min, omega_max]` |
+| `LinearVelocityWithinLimit` | `follower.v ∈ [linear_velocity_min, linear_velocity_max]` |
+| `AngularVelocityWithinLimit` | `follower.omega ∈ [angular_velocity_min, angular_velocity_max]` |
 | `BestCmdWithinLimit` | `getBestCmd()` の返値が v・omega 両方ともリミット範囲内 |
 
 #### OptimalPathFollowerDirectionTest（6パラメータ × 1テスト関数 = 6件）
