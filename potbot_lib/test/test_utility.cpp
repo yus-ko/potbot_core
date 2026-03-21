@@ -250,6 +250,153 @@ TEST(UtilityTest, FindClosestVector)
     EXPECT_NEAR(closest.y(), 0.0, 1e-9);
 }
 
+// ============================================================
+// utility::get_vec テスト
+// ============================================================
+
+TEST(UtilityGetVecTest, GetVecPointEmptyInput)
+{
+    std::vector<Point> pts;
+    auto result = utility::get_vec(pts);
+    EXPECT_EQ(result.size(), 0u);
+}
+
+TEST(UtilityGetVecTest, GetVecPointSingleElement)
+{
+    std::vector<Point> pts = {Point(1.0, 2.0, 3.0)};
+    auto result = utility::get_vec(pts);
+    ASSERT_EQ(result.size(), 1u);
+    EXPECT_NEAR(result[0].x(), 1.0, 1e-9);
+    EXPECT_NEAR(result[0].y(), 2.0, 1e-9);
+    EXPECT_NEAR(result[0].z(), 3.0, 1e-9);
+}
+
+TEST(UtilityGetVecTest, GetVecPointSize)
+{
+    std::vector<Point> pts = {Point(0, 0, 0), Point(1, 1, 1), Point(2, 2, 2)};
+    auto result = utility::get_vec(pts);
+    EXPECT_EQ(result.size(), 3u);
+}
+
+TEST(UtilityGetVecTest, GetVecPoseEmptyInput)
+{
+    std::vector<Pose> poses;
+    auto result = utility::get_vec(poses);
+    EXPECT_EQ(result.size(), 0u);
+}
+
+TEST(UtilityGetVecTest, GetVecPoseSize)
+{
+    std::vector<Pose> poses = {Pose(1, 2, 3), Pose(4, 5, 6)};
+    auto result = utility::get_vec(poses);
+    EXPECT_EQ(result.size(), 2u);
+}
+
+TEST(UtilityGetVecTest, GetVecPoseTranslation)
+{
+    std::vector<Pose> poses = {Pose(1.0, 2.0, 3.0)};
+    auto result = utility::get_vec(poses);
+    ASSERT_EQ(result.size(), 1u);
+    Eigen::Vector3d t = result[0].translation();
+    EXPECT_NEAR(t.x(), 1.0, 1e-9);
+    EXPECT_NEAR(t.y(), 2.0, 1e-9);
+    EXPECT_NEAR(t.z(), 3.0, 1e-9);
+}
+
+// ============================================================
+// utility::get_index テスト
+// ============================================================
+
+TEST(UtilityGetIndexTest, GetIndexFound)
+{
+    std::vector<Eigen::Vector2d> vec = {
+        Eigen::Vector2d(0.0, 0.0),
+        Eigen::Vector2d(1.0, 2.0),
+        Eigen::Vector2d(3.0, 4.0)
+    };
+    int idx = utility::get_index(vec, Eigen::Vector2d(1.0, 2.0));
+    EXPECT_EQ(idx, 1);
+}
+
+TEST(UtilityGetIndexTest, GetIndexNotFound)
+{
+    std::vector<Eigen::Vector2d> vec = {
+        Eigen::Vector2d(0.0, 0.0),
+        Eigen::Vector2d(1.0, 2.0)
+    };
+    int idx = utility::get_index(vec, Eigen::Vector2d(9.0, 9.0));
+    EXPECT_EQ(idx, -1);
+}
+
+TEST(UtilityGetIndexTest, GetIndexFirstElement)
+{
+    std::vector<Eigen::Vector2d> vec = {
+        Eigen::Vector2d(5.0, 6.0),
+        Eigen::Vector2d(7.0, 8.0)
+    };
+    int idx = utility::get_index(vec, Eigen::Vector2d(5.0, 6.0));
+    EXPECT_EQ(idx, 0);
+}
+
+// ============================================================
+// utility::vec_to_path テスト
+// ============================================================
+
+TEST(UtilityVecToPathTest, VecToPathEmptyInput)
+{
+    std::vector<Eigen::VectorXd> vectors;
+    std::vector<Pose> path;
+    utility::vec_to_path(vectors, path);
+    EXPECT_EQ(path.size(), 0u);
+}
+
+TEST(UtilityVecToPathTest, VecToPathSingleElement)
+{
+    // 実装は vec(0), vec(1) のみ参照するため2次元で十分
+    std::vector<Eigen::VectorXd> vectors;
+    Eigen::VectorXd v(2);
+    v << 1.5, 2.5;
+    vectors.push_back(v);
+    std::vector<Pose> path;
+    utility::vec_to_path(vectors, path);
+    ASSERT_EQ(path.size(), 1u);
+    EXPECT_NEAR(path[0].position.x, 1.5, 1e-9);
+    EXPECT_NEAR(path[0].position.y, 2.5, 1e-9);
+}
+
+// ============================================================
+// utility::bezier 高レベル補間テスト
+// ============================================================
+
+TEST(UtilityBezierHighLevelTest, BezierHighLevelEmptyPath)
+{
+    std::vector<Pose> path_raw;
+    std::vector<Pose> path_interpolated;
+    bool result = utility::bezier(path_raw, path_interpolated);
+    EXPECT_FALSE(result);
+}
+
+TEST(UtilityBezierHighLevelTest, BezierHighLevelSinglePoint)
+{
+    std::vector<Pose> path_raw = {Pose(1.0, 2.0)};
+    std::vector<Pose> path_interpolated;
+    bool result = utility::bezier(path_raw, path_interpolated);
+    EXPECT_FALSE(result);
+}
+
+TEST(UtilityBezierHighLevelTest, BezierHighLevelMultiplePoints)
+{
+    std::vector<Pose> path_raw = {
+        Pose(0.0, 0.0),
+        Pose(1.0, 0.0),
+        Pose(2.0, 1.0)
+    };
+    std::vector<Pose> path_interpolated;
+    bool result = utility::bezier(path_raw, path_interpolated);
+    EXPECT_TRUE(result);
+    EXPECT_GT(path_interpolated.size(), 0u);
+}
+
 int main(int argc, char **argv)
 {
     ::testing::InitGoogleTest(&argc, argv);
