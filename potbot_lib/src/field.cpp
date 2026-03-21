@@ -215,22 +215,29 @@ namespace potbot_lib{
 
         void Field::getSquareIndex(std::vector<size_t>& search_indexes, size_t centor_row, size_t centor_col, size_t range)
         {
-            for (size_t row = centor_row-range; row <= centor_row+range; row++)
+            // size_t のアンダーフローを避けるために signed int を使用する。
+            // 旧実装では centor_row < range の場合に centor_row - range がラップアラウンドし、
+            // フィールド端でサーチが空になって経路が途中で打ち切られる問題があった。
+            // また、1セルでも範囲外の場合に全結果をクリアしていたバグも修正する。
+            int irange = static_cast<int>(range);
+            int irow_center = static_cast<int>(centor_row);
+            int icol_center = static_cast<int>(centor_col);
+
+            for (int row = irow_center - irange; row <= irow_center + irange; row++)
             {
-                for (size_t col = centor_col-range; col <= centor_col+range; col++)
+                for (int col = icol_center - irange; col <= icol_center + irange; col++)
                 {
-                    if (row == centor_row && col == centor_col) continue;
-                    try 
+                    if (row == irow_center && col == icol_center) continue;
+                    if (row < 0 || col < 0) continue;
+                    try
                     {
-                        int pf_idx = getFieldIndex(row,col);
+                        size_t pf_idx = getFieldIndex(static_cast<size_t>(row), static_cast<size_t>(col));
                         search_indexes.push_back(pf_idx);
                     }
-                    catch(std::out_of_range& oor) 
+                    catch(std::out_of_range& oor)
                     {
-                        search_indexes.clear();
-                        return;
+                        continue;
                     }
-                    
                 }
             }
         }
