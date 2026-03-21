@@ -82,4 +82,15 @@ ament_export_dependencies(
 )
 ament_export_include_directories(include)
 
+if(BUILD_TESTING)
+  find_package(ament_cmake_gtest REQUIRED)
+
+  ament_add_gtest(test_ros_utility test/test_ros_utility.cpp)
+  target_include_directories(test_ros_utility PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
+  target_link_libraries(test_ros_utility potbot_ros_utility)
+  ament_target_dependencies(test_ros_utility
+    rclcpp geometry_msgs nav_msgs sensor_msgs)
+endif()
+
 ament_package()
