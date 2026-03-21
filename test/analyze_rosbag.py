@@ -15,7 +15,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 from rosbags.rosbag2 import Reader
-from rosbags.serde import deserialize_cdr
+from rosbags.typesys import Stores, get_typestore
 
 
 def parse_args():
@@ -57,6 +57,7 @@ def read_rosbag(bag_path):
     cmd_vel_angular_zs = []
 
     start_time = None
+    typestore = get_typestore(Stores.ROS2_HUMBLE)
 
     with Reader(bag_path) as reader:
         for connection, timestamp, rawdata in reader.messages():
@@ -66,13 +67,13 @@ def read_rosbag(bag_path):
             time_sec = (timestamp - start_time) / 1e9
 
             if connection.topic == '/odom':
-                msg = deserialize_cdr(rawdata, connection.msgtype)
+                msg = typestore.deserialize_cdr(rawdata, connection.msgtype)
                 odom_timestamps.append(time_sec)
                 odom_xs.append(msg.pose.pose.position.x)
                 odom_ys.append(msg.pose.pose.position.y)
 
             elif connection.topic == '/cmd_vel':
-                msg = deserialize_cdr(rawdata, connection.msgtype)
+                msg = typestore.deserialize_cdr(rawdata, connection.msgtype)
                 cmd_vel_timestamps.append(time_sec)
                 cmd_vel_linear_xs.append(msg.linear.x)
                 cmd_vel_angular_zs.append(msg.angular.z)
