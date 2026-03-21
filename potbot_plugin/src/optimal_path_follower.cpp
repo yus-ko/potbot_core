@@ -156,7 +156,7 @@ geometry_msgs::msg::TwistStamped OptimalPathFollower::computeVelocityCommands(
   optimizer_.setTimeIncrement(sim_time_ / max_iteration_);
   optimizer_.setTimeEnd(sim_time_);
   optimizer_.setLinearVelocityIncrement((max_vel_x_ - min_vel_x_) / vx_samples_);
-  optimizer_.setAngularVelocityIncrement(2 * max_vel_theta_ / vx_samples_);
+  optimizer_.setAngularVelocityIncrement(2 * max_vel_theta_ / vtheta_samples_);
   optimizer_.setIterationMax(max_iteration_);
   optimizer_.setLearningRate(0.01);
   optimizer_.calculateCommand();
