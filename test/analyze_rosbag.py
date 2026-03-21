@@ -4,9 +4,13 @@
 rosbags ライブラリを使用して rosbag2 (sqlite3形式) を読み込み、
 /odom、/cmd_vel、/plan トピックからデータを抽出して matplotlib で4パネルの
 図を生成・保存する。
+
+--resources-csv を指定すると resource_monitor.py が出力したCSVも読み込み、
+CPU・メモリ使用量のパネルを追加した6パネル図を生成する。
 """
 
 import argparse
+import csv
 import sys
 from pathlib import Path
 
@@ -46,7 +50,53 @@ def parse_args():
         default=3.5,
         help='ゴール地点のY座標 [m] (デフォルト: 3.5)',
     )
+    parser.add_argument(
+        '--resources-csv',
+        type=str,
+        default=None,
+        help='resource_monitor.py が出力したCSVファイルパス (指定時はCPU/メモリパネルを追加)',
+    )
     return parser.parse_args()
+
+
+def read_resources_csv(csv_path, bag_start_ns):
+    """resource_monitor.py が出力したCSVを読み込み、bagの時間軸に揃える。
+
+    タイムスタンプはどちらも wall-clock (UNIX epoch nanoseconds) のため、
+    差分で相対時刻に変換する。
+
+    Args:
+        csv_path: CSVファイルのパス。
+        bag_start_ns: bagの最初のメッセージのタイムスタンプ [ns]。
+
+    Returns:
+        dict: {列名: list} の形式。時刻列は 'time_sec' (float, bag開始からの秒数)。
+              bagより前のサンプルは time_sec < 0 になるため呼び出し側でフィルタ可能。
+    """
+    result = {}
+    with open(csv_path, newline='') as f:
+        reader = csv.DictReader(f)
+        rows = list(reader)
+
+    if not rows:
+        return result
+
+    for key in rows[0].keys():
+        result[key] = []
+
+    for row in rows:
+        for key, val in row.items():
+            try:
+                result[key].append(float(val))
+            except (ValueError, TypeError):
+                result[key].append(float('nan'))
+
+    # time_ns → bagの開始を0秒とした相対時刻に変換
+    result['time_sec'] = [
+        (ns - bag_start_ns) / 1e9
+        for ns in result.get('time_ns', [])
+    ]
+    return result
 
 
 def read_rosbag(bag_path):
@@ -61,6 +111,7 @@ def read_rosbag(bag_path):
         plan_data: (plan_timestamps, plan_paths) のタプル。
             plan_timestamps: 各 /plan メッセージのタイムスタンプリスト [s]。
             plan_paths: 各 /plan メッセージの [(x, y), ...] リスト。
+        bag_start_ns: bagの最初のメッセージのタイムスタンプ [ns] (wall-clock)。
     """
     odom_timestamps = []
     odom_xs = []
@@ -107,11 +158,74 @@ def read_rosbag(bag_path):
     odom_data = (odom_timestamps, odom_xs, odom_ys)
     cmd_vel_data = (cmd_vel_timestamps, cmd_vel_linear_xs, cmd_vel_angular_zs)
     plan_data = (plan_timestamps, plan_paths)
-    return odom_data, cmd_vel_data, plan_data
+    bag_start_ns = start_time if start_time is not None else 0
+    return odom_data, cmd_vel_data, plan_data, bag_start_ns
 
 
-def create_figure(odom_data, cmd_vel_data, plan_data, goal_x=-1.25, goal_y=3.5):
-    """4パネルの図を生成する。
+def _plot_resource_panels(axes, resources, panel_offset):
+    """リソースデータをCPU・メモリの2パネルに描画する。
+
+    Args:
+        axes: matplotlib の Axes 配列。
+        resources: read_resources_csv の戻り値 dict。
+        panel_offset: CPU パネルのインデックス (memory は +1)。
+    """
+    t = resources.get('time_sec', [])
+    if not t:
+        return
+
+    # CPU パネル
+    ax_cpu = axes[panel_offset]
+    sys_cpu = resources.get('system_cpu_percent', [])
+    if sys_cpu:
+        ax_cpu.plot(t, sys_cpu, color='steelblue', linewidth=1.2, label='System CPU')
+
+    # プロセス個別CPU (system_* 以外の *_cpu_percent 列)
+    proc_cpu_keys = [
+        k for k in resources
+        if k.endswith('_cpu_percent') and k != 'system_cpu_percent'
+    ]
+    colors = plt.cm.tab10.colors
+    for i, key in enumerate(proc_cpu_keys):
+        vals = resources[key]
+        label = key.replace('_cpu_percent', '')
+        ax_cpu.plot(t, vals, color=colors[(i + 1) % 10],
+                    linewidth=1.0, linestyle='--', label=label)
+
+    ax_cpu.set_xlabel('Time [s]')
+    ax_cpu.set_ylabel('CPU [%]')
+    ax_cpu.set_ylim(bottom=0)
+    ax_cpu.grid(True)
+    ax_cpu.set_title('CPU Usage')
+    ax_cpu.legend(fontsize='small')
+
+    # メモリパネル
+    ax_mem = axes[panel_offset + 1]
+    sys_mem = resources.get('system_memory_used_mb', [])
+    if sys_mem:
+        ax_mem.plot(t, sys_mem, color='darkorange', linewidth=1.2, label='System Memory')
+
+    proc_mem_keys = [
+        k for k in resources
+        if k.endswith('_memory_mb')
+    ]
+    for i, key in enumerate(proc_mem_keys):
+        vals = resources[key]
+        label = key.replace('_memory_mb', '')
+        ax_mem.plot(t, vals, color=colors[(i + 1) % 10],
+                    linewidth=1.0, linestyle='--', label=label)
+
+    ax_mem.set_xlabel('Time [s]')
+    ax_mem.set_ylabel('Memory [MB]')
+    ax_mem.set_ylim(bottom=0)
+    ax_mem.grid(True)
+    ax_mem.set_title('Memory Usage')
+    ax_mem.legend(fontsize='small')
+
+
+def create_figure(odom_data, cmd_vel_data, plan_data, goal_x=-1.25, goal_y=3.5,
+                  resources=None):
+    """4〜6パネルの図を生成する。
 
     Args:
         odom_data: (timestamps, xs, ys) のタプル。
@@ -119,6 +233,7 @@ def create_figure(odom_data, cmd_vel_data, plan_data, goal_x=-1.25, goal_y=3.5):
         plan_data: (plan_timestamps, plan_paths) のタプル。
         goal_x: ゴール地点のX座標 [m]。
         goal_y: ゴール地点のY座標 [m]。
+        resources: read_resources_csv の戻り値 dict。None の場合はリソースパネルなし。
 
     Returns:
         matplotlib の Figure オブジェクト。
@@ -127,7 +242,9 @@ def create_figure(odom_data, cmd_vel_data, plan_data, goal_x=-1.25, goal_y=3.5):
     cmd_vel_timestamps, cmd_vel_linear_xs, cmd_vel_angular_zs = cmd_vel_data
     plan_timestamps, plan_paths = plan_data
 
-    fig, axes = plt.subplots(4, 1, figsize=(10, 16), constrained_layout=True)
+    n_panels = 6 if resources else 4
+    fig_height = 24 if resources else 16
+    fig, axes = plt.subplots(n_panels, 1, figsize=(10, fig_height), constrained_layout=True)
 
     ax_xy = axes[0]
 
@@ -193,6 +310,9 @@ def create_figure(odom_data, cmd_vel_data, plan_data, goal_x=-1.25, goal_y=3.5):
     ax_plan.grid(True)
     ax_plan.set_title('Planned Path Points Over Time')
 
+    if resources:
+        _plot_resource_panels(axes, resources, panel_offset=4)
+
     return fig
 
 
@@ -209,10 +329,19 @@ def main():
     output_dir = Path(args.output_dir) if args.output_dir else bag_path.parent
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    odom_data, cmd_vel_data, plan_data = read_rosbag(str(bag_path))
+    odom_data, cmd_vel_data, plan_data, bag_start_ns = read_rosbag(str(bag_path))
+
+    resources = None
+    if args.resources_csv:
+        csv_path = Path(args.resources_csv)
+        if not csv_path.exists():
+            print(f'警告: リソースCSVが見つかりません: {csv_path}', file=sys.stderr)
+        else:
+            resources = read_resources_csv(str(csv_path), bag_start_ns)
 
     fig = create_figure(odom_data, cmd_vel_data, plan_data,
-                        goal_x=args.goal_x, goal_y=args.goal_y)
+                        goal_x=args.goal_x, goal_y=args.goal_y,
+                        resources=resources)
 
     output_path = output_dir / 'navigation_result.png'
     fig.savefig(str(output_path), dpi=150)
