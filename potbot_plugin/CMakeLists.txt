@@ -101,10 +101,37 @@ install(DIRECTORY include/
 )
 
 if(BUILD_TESTING)
+  find_package(ament_cmake_gtest REQUIRED)
   find_package(ament_lint_auto REQUIRED)
-  # the following line skips the linter which checks for copyrights
   set(ament_cmake_copyright_FOUND TRUE)
   ament_lint_auto_find_test_dependencies()
+
+  set(PLUGIN_TEST_DEPS
+    rclcpp
+    rclcpp_lifecycle
+    nav2_core
+    nav2_costmap_2d
+    nav2_util
+    tf2_ros
+    geometry_msgs
+    nav_msgs
+    potbot_lib
+    potbot_ros
+  )
+
+  ament_add_gtest(test_apf_planner test/test_apf_planner.cpp)
+  target_include_directories(test_apf_planner PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  )
+  ament_target_dependencies(test_apf_planner ${PLUGIN_TEST_DEPS})
+  target_link_libraries(test_apf_planner potbot_plugin)
+
+  ament_add_gtest(test_optimal_path_follower_plugin test/test_optimal_path_follower_plugin.cpp)
+  target_include_directories(test_optimal_path_follower_plugin PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  )
+  ament_target_dependencies(test_optimal_path_follower_plugin ${PLUGIN_TEST_DEPS})
+  target_link_libraries(test_optimal_path_follower_plugin potbot_plugin)
 endif()
 
 ament_export_include_directories(include)
