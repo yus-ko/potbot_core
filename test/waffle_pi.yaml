@@ -376,6 +376,17 @@ waypoint_follower:
       enabled: True
       waypoint_pause_duration: 200
 
+navigation_runner:
+  ros__parameters:
+    # ロボットの初期位置（AMCLの initial_pose と一致させること）
+    initial_pose_x: -2.0
+    initial_pose_y: -0.5
+    # ナビゲーションのゴール位置
+    goal_x: 2.0
+    goal_y: 0.5
+    # アクションサーバー待機・ナビゲーションのタイムアウト秒数
+    timeout: 300.0
+
 # behavior_server:
 #   ros__parameters:
 #     backup:

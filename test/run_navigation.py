@@ -3,19 +3,23 @@
 /navigate_to_pose アクションサーバーが起動するまで待機し、
 ゴール到達後に終了するスクリプト。
 
-使用方法:
-  python3 run_navigation.py [goal_x] [goal_y] [--timeout TIMEOUT]
+初期位置・ゴール位置・タイムアウトは waffle_pi.yaml の
+navigation_runner.ros__parameters で一元管理する。
 
-引数:
-  goal_x   : ゴールのX座標 (デフォルト: 2.0)
-  goal_y   : ゴールのY座標 (デフォルト: 0.5)
-  --timeout: アクションサーバー待機・ナビゲーションのタイムアウト秒数 (デフォルト: 300)
+使用方法:
+  python3 run_navigation.py --ros-args --params-file /path/to/waffle_pi.yaml
+
+パラメーター（waffle_pi.yaml の navigation_runner.ros__parameters）:
+  initial_pose_x : 初期位置X座標 (デフォルト: -2.0)
+  initial_pose_y : 初期位置Y座標 (デフォルト: -0.5)
+  goal_x         : ゴールX座標   (デフォルト:  2.0)
+  goal_y         : ゴールY座標   (デフォルト:  0.5)
+  timeout        : タイムアウト秒数 (デフォルト: 300.0)
 
 終了コード:
   0: ゴール到達成功
   1: 失敗（タイムアウト、ゴール拒否、ナビゲーション失敗）
 """
-import argparse
 import sys
 import time
 
@@ -31,6 +35,11 @@ from rclpy.node import Node
 class NavigationRunner(Node):
     def __init__(self):
         super().__init__('navigation_runner')
+        self.declare_parameter('initial_pose_x', -2.0)
+        self.declare_parameter('initial_pose_y', -0.5)
+        self.declare_parameter('goal_x', 2.0)
+        self.declare_parameter('goal_y', 0.5)
+        self.declare_parameter('timeout', 300.0)
         self._client = ActionClient(self, NavigateToPose, 'navigate_to_pose')
 
     def set_initial_pose(self, x: float = 0.0, y: float = 0.0):
@@ -61,15 +70,21 @@ class NavigationRunner(Node):
 
         self.get_logger().info(f'初期位置を設定しました: x={x}, y={y}')
 
-    def run(self, goal_x: float, goal_y: float, timeout: float = 300.0) -> bool:
+    def run(self) -> bool:
         """
-        アクションサーバーが起動するまで待機してからゴールを送信し、
-        到達結果を返す。
+        ROSパラメーターからゴール・初期位置・タイムアウトを取得し、
+        アクションサーバーが起動するまで待機してからゴールを送信する。
 
         Returns:
             True  : ゴール到達成功
             False : タイムアウト / 拒否 / 失敗
         """
+        goal_x = self.get_parameter('goal_x').value
+        goal_y = self.get_parameter('goal_y').value
+        timeout = self.get_parameter('timeout').value
+        initial_pose_x = self.get_parameter('initial_pose_x').value
+        initial_pose_y = self.get_parameter('initial_pose_y').value
+
         self.get_logger().info('/navigate_to_pose アクションサーバーを待機中...')
         if not self._client.wait_for_server(timeout_sec=timeout):
             self.get_logger().error(
@@ -78,7 +93,7 @@ class NavigationRunner(Node):
             return False
 
         self.get_logger().info('アクションサーバー接続完了。初期位置を設定します...')
-        self.set_initial_pose()
+        self.set_initial_pose(initial_pose_x, initial_pose_y)
 
         # wait_for_server は Action Server の存在のみを確認するため、
         # bt_navigator の lifecycle 状態が active になるまで待機する
@@ -196,25 +211,11 @@ class NavigationRunner(Node):
         return True
 
 
-def parse_args():
-    parser = argparse.ArgumentParser(description='navigate_to_pose ゴール送信スクリプト')
-    parser.add_argument('goal_x', type=float, nargs='?', default=2.0, help='ゴールX座標')
-    parser.add_argument('goal_y', type=float, nargs='?', default=0.5, help='ゴールY座標')
-    parser.add_argument('--timeout', type=float, default=300.0,
-                        help='サーバー待機・ナビゲーションのタイムアウト秒数')
-    return parser.parse_args()
-
-
 def main():
-    args = parse_args()
     rclpy.init()
     runner = NavigationRunner()
     try:
-        success = runner.run(
-            goal_x=args.goal_x,
-            goal_y=args.goal_y,
-            timeout=args.timeout,
-        )
+        success = runner.run()
     finally:
         runner.destroy_node()
         rclpy.shutdown()

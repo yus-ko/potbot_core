@@ -25,9 +25,11 @@ echo ""
 mkdir -p "${RESULTS_DIR}"
 
 # --- 2. ゴールポーズ送信（アクションサーバー + bt_navigator active を検知してから実行） ---
-echo "ナビゲーションを開始します: x=2.0, y=0.5"
+# 初期位置・ゴール・タイムアウトは waffle_pi.yaml の navigation_runner.ros__parameters で管理
+echo "ナビゲーションを開始します（設定: waffle_pi.yaml の navigation_runner パラメーター）"
 NAV_RESULT=0
-python3 /root/test/run_navigation.py 2.0 0.5 --timeout 300 \
+python3 /root/test/run_navigation.py \
+  --ros-args --params-file /root/test/waffle_pi.yaml \
   && echo "ナビゲーション成功!" \
   || { echo "ナビゲーション失敗またはタイムアウト"; NAV_RESULT=1; }
 
