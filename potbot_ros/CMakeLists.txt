@@ -29,6 +29,7 @@ add_library(potbot_ros_utility
   src/artificial_potential_field.cpp
   src/apf_path_planner.cpp
   src/scan_clustering.cpp
+  src/pcl_clustering.cpp
 )
 
 ament_target_dependencies(potbot_ros_utility
