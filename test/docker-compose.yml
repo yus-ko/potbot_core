@@ -15,6 +15,7 @@ x-common-environment: &common_environment
 services:
 
   gazebo:
+    profiles: [pipeline]
     <<: *common_setting
     container_name: gazebo
     environment:
@@ -28,6 +29,7 @@ services:
     command: ros2 launch potbot_example turtlebot3_with_garage.launch.py
 
   domain_bridge:
+    profiles: [pipeline]
     <<: *common_setting
     container_name: domain_bridge
     volumes:
@@ -35,6 +37,7 @@ services:
     command: ros2 run domain_bridge domain_bridge /bridge_config.yaml
 
   potbot:
+    profiles: [pipeline]
     <<: *common_setting
     container_name: potbot
     environment:
@@ -49,6 +52,7 @@ services:
     command: ros2 launch /root/test/turtlebot3_navigation.launch.py use_sim_time:=true
 
   nav-test:
+    profiles: [pipeline]
     <<: *common_setting
     container_name: nav-test
     environment:
@@ -64,6 +68,7 @@ services:
     command: bash /root/test/run_navigation_test.sh
 
   rosbag-record:
+    profiles: [pipeline]
     <<: *common_setting
     container_name: rosbag-record
     environment:
