@@ -102,7 +102,7 @@ def read_rosbag(bag_path):
         bag_path: rosbag2 ディレクトリのパス。
 
     Returns:
-        odom_data: (timestamps, xs, ys) のタプル。
+        odom_data: (timestamps, xs, ys, linear_xs, angular_zs) のタプル。
         cmd_vel_data: (timestamps, linear_xs, angular_zs) のタプル。
         plan_data: (plan_timestamps, plan_paths) のタプル。
             plan_timestamps: 各 /plan メッセージのタイムスタンプリスト [s]。
@@ -116,6 +116,8 @@ def read_rosbag(bag_path):
     odom_timestamps = []
     odom_xs = []
     odom_ys = []
+    odom_linear_xs = []
+    odom_angular_zs = []
 
     cmd_vel_timestamps = []
     cmd_vel_linear_xs = []
@@ -142,6 +144,8 @@ def read_rosbag(bag_path):
                 odom_timestamps.append(time_sec)
                 odom_xs.append(msg.pose.pose.position.x)
                 odom_ys.append(msg.pose.pose.position.y)
+                odom_linear_xs.append(msg.twist.twist.linear.x)
+                odom_angular_zs.append(msg.twist.twist.angular.z)
 
             elif connection.topic == '/cmd_vel':
                 msg = typestore.deserialize_cdr(rawdata, connection.msgtype)
@@ -194,7 +198,7 @@ def read_rosbag(bag_path):
                     'extent': [x_min, x_max, y_min, y_max],
                 }
 
-    odom_data = (odom_timestamps, odom_xs, odom_ys)
+    odom_data = (odom_timestamps, odom_xs, odom_ys, odom_linear_xs, odom_angular_zs)
     cmd_vel_data = (cmd_vel_timestamps, cmd_vel_linear_xs, cmd_vel_angular_zs)
     plan_data = (plan_timestamps, plan_paths)
     bag_start_ns = start_time if start_time is not None else 0
@@ -267,7 +271,7 @@ def create_figure(odom_data, cmd_vel_data, plan_data, goal_x=None, goal_y=None,
     """4〜6パネルの図を生成する。
 
     Args:
-        odom_data: (timestamps, xs, ys) のタプル。
+        odom_data: (timestamps, xs, ys, linear_xs, angular_zs) のタプル。
         cmd_vel_data: (timestamps, linear_xs, angular_zs) のタプル。
         plan_data: (plan_timestamps, plan_paths) のタプル。
         goal_x: ゴール地点のX座標 [m]。None の場合はゴールマーカーを描画しない。
@@ -279,7 +283,7 @@ def create_figure(odom_data, cmd_vel_data, plan_data, goal_x=None, goal_y=None,
     Returns:
         matplotlib の Figure オブジェクト。
     """
-    odom_timestamps, odom_xs, odom_ys = odom_data
+    odom_timestamps, odom_xs, odom_ys, odom_linear_xs, odom_angular_zs = odom_data
     cmd_vel_timestamps, cmd_vel_linear_xs, cmd_vel_angular_zs = cmd_vel_data
     plan_timestamps, plan_paths = plan_data
 
@@ -345,18 +349,26 @@ def create_figure(odom_data, cmd_vel_data, plan_data, goal_x=None, goal_y=None,
         ax_xy.set_ylim(cy - half, cy + half)
 
     ax_lin = axes[1]
-    ax_lin.plot(cmd_vel_timestamps, cmd_vel_linear_xs, 'b-')
+    ax_lin.plot(cmd_vel_timestamps, cmd_vel_linear_xs, 'b-', label='cmd_vel')
+    if odom_linear_xs:
+        ax_lin.plot(odom_timestamps, odom_linear_xs, 'r-', linewidth=0.8,
+                    alpha=0.7, label='odom')
     ax_lin.set_xlabel('Time [s]')
     ax_lin.set_ylabel('Linear Velocity [m/s]')
     ax_lin.grid(True)
-    ax_lin.set_title('Linear Velocity (cmd_vel)')
+    ax_lin.set_title('Linear Velocity')
+    ax_lin.legend(fontsize='small')
 
     ax_ang = axes[2]
-    ax_ang.plot(cmd_vel_timestamps, cmd_vel_angular_zs, 'b-')
+    ax_ang.plot(cmd_vel_timestamps, cmd_vel_angular_zs, 'b-', label='cmd_vel')
+    if odom_angular_zs:
+        ax_ang.plot(odom_timestamps, odom_angular_zs, 'r-', linewidth=0.8,
+                    alpha=0.7, label='odom')
     ax_ang.set_xlabel('Time [s]')
     ax_ang.set_ylabel('Angular Velocity [rad/s]')
     ax_ang.grid(True)
-    ax_ang.set_title('Angular Velocity (cmd_vel)')
+    ax_ang.set_title('Angular Velocity')
+    ax_ang.legend(fontsize='small')
 
     ax_plan = axes[3]
     if plan_timestamps and plan_paths:
