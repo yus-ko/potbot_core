@@ -204,6 +204,31 @@ namespace potbot_lib{
                     double wu               = weight_potential;
                     double w_theta          = weight_pose;
                     size_t best_idx = SIZE_MAX;  // 全100回試行での最良セルインデックス
+                    size_t best_idx_no_los = SIZE_MAX;  // LOSなしフォールバック用
+                    double J_min_no_los = std::numeric_limits<double>::infinity();
+
+                    const auto field_header = apf_->getHeader();
+                    const size_t field_cols = field_header.cols;
+                    const size_t field_rows = field_header.rows;
+
+                    auto isLOSClear = [&](size_t r0, size_t c0, size_t r1, size_t c1) -> bool {
+                        int dr = std::abs((int)r1 - (int)r0);
+                        int dc = std::abs((int)c1 - (int)c0);
+                        int sr = ((int)r1 >= (int)r0) ? 1 : -1;
+                        int sc = ((int)c1 >= (int)c0) ? 1 : -1;
+                        int err = dr - dc;
+                        int r = (int)r0, c = (int)c0;
+                        while (true) {
+                            if (r < 0 || c < 0 || (size_t)r >= field_rows || (size_t)c >= field_cols) return false;
+                            size_t fidx = (size_t)r * field_cols + (size_t)c;
+                            if ((*field_values)[fidx].states[potential::GridInfo::IS_OBSTACLE]) return false;
+                            if (r == (int)r1 && c == (int)c1) break;
+                            int e2 = 2 * err;
+                            if (e2 > -dc) { err -= dc; r += sr; }
+                            if (e2 < dr) { err += dr; c += sc; }
+                        }
+                        return true;
+                    };
 
                     for (size_t i = 0; i < 100; i++)
                     {
@@ -213,7 +238,7 @@ namespace potbot_lib{
                             // 探索範囲が空の場合は次のランダム範囲を試す
                             wu          = (*random_generator_double_)((*random_engine_));
                             w_theta     = 1.0 - wu;
-                            random_range = (*random_generator_double_)((*random_engine_)) * 10 + 1;
+                            random_range = (*random_generator_double_)((*random_engine_)) * 30 + 1;
                             continue;
                         }
 
@@ -238,22 +263,34 @@ namespace potbot_lib{
                             double J                = j1 + j2;
 
                             // break_flagを使わず全100回を通じてグローバル最小Jを追跡
-                            if (J < J_min)
+                            // LOSが通る候補を優先、なければLOSなし候補をフォールバック
+                            if (J < J_min && isLOSClear(center_row, center_col,
+                                                         (*field_values)[idx].row,
+                                                         (*field_values)[idx].col))
                             {
                                 J_min       = J;
                                 best_idx    = idx;
+                            }
+                            if (J < J_min_no_los)
+                            {
+                                J_min_no_los = J;
+                                best_idx_no_los = idx;
                             }
                         }
                         // 全100回実行するため次の反復のランダム化を常に行う
                         wu          = (*random_generator_double_)((*random_engine_));
                         w_theta     = 1.0 - wu;
-                        random_range = (*random_generator_double_)((*random_engine_)) * 10 + 1;
+                        random_range = (*random_generator_double_)((*random_engine_)) * 30 + 1;
                     }
-                    if (best_idx != SIZE_MAX)
+                    // LOS候補が見つかった場合はそれを、なければフォールバック候補を使用
+                    // どちらも見つからない場合は探索打ち切り
+                    size_t chosen = (best_idx != SIZE_MAX) ? best_idx : best_idx_no_los;
+                    if (chosen != SIZE_MAX)
                     {
                         solving_local_minimum = false;
-                        pf_idx_min = best_idx;
+                        pf_idx_min = chosen;
                     }
+                    else break;
                 }
                 
                 double px   = (*field_values)[pf_idx_min].x;
