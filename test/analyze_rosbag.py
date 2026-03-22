@@ -39,18 +39,6 @@ def parse_args():
         help='出力PNG保存先ディレクトリ (デフォルト: bag-pathの親ディレクトリ)',
     )
     parser.add_argument(
-        '--goal-x',
-        type=float,
-        default=-1.25,
-        help='ゴール地点のX座標 [m] (デフォルト: -1.25)',
-    )
-    parser.add_argument(
-        '--goal-y',
-        type=float,
-        default=3.5,
-        help='ゴール地点のY座標 [m] (デフォルト: 3.5)',
-    )
-    parser.add_argument(
         '--resources-csv',
         type=str,
         default=None,
@@ -111,6 +99,7 @@ def read_rosbag(bag_path):
         plan_data: (plan_timestamps, plan_paths) のタプル。
             plan_timestamps: 各 /plan メッセージのタイムスタンプリスト [s]。
             plan_paths: 各 /plan メッセージの [(x, y), ...] リスト。
+        goal_pose: (goal_x, goal_y) のタプル。/test/goal_pose が未記録の場合は None。
         bag_start_ns: bagの最初のメッセージのタイムスタンプ [ns] (wall-clock)。
     """
     odom_timestamps = []
@@ -123,6 +112,8 @@ def read_rosbag(bag_path):
 
     plan_timestamps = []
     plan_paths = []
+
+    goal_pose = None
 
     start_time = None
     typestore = get_typestore(Stores.ROS2_HUMBLE)
@@ -155,11 +146,15 @@ def read_rosbag(bag_path):
                 plan_timestamps.append(time_sec)
                 plan_paths.append(path_points)
 
+            elif connection.topic == '/test/goal_pose' and goal_pose is None:
+                msg = typestore.deserialize_cdr(rawdata, connection.msgtype)
+                goal_pose = (msg.pose.position.x, msg.pose.position.y)
+
     odom_data = (odom_timestamps, odom_xs, odom_ys)
     cmd_vel_data = (cmd_vel_timestamps, cmd_vel_linear_xs, cmd_vel_angular_zs)
     plan_data = (plan_timestamps, plan_paths)
     bag_start_ns = start_time if start_time is not None else 0
-    return odom_data, cmd_vel_data, plan_data, bag_start_ns
+    return odom_data, cmd_vel_data, plan_data, goal_pose, bag_start_ns
 
 
 def _plot_resource_panels(axes, resources, panel_offset):
@@ -223,7 +218,7 @@ def _plot_resource_panels(axes, resources, panel_offset):
     ax_mem.legend(fontsize='small')
 
 
-def create_figure(odom_data, cmd_vel_data, plan_data, goal_x=-1.25, goal_y=3.5,
+def create_figure(odom_data, cmd_vel_data, plan_data, goal_x=None, goal_y=None,
                   resources=None):
     """4〜6パネルの図を生成する。
 
@@ -231,8 +226,8 @@ def create_figure(odom_data, cmd_vel_data, plan_data, goal_x=-1.25, goal_y=3.5,
         odom_data: (timestamps, xs, ys) のタプル。
         cmd_vel_data: (timestamps, linear_xs, angular_zs) のタプル。
         plan_data: (plan_timestamps, plan_paths) のタプル。
-        goal_x: ゴール地点のX座標 [m]。
-        goal_y: ゴール地点のY座標 [m]。
+        goal_x: ゴール地点のX座標 [m]。None の場合はゴールマーカーを描画しない。
+        goal_y: ゴール地点のY座標 [m]。None の場合はゴールマーカーを描画しない。
         resources: read_resources_csv の戻り値 dict。None の場合はリソースパネルなし。
 
     Returns:
@@ -266,7 +261,8 @@ def create_figure(odom_data, cmd_vel_data, plan_data, goal_x=-1.25, goal_y=3.5,
     if odom_xs:
         ax_xy.plot(odom_xs[0], odom_ys[0], 'go', markersize=10, label='Start')
 
-    ax_xy.plot(goal_x, goal_y, 'r^', markersize=10, label='Goal')
+    if goal_x is not None and goal_y is not None:
+        ax_xy.plot(goal_x, goal_y, 'r^', markersize=10, label='Goal')
     ax_xy.set_xlabel('X [m]')
     ax_xy.set_ylabel('Y [m]')
     ax_xy.set_aspect('equal')
@@ -329,7 +325,15 @@ def main():
     output_dir = Path(args.output_dir) if args.output_dir else bag_path.parent
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    odom_data, cmd_vel_data, plan_data, bag_start_ns = read_rosbag(str(bag_path))
+    odom_data, cmd_vel_data, plan_data, goal_pose, bag_start_ns = read_rosbag(str(bag_path))
+
+    if goal_pose is not None:
+        goal_x, goal_y = goal_pose
+        print(f'ゴール位置をrosbagから取得しました: x={goal_x}, y={goal_y}')
+    else:
+        print('警告: /test/goal_pose がrosbagに含まれていません。ゴールマーカーを描画しません。',
+              file=sys.stderr)
+        goal_x, goal_y = None, None
 
     resources = None
     if args.resources_csv:
@@ -340,7 +344,7 @@ def main():
             resources = read_resources_csv(str(csv_path), bag_start_ns)
 
     fig = create_figure(odom_data, cmd_vel_data, plan_data,
-                        goal_x=args.goal_x, goal_y=args.goal_y,
+                        goal_x=goal_x, goal_y=goal_y,
                         resources=resources)
 
     output_path = output_dir / 'navigation_result.png'

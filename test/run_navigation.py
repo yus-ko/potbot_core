@@ -25,7 +25,7 @@ import time
 
 import rclpy
 from action_msgs.msg import GoalStatus
-from geometry_msgs.msg import PoseWithCovarianceStamped
+from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped
 from lifecycle_msgs.srv import GetState
 from nav2_msgs.action import NavigateToPose
 from rclpy.action import ActionClient
@@ -41,6 +41,7 @@ class NavigationRunner(Node):
         self.declare_parameter('goal_y', 0.5)
         self.declare_parameter('timeout', 300.0)
         self._client = ActionClient(self, NavigateToPose, 'navigate_to_pose')
+        self._goal_pub = self.create_publisher(PoseStamped, '/test/goal_pose', 10)
 
     def set_initial_pose(self, x: float = 0.0, y: float = 0.0):
         """AMCLの初期位置を設定する。
@@ -101,6 +102,16 @@ class NavigationRunner(Node):
         if not self._wait_for_nav2_active(timeout=timeout):
             self.get_logger().error('nav2 が active になりませんでした。')
             return False
+
+        # ゴール位置を /test/goal_pose トピックにパブリッシュ（rosbag に記録される）
+        goal_pose_msg = PoseStamped()
+        goal_pose_msg.header.frame_id = 'map'
+        goal_pose_msg.header.stamp = self.get_clock().now().to_msg()
+        goal_pose_msg.pose.position.x = goal_x
+        goal_pose_msg.pose.position.y = goal_y
+        goal_pose_msg.pose.orientation.w = 1.0
+        self._goal_pub.publish(goal_pose_msg)
+        self.get_logger().info(f'/test/goal_pose にパブリッシュしました: x={goal_x}, y={goal_y}')
 
         # ゴール送信（nav2 が拒否した場合はリトライ）
         MAX_RETRIES = 5
