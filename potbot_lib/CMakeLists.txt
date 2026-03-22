@@ -24,6 +24,9 @@ add_library(potbot_lib_utility
   src/field.cpp
   src/artificial_potential_field.cpp
   src/apf_path_planner.cpp
+  src/pure_pursuit.cpp
+  src/time_state.cpp
+  src/particle_swarm_optimization.cpp
 )
 
 ament_target_dependencies(potbot_lib_utility
