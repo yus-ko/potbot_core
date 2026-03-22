@@ -52,6 +52,12 @@ def parse_args():
         default=False,
         help='軌跡パネルの表示範囲自動調整を無効化する (デフォルト: 自動調整ON)',
     )
+    parser.add_argument(
+        '--output-image',
+        type=str,
+        default=None,
+        help='出力PNGファイルパス (デフォルト: output-dir/navigation_result.png)',
+    )
     return parser.parse_args()
 
 
@@ -441,7 +447,10 @@ def main():
                         resources=resources,
                         auto_zoom=not args.no_auto_zoom)
 
-    output_path = output_dir / 'navigation_result.png'
+    if args.output_image:
+        output_path = Path(args.output_image)
+    else:
+        output_path = output_dir / 'navigation_result.png'
     fig.savefig(str(output_path), dpi=150)
     plt.close(fig)
 
