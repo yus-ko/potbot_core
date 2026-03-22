@@ -25,8 +25,6 @@ add_library(potbot_lib_utility
   src/artificial_potential_field.cpp
   src/apf_path_planner.cpp
   src/filter.cpp
-  src/pure_pursuit.cpp
-  src/time_state.cpp
   src/kalman_filter.cpp
   src/unscented_kalman_filter.cpp
   src/particle_swarm_optimization.cpp
