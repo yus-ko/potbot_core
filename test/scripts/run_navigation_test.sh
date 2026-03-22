@@ -4,17 +4,21 @@
 #
 # フロー:
 #   1. 実行フォルダファイル (.current_run_dir) が書き出されるまで待機
-#   2. ナビゲーション実行（アクションサーバー接続 + bt_navigator active 待機）
-#   3. センチネルファイル作成 → rosbag-record を停止
-#   4. rosbag-record・resource-monitor の停止完了を待機
-#   5. rosbag2 解析 → 実行フォルダ内に navigation_result.png 生成
-#   6. 終了（--abort-on-container-exit で他サービスも停止）
+#   2. 結果ディレクトリ作成
+#   3. パラメータファイルを実行フォルダにコピー
+#   4. ナビゲーション実行（アクションサーバー接続 + bt_navigator active 待機）
+#   5. センチネルファイル作成 → rosbag-record を停止
+#   6. rosbag-record・resource-monitor の停止完了を待機
+#   7. rosbag2 解析 → 実行フォルダ内に navigation_result.png 生成
+#   8. 結果表示
+#   9. 終了（--abort-on-container-exit で他サービスも停止）
 
 set -e
 
 RESULTS_DIR="/root/test/results"
 RUN_DIR_FILE="${RESULTS_DIR}/.current_run_dir"
 ANALYZE_SCRIPT="/root/test/scripts/analyze_rosbag.py"
+PARAMS_FILE="/root/test/config/waffle_pi.yaml"
 SENTINEL="/root/test/results/.stop_rosbag"
 DONE_FLAG="/root/test/results/.rosbag_stopped"
 RESOURCE_DONE_FLAG="/root/test/results/.resource_monitor_stopped"
@@ -57,20 +61,28 @@ RESOURCES_CSV="${RUN_DIR}/resources.csv"
 PNG_OUTPUT="${RUN_DIR}/navigation_result.png"
 echo "実行フォルダ: ${RUN_DIR}"
 
-# --- 3. ゴールポーズ送信（アクションサーバー + bt_navigator active を検知してから実行） ---
-# 初期位置・ゴール・タイムアウトは waffle_pi.yaml の navigation_runner.ros__parameters で管理
-echo "ナビゲーションを開始します（設定: waffle_pi.yaml の navigation_runner パラメーター）"
+# --- 3. パラメータファイルを実行フォルダにコピー ---
+if [ -f "${PARAMS_FILE}" ]; then
+  cp "${PARAMS_FILE}" "${RUN_DIR}/$(basename "${PARAMS_FILE}")"
+  echo "パラメータファイルをコピーしました: ${RUN_DIR}/$(basename "${PARAMS_FILE}")"
+else
+  echo "警告: パラメータファイルが見つかりません: ${PARAMS_FILE}"
+fi
+
+# --- 4. ゴールポーズ送信（アクションサーバー + bt_navigator active を検知してから実行） ---
+# 初期位置・ゴール・タイムアウトは ${PARAMS_FILE} の navigation_runner.ros__parameters で管理
+echo "ナビゲーションを開始します（設定: ${PARAMS_FILE} の navigation_runner パラメーター）"
 NAV_RESULT=0
 python3 /root/test/scripts/run_navigation.py \
-  --ros-args --params-file /root/test/config/waffle_pi.yaml \
+  --ros-args --params-file "${PARAMS_FILE}" \
   && echo "ナビゲーション成功!" \
   || { echo "ナビゲーション失敗またはタイムアウト"; NAV_RESULT=1; }
 
-# --- 4. センチネルファイルを作成して rosbag-record に停止を通知 ---
+# --- 5. センチネルファイルを作成して rosbag-record に停止を通知 ---
 echo "rosbag-record に停止を通知..."
 touch "${SENTINEL}"
 
-# --- 5. rosbag-record・resource-monitor の停止完了を待機 ---
+# --- 6. rosbag-record・resource-monitor の停止完了を待機 ---
 echo "rosbag-record の停止完了を待機中..."
 WAIT_COUNT=0
 MAX_WAIT=30  # 最大30秒待機
@@ -96,7 +108,7 @@ while [ ! -f "${RESOURCE_DONE_FLAG}" ]; do
 done
 echo "resource-monitor 停止完了"
 
-# --- 6. rosbag2 解析 ---
+# --- 7. rosbag2 解析 ---
 if [ -f "${ANALYZE_SCRIPT}" ] && [ -d "${BAG_PATH}" ]; then
   echo ""
   echo "=== rosbag 解析を実行 ==="
@@ -112,16 +124,17 @@ else
   echo "警告: rosbag2 データまたは解析スクリプトが見つかりません"
 fi
 
-# --- 7. 結果表示 ---
+# --- 8. 結果表示 ---
 echo ""
 echo "=== テスト結果 ==="
 echo "実行フォルダ: ${RUN_DIR}"
+echo "  パラメータ:    ${RUN_DIR}/$(basename "${PARAMS_FILE}")"
 echo "  rosbag データ: ${BAG_PATH}"
 echo "  リソースCSV:   ${RESOURCES_CSV}"
 echo "  結果図:        ${PNG_OUTPUT}"
 echo "latest シンボリックリンク: ${RESULTS_DIR}/latest -> ${TIMESTAMP}"
 
-# --- 8. rosbag-record・resource-monitor に終了許可を通知 ---
+# --- 9. rosbag-record・resource-monitor に終了許可を通知 ---
 # これらのサービスはこのフラグを待ってから終了する
 # （--abort-on-container-exit の早期発火を防ぐため）
 touch "${RESULTS_DIR}/.nav_test_done"

@@ -31,7 +31,8 @@ test/
     ├── YYYY_MM_DD-HH_MM_SS/     # 実行ごとのタイムスタンプフォルダ
     │   ├── rosbag2/             # rosbag2 記録データ
     │   ├── resources.csv        # CPU/メモリ時系列データ
-    │   └── navigation_result.png  # 軌跡・速度・リソース可視化グラフ
+    │   ├── navigation_result.png  # 軌跡・速度・リソース可視化グラフ
+    │   └── waffle_pi.yaml       # 使用したパラメータファイルのコピー（ファイル名は実行時のものに従う）
     └── latest -> YYYY_MM_DD-HH_MM_SS/  # 最新実行へのシンボリックリンク
 ```
 
@@ -124,6 +125,7 @@ ls -la results/latest/
 | `rosbag2/` | 記録されたトピックデータ（sqlite3 形式） |
 | `resources.csv` | CPU/メモリ使用量の時系列データ |
 | `navigation_result.png` | 軌跡・速度・リソース使用量の可視化グラフ |
+| `waffle_pi.yaml`（等） | 使用したパラメータファイルのコピー |
 
 ### 期待される出力（成功時）
 
