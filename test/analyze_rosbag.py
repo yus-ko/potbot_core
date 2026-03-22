@@ -17,6 +17,8 @@ from pathlib import Path
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
+import numpy as np
 from rosbags.rosbag2 import Reader
 from rosbags.typesys import Stores, get_typestore
 
@@ -100,6 +102,9 @@ def read_rosbag(bag_path):
             plan_timestamps: 各 /plan メッセージのタイムスタンプリスト [s]。
             plan_paths: 各 /plan メッセージの [(x, y), ...] リスト。
         goal_pose: (goal_x, goal_y) のタプル。/test/goal_pose が未記録の場合は None。
+        map_data: OccupancyGrid の描画用データ dict。/map が未記録の場合は None。
+            'image': RGBA numpy 配列 (height x width x 4)。
+            'extent': [x_min, x_max, y_min, y_max] (world 座標 [m])。
         bag_start_ns: bagの最初のメッセージのタイムスタンプ [ns] (wall-clock)。
     """
     odom_timestamps = []
@@ -114,6 +119,7 @@ def read_rosbag(bag_path):
     plan_paths = []
 
     goal_pose = None
+    map_data = None
 
     start_time = None
     typestore = get_typestore(Stores.ROS2_HUMBLE)
@@ -150,11 +156,43 @@ def read_rosbag(bag_path):
                 msg = typestore.deserialize_cdr(rawdata, connection.msgtype)
                 goal_pose = (msg.pose.position.x, msg.pose.position.y)
 
+            elif connection.topic == '/map':
+                # 最後のマップメッセージを使用（AMCLが収束後のものが最も正確）
+                msg = typestore.deserialize_cdr(rawdata, connection.msgtype)
+                info = msg.info
+                width = info.width
+                height = info.height
+                resolution = info.resolution
+                origin_x = info.origin.position.x
+                origin_y = info.origin.position.y
+
+                # OccupancyGrid データを2次元配列に変換
+                grid = np.array(msg.data, dtype=np.int8).reshape(height, width)
+
+                # RGBA画像に変換: 不明(-1)=灰色, 自由(0)=白, 占有(100)=黒
+                rgba = np.zeros((height, width, 4), dtype=np.float32)
+                free_mask = grid == 0
+                occ_mask = grid == 100
+                unk_mask = grid == -1
+
+                rgba[free_mask] = [1.0, 1.0, 1.0, 1.0]   # 白: 自由空間
+                rgba[occ_mask] = [0.0, 0.0, 0.0, 1.0]    # 黒: 障害物
+                rgba[unk_mask] = [0.5, 0.5, 0.5, 0.6]    # 灰色: 未知領域
+
+                x_min = origin_x
+                x_max = origin_x + width * resolution
+                y_min = origin_y
+                y_max = origin_y + height * resolution
+                map_data = {
+                    'image': rgba,
+                    'extent': [x_min, x_max, y_min, y_max],
+                }
+
     odom_data = (odom_timestamps, odom_xs, odom_ys)
     cmd_vel_data = (cmd_vel_timestamps, cmd_vel_linear_xs, cmd_vel_angular_zs)
     plan_data = (plan_timestamps, plan_paths)
     bag_start_ns = start_time if start_time is not None else 0
-    return odom_data, cmd_vel_data, plan_data, goal_pose, bag_start_ns
+    return odom_data, cmd_vel_data, plan_data, goal_pose, map_data, bag_start_ns
 
 
 def _plot_resource_panels(axes, resources, panel_offset):
@@ -219,7 +257,7 @@ def _plot_resource_panels(axes, resources, panel_offset):
 
 
 def create_figure(odom_data, cmd_vel_data, plan_data, goal_x=None, goal_y=None,
-                  resources=None):
+                  map_data=None, resources=None):
     """4〜6パネルの図を生成する。
 
     Args:
@@ -228,6 +266,7 @@ def create_figure(odom_data, cmd_vel_data, plan_data, goal_x=None, goal_y=None,
         plan_data: (plan_timestamps, plan_paths) のタプル。
         goal_x: ゴール地点のX座標 [m]。None の場合はゴールマーカーを描画しない。
         goal_y: ゴール地点のY座標 [m]。None の場合はゴールマーカーを描画しない。
+        map_data: read_rosbag の戻り値 map_data dict。None の場合はマップ背景なし。
         resources: read_resources_csv の戻り値 dict。None の場合はリソースパネルなし。
 
     Returns:
@@ -243,31 +282,41 @@ def create_figure(odom_data, cmd_vel_data, plan_data, goal_x=None, goal_y=None,
 
     ax_xy = axes[0]
 
+    # マップを背景として描画（imshow は Y軸が上下逆なので origin='lower' を指定）
+    if map_data is not None:
+        ax_xy.imshow(
+            map_data['image'],
+            extent=map_data['extent'],
+            origin='lower',
+            aspect='equal',
+            zorder=0,
+        )
+
     for path in plan_paths[:-1]:
         if path:
             xs, ys = zip(*path)
-            ax_xy.plot(xs, ys, color='gray', linewidth=0.8, alpha=0.5)
+            ax_xy.plot(xs, ys, color='gray', linewidth=0.8, alpha=0.5, zorder=2)
 
     if plan_paths:
         latest_path = plan_paths[-1]
         if latest_path:
             xs, ys = zip(*latest_path)
-            ax_xy.plot(xs, ys, 'r-', linewidth=1.5, label='Plan (latest)')
+            ax_xy.plot(xs, ys, 'r-', linewidth=1.5, label='Plan (latest)', zorder=3)
 
     if len(plan_paths) > 1:
         ax_xy.plot([], [], color='gray', linewidth=0.8, alpha=0.5, label='Plan (old)')
 
-    ax_xy.plot(odom_xs, odom_ys, 'b-', label='Trajectory (odom)')
+    ax_xy.plot(odom_xs, odom_ys, 'b-', label='Trajectory (odom)', zorder=4)
     if odom_xs:
-        ax_xy.plot(odom_xs[0], odom_ys[0], 'go', markersize=10, label='Start')
+        ax_xy.plot(odom_xs[0], odom_ys[0], 'go', markersize=10, label='Start', zorder=5)
 
     if goal_x is not None and goal_y is not None:
-        ax_xy.plot(goal_x, goal_y, 'r^', markersize=10, label='Goal')
+        ax_xy.plot(goal_x, goal_y, 'r^', markersize=10, label='Goal', zorder=5)
     ax_xy.set_xlabel('X [m]')
     ax_xy.set_ylabel('Y [m]')
     ax_xy.set_aspect('equal')
-    ax_xy.grid(True)
-    ax_xy.set_title('Robot Trajectory')
+    ax_xy.grid(True, alpha=0.4, zorder=1)
+    ax_xy.set_title('Robot Trajectory' + (' (with map)' if map_data else ''))
     ax_xy.legend()
 
     ax_lin = axes[1]
@@ -325,7 +374,7 @@ def main():
     output_dir = Path(args.output_dir) if args.output_dir else bag_path.parent
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    odom_data, cmd_vel_data, plan_data, goal_pose, bag_start_ns = read_rosbag(str(bag_path))
+    odom_data, cmd_vel_data, plan_data, goal_pose, map_data, bag_start_ns = read_rosbag(str(bag_path))
 
     if goal_pose is not None:
         goal_x, goal_y = goal_pose
@@ -334,6 +383,12 @@ def main():
         print('警告: /test/goal_pose がrosbagに含まれていません。ゴールマーカーを描画しません。',
               file=sys.stderr)
         goal_x, goal_y = None, None
+
+    if map_data is not None:
+        print('マップをrosbagから取得しました。軌跡パネルの背景に描画します。')
+    else:
+        print('警告: /map がrosbagに含まれていません。マップ背景なしで描画します。',
+              file=sys.stderr)
 
     resources = None
     if args.resources_csv:
@@ -345,6 +400,7 @@ def main():
 
     fig = create_figure(odom_data, cmd_vel_data, plan_data,
                         goal_x=goal_x, goal_y=goal_y,
+                        map_data=map_data,
                         resources=resources)
 
     output_path = output_dir / 'navigation_result.png'

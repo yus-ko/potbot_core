@@ -21,7 +21,7 @@ rm -rf "$BAG_PATH"
 mkdir -p /root/test/results
 
 echo "[rosbag-record] rosbag2 記録を開始します: ${BAG_PATH}"
-ros2 bag record -o "$BAG_PATH" /odom /cmd_vel /scan /tf /tf_static /plan /test/goal_pose &
+ros2 bag record -o "$BAG_PATH" /odom /cmd_vel /scan /tf /tf_static /plan /test/goal_pose /map &
 RECORD_PID=$!
 
 # センチネルファイルが作成されるまで待機
