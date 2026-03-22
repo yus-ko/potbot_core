@@ -21,12 +21,21 @@ RUN_DIR_FILE="${RESULTS_DIR}/.current_run_dir"
 rm -f "${DONE_FLAG}"
 mkdir -p "${RESULTS_DIR}"
 
-# rosbag-record が .current_run_dir を書き出すまで待機
-# （rosbag_record_wrapper.sh が起動時に削除してから書き直すため、ファイルが消えてから現れるまで待つ）
-echo "[resource-monitor] 実行フォルダファイルを待機中: ${RUN_DIR_FILE}"
+# このスクリプトの起動時刻を記録（これより新しいファイルのみ今回の実行として受け入れる）
+SCRIPT_START=$(date +%s)
+
+# rosbag-record がこの実行向けに書き出した .current_run_dir を待機
+# 古い実行が残したファイルを誤読しないよう、スクリプト起動後に作成されたファイルのみ受け入れる
+echo "[resource-monitor] 今回の実行フォルダファイルを待機中: ${RUN_DIR_FILE}"
 WAIT_COUNT=0
-MAX_WAIT=60
-while [ ! -f "${RUN_DIR_FILE}" ]; do
+MAX_WAIT=120
+while true; do
+  if [ -f "${RUN_DIR_FILE}" ]; then
+    FILE_MTIME=$(stat -c %Y "${RUN_DIR_FILE}" 2>/dev/null || echo 0)
+    if [ "${FILE_MTIME}" -ge "${SCRIPT_START}" ]; then
+      break  # このスクリプト起動後に作成されたファイル（今回の実行）
+    fi
+  fi
   WAIT_COUNT=$((WAIT_COUNT + 1))
   if [ "${WAIT_COUNT}" -gt "${MAX_WAIT}" ]; then
     echo "[resource-monitor] 警告: 実行フォルダファイルが見つかりません。タイムスタンプでフォールバック"
@@ -39,7 +48,6 @@ while [ ! -f "${RUN_DIR_FILE}" ]; do
   sleep 0.5
 done
 
-# タイムアウトしなかった場合はファイルから読み込む
 if [ -z "${TIMESTAMP}" ]; then
   TIMESTAMP=$(cat "${RUN_DIR_FILE}")
   RUN_DIR="${RESULTS_DIR}/${TIMESTAMP}"

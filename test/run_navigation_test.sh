@@ -26,26 +26,30 @@ echo ""
 # --- 1. 結果ディレクトリ作成 ---
 mkdir -p "${RESULTS_DIR}"
 
-# --- 2. 実行フォルダファイルが書き出されるまで待機 ---
-echo "実行フォルダファイルを待機中: ${RUN_DIR_FILE}"
+# このスクリプトの起動時刻を記録（これより新しいファイルのみ今回の実行として受け入れる）
+SCRIPT_START=$(date +%s)
+
+# --- 2. 今回の実行フォルダファイルが書き出されるまで待機 ---
+# 古い実行が残したファイルを誤読しないよう、スクリプト起動後に作成されたファイルのみ受け入れる
+echo "今回の実行フォルダファイルを待機中: ${RUN_DIR_FILE}"
 WAIT_COUNT=0
-MAX_WAIT=60
-while [ ! -f "${RUN_DIR_FILE}" ]; do
+MAX_WAIT=120
+while true; do
+  if [ -f "${RUN_DIR_FILE}" ]; then
+    FILE_MTIME=$(stat -c %Y "${RUN_DIR_FILE}" 2>/dev/null || echo 0)
+    if [ "${FILE_MTIME}" -ge "${SCRIPT_START}" ]; then
+      break  # このスクリプト起動後に作成されたファイル（今回の実行）
+    fi
+  fi
   WAIT_COUNT=$((WAIT_COUNT + 1))
   if [ "${WAIT_COUNT}" -gt "${MAX_WAIT}" ]; then
-    echo "警告: 実行フォルダファイルが見つかりません"
-    break
+    echo "エラー: 実行フォルダファイルが見つかりません。テストを中断します"
+    exit 1
   fi
   sleep 0.5
 done
 
-TIMESTAMP=""
-if [ -f "${RUN_DIR_FILE}" ]; then
-  TIMESTAMP=$(cat "${RUN_DIR_FILE}")
-else
-  echo "エラー: 実行フォルダファイルが見つかりません。テストを中断します"
-  exit 1
-fi
+TIMESTAMP=$(cat "${RUN_DIR_FILE}")
 
 RUN_DIR="${RESULTS_DIR}/${TIMESTAMP}"
 BAG_PATH="${RUN_DIR}/rosbag2"
