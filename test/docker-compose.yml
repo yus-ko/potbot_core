@@ -90,6 +90,15 @@ services:
     entrypoint: /bin/bash
     command: -c "python3 /root/test/analyze_rosbag.py --bag-path /root/test/results/rosbag2 --output-dir /root/test/results"
 
+  pytest:
+    profiles: [test]
+    <<: *common_setting
+    container_name: pytest
+    volumes:
+      - ./:/root/test
+    entrypoint: /bin/bash
+    command: -c "cd /root/test && python3 -m pytest test_analyze_rosbag.py -v"
+
   colcon-test:
     profiles: [test]
     <<: *common_setting
