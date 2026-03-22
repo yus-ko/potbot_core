@@ -23,7 +23,8 @@ RUN_DIR="${RESULTS_DIR}/${TIMESTAMP}"
 BAG_PATH="${RUN_DIR}/rosbag2"
 
 # 前回の状態をクリーンアップ（古い実行フォルダは削除しない）
-rm -f "${SENTINEL}" "${DONE_FLAG}"
+# .current_run_dir を先に削除することで他サービスが古い値を読み込まないようにする
+rm -f "${SENTINEL}" "${DONE_FLAG}" "${RUN_DIR_FILE}"
 mkdir -p "${RUN_DIR}"
 
 # 実行フォルダ名を共有ファイルに書き出す（resource-monitor・nav-test が参照）

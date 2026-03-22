@@ -42,6 +42,9 @@ done
 TIMESTAMP=""
 if [ -f "${RUN_DIR_FILE}" ]; then
   TIMESTAMP=$(cat "${RUN_DIR_FILE}")
+else
+  echo "エラー: 実行フォルダファイルが見つかりません。テストを中断します"
+  exit 1
 fi
 
 RUN_DIR="${RESULTS_DIR}/${TIMESTAMP}"
