@@ -121,4 +121,10 @@ echo "  リソースCSV:   ${RESOURCES_CSV}"
 echo "  結果図:        ${PNG_OUTPUT}"
 echo "latest シンボリックリンク: ${RESULTS_DIR}/latest -> ${TIMESTAMP}"
 
+# --- 8. rosbag-record・resource-monitor に終了許可を通知 ---
+# これらのサービスはこのフラグを待ってから終了する
+# （--abort-on-container-exit の早期発火を防ぐため）
+touch "${RESULTS_DIR}/.nav_test_done"
+echo "全サービスに終了を通知しました"
+
 exit ${NAV_RESULT}

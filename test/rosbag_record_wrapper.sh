@@ -24,7 +24,8 @@ BAG_PATH="${RUN_DIR}/rosbag2"
 
 # 前回の状態をクリーンアップ（古い実行フォルダは削除しない）
 # .current_run_dir を先に削除することで他サービスが古い値を読み込まないようにする
-rm -f "${SENTINEL}" "${DONE_FLAG}" "${RUN_DIR_FILE}"
+NAV_DONE_FLAG="${RESULTS_DIR}/.nav_test_done"
+rm -f "${SENTINEL}" "${DONE_FLAG}" "${RUN_DIR_FILE}" "${NAV_DONE_FLAG}"
 mkdir -p "${RUN_DIR}"
 
 # 実行フォルダ名を共有ファイルに書き出す（resource-monitor・nav-test が参照）
@@ -55,3 +56,17 @@ echo "[rosbag-record] シンボリックリンクを更新しました: ${RESULT
 # 停止完了フラグを作成して nav-test に通知
 touch "${DONE_FLAG}"
 echo "[rosbag-record] 記録を正常停止しました: ${BAG_PATH}"
+
+# nav-test の解析完了を待機してから終了
+# （早期終了すると --abort-on-container-exit が発火して nav-test の解析が中断される）
+echo "[rosbag-record] nav-test の完了を待機中..."
+WAIT_COUNT=0
+MAX_WAIT=300
+while [ ! -f "${NAV_DONE_FLAG}" ]; do
+  WAIT_COUNT=$((WAIT_COUNT + 1))
+  if [ "${WAIT_COUNT}" -gt "${MAX_WAIT}" ]; then
+    echo "[rosbag-record] 警告: nav-test 完了待機タイムアウト"
+    break
+  fi
+  sleep 1
+done

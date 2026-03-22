@@ -75,3 +75,18 @@ wait "${MONITOR_PID}" 2>/dev/null || true
 
 touch "${DONE_FLAG}"
 echo "[resource-monitor] 監視を正常停止しました: ${CSV_PATH}"
+
+# nav-test の解析完了を待機してから終了
+# （早期終了すると --abort-on-container-exit が発火して nav-test の解析が中断される）
+NAV_DONE_FLAG="${RESULTS_DIR}/.nav_test_done"
+echo "[resource-monitor] nav-test の完了を待機中..."
+WAIT_COUNT=0
+MAX_WAIT=300
+while [ ! -f "${NAV_DONE_FLAG}" ]; do
+  WAIT_COUNT=$((WAIT_COUNT + 1))
+  if [ "${WAIT_COUNT}" -gt "${MAX_WAIT}" ]; then
+    echo "[resource-monitor] 警告: nav-test 完了待機タイムアウト"
+    break
+  fi
+  sleep 1
+done
