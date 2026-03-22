@@ -404,6 +404,73 @@ TEST(APFPathPlannerTest, CreatePathDuplicateDetection)
     });
 }
 
+// ============================================================
+// createPathDijkstra() テスト（M8 T-001）
+// ============================================================
+
+// CreatePathDijkstraBasic:
+//   障害物なし・ゴールに向かう基本ケースでDijkstraが経路を生成することを確認
+TEST(APFPathPlannerTest, CreatePathDijkstraBasic)
+{
+    // 41x41, res=0.05m, robot=(-0.9,0), goal=(0.9,0), 障害物なし
+    ArtificialPotentialField apf(41, 41, 0.05, 1.0, 0.0, 10.0, 0.0, 0.0);
+    apf.setRobot(-0.9, 0.0);
+    apf.setGoal(0.9, 0.0);
+    apf.createPotentialField();
+
+    APFPathPlanner planner(&apf);
+    planner.setParams(3.0, 1, 1.0, 0.0);
+
+    bool result = planner.createPathDijkstra(0.0);
+    EXPECT_TRUE(result);
+
+    std::vector<Pose> path;
+    planner.getPath(path);
+    EXPECT_GT(path.size(), 0u);
+}
+
+// CreatePathDijkstraWithObstacle:
+//   障害物がある場合もDijkstraがクラッシュしないことを確認
+TEST(APFPathPlannerTest, CreatePathDijkstraWithObstacle)
+{
+    // 21x21, res=1.0, robot=(-8,0), goal=(8,0), obstacle=(0,0)
+    ArtificialPotentialField apf(21, 21, 1.0, 1.0, 5.0, 3.0, 0.0, 0.0);
+    apf.setRobot(-8.0, 0.0);
+    apf.setGoal(8.0, 0.0);
+    apf.setObstacle(0.0, 0.0);
+    apf.createPotentialField();
+
+    APFPathPlanner planner(&apf);
+    planner.setParams(25.0, 1, 1.0, 0.0);
+
+    // 障害物があってもクラッシュしないこと
+    EXPECT_NO_THROW({
+        planner.createPathDijkstra(0.0);
+    });
+}
+
+// CreatePathUsesDijkstraFirst:
+//   createPath()がDijkstraを優先して使用し、障害物なし環境でパスが生成されることを確認
+TEST(APFPathPlannerTest, CreatePathUsesDijkstraFirst)
+{
+    // 41x41, res=0.05m, robot=(-0.9,0), goal=(0.9,0), 障害物なし
+    ArtificialPotentialField apf(41, 41, 0.05, 1.0, 0.0, 10.0, 0.0, 0.0);
+    apf.setRobot(-0.9, 0.0);
+    apf.setGoal(0.9, 0.0);
+    apf.createPotentialField();
+
+    APFPathPlanner planner(&apf);
+    planner.setParams(3.0, 1, 1.0, 0.0);
+
+    // createPath()はDijkstraを優先して使用するためパスが生成される
+    bool result = planner.createPath(0.0);
+    EXPECT_TRUE(result);
+
+    std::vector<Pose> path;
+    planner.getPath(path);
+    EXPECT_GT(path.size(), 0u);
+}
+
 int main(int argc, char **argv)
 {
     ::testing::InitGoogleTest(&argc, argv);

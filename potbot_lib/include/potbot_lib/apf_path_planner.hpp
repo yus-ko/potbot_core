@@ -35,6 +35,7 @@ namespace potbot_lib{
 
                 void setParams(double maxp, size_t sr, double wpot, double wpos);
 
+                bool createPathDijkstra(double init_robot_pose = 0.0);
                 bool createPathWithWeight(double init_robot_pose = 0.0);
                 bool createPath(double init_robot_pose = 0.0);
                 bool bezier();
