@@ -100,6 +100,37 @@ if (search_indexes.empty()) {
 **修正**: `no_progress_count` 関連の変数宣言とチェックブロックを削除。
 `max_path_length_`（20m）と重複検出で終了条件を担保する。
 
+---
+
+### バグE: 制御点数の上限が小さすぎた
+
+**問題**: `path_.size() > 100` で早期にループ終了していたため、壁までの経路が生成されない場合があった。
+
+**修正**:
+```cpp
+// 修正前
+if (path_.size() > 100) break;
+
+// 修正後
+if (path_.size() > 300) break;
+```
+
+---
+
+### バグF: 脱出ループが障害物セルを候補から除外しなかった
+
+**問題**: 脱出ループの候補セルに `IS_OBSTACLE` のチェックがなく、障害物セル自体が候補になり得た。
+APFのポテンシャルが非常に大きいため実際には選ばれないが、明示的な除外がなかった。
+
+**修正**:
+```cpp
+for (auto idx : search_indexes) {
+    if (IS_PLANNED_PATH) continue;
+    if (IS_OBSTACLE) continue;  // 障害物セル自体には経路点を置かない（追加）
+    // ...
+}
+```
+
 ## E2Eテスト結果
 
 - `planning_method: "weighted"` + `weight_potential: 1.0` + `weight_pose: 0.0`
@@ -107,10 +138,11 @@ if (search_indexes.empty()) {
 - ゴール: (-1.25, 3.5)（壁の向こう側）
 - 結果: `ゴール到達成功！` / 終了コード 0
 - Dijkstraフォールバックなし（weighted探索のみ）
+- **AMCL最終位置**: x=-1.192, y=3.478（ゴールまで0.062m、許容値0.25m以内）← 物理的到達確認
 
 ## 変更ファイル一覧
 
 | ファイル | 変更内容 |
 |---|---|
-| `potbot_lib/src/apf_path_planner.cpp` | バグA・B・C・Dの修正 |
-| `docs/Milestones/M9/T003_fix_weighted_escape.md` | 本ドキュメント（新規作成） |
+| `potbot_lib/src/apf_path_planner.cpp` | バグA〜Fの修正 |
+| `docs/Milestones/M9/T003_fix_weighted_escape.md` | 本ドキュメント（新規作成・更新） |

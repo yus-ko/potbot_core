@@ -158,7 +158,7 @@ namespace potbot_lib{
                     path_length <= max_path_length_)
             {
                 //経路補間に時間がかかってしまうため制御点(path.size())の数に上限を設ける
-                if (path_.size() > 100) break;
+                if (path_.size() > 300) break;
                 double J_min = J_min_pre;
                 
                 std::vector<size_t> search_indexes;
@@ -204,6 +204,7 @@ namespace potbot_lib{
                     double wu               = weight_potential;
                     double w_theta          = weight_pose;
                     size_t best_idx = SIZE_MAX;  // 全100回試行での最良セルインデックス
+
                     for (size_t i = 0; i < 100; i++)
                     {
                         apf_->getSquareIndex(search_indexes, center_row, center_col, random_range);
@@ -219,6 +220,8 @@ namespace potbot_lib{
                         for (auto idx : search_indexes)
                         {
                             if ((*field_values)[idx].states[potential::GridInfo::IS_PLANNED_PATH] == true) continue;
+                            // 障害物セル自体には経路点を置かない
+                            if ((*field_values)[idx].states[potential::GridInfo::IS_OBSTACLE] == true) continue;
 
                             double PotentialValue   = (*field_values)[idx].value;
                             double x                = (*field_values)[idx].x;
