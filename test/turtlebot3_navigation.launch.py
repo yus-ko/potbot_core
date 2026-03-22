@@ -24,7 +24,7 @@ def generate_launch_description():
             'params_file',
             default=os.path.join(
                 test_dir,
-                'burger.yaml'))
+                'waffle_pi.yaml'))
 
     nav2_launch_file_dir = os.path.join(get_package_share_directory('nav2_bringup'), 'launch')
 
