@@ -1,3 +1,5 @@
+x-params-file: &params_file /root/test/config/waffle_pi.yaml
+
 x-common-setting: &common_setting
   build:
       context: .
@@ -43,7 +45,7 @@ services:
     environment:
       <<: *common_environment
       ROS_DOMAIN_ID: 1
-      PARAMS_FILE: /root/test/config/waffle_pi.yaml
+      PARAMS_FILE: *params_file
     volumes:
       - /tmp/.X11-unix:/tmp/.X11-unix
       - ../../../:/root/ros2_ws
@@ -59,7 +61,7 @@ services:
     environment:
       <<: *common_environment
       ROS_DOMAIN_ID: 1
-      PARAMS_FILE: /root/test/config/waffle_pi.yaml
+      PARAMS_FILE: *params_file
     depends_on:
       - potbot
     volumes:
