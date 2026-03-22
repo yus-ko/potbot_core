@@ -33,8 +33,15 @@ class NavigationRunner(Node):
         self._client = ActionClient(self, NavigateToPose, 'navigate_to_pose')
 
     def set_initial_pose(self, x: float = 0.0, y: float = 0.0):
-        """AMCLの初期位置を設定する"""
-        pub = self.create_publisher(PoseWithCovarianceStamped, 'initialpose', 10)
+        """AMCLの初期位置を設定する。
+
+        Publisher は明示的に破棄しない。
+        pub.destroy() を呼ぶと QoS イベントが無効化され、その後の spin_once で
+        InvalidHandle が発生する rclpy Humble の既知バグを回避するため。
+        """
+        if not hasattr(self, '_initialpose_pub'):
+            self._initialpose_pub = self.create_publisher(
+                PoseWithCovarianceStamped, 'initialpose', 10)
         time.sleep(0.5)
 
         msg = PoseWithCovarianceStamped()
@@ -48,10 +55,9 @@ class NavigationRunner(Node):
         msg.pose.covariance[35] = 0.06853891945200942
 
         for _ in range(3):
-            pub.publish(msg)
+            self._initialpose_pub.publish(msg)
             time.sleep(0.3)
 
-        pub.destroy()
         self.get_logger().info(f'初期位置を設定しました: x={x}, y={y}')
 
     def run(self, goal_x: float, goal_y: float, timeout: float = 300.0) -> bool:
@@ -73,37 +79,84 @@ class NavigationRunner(Node):
         self.get_logger().info('アクションサーバー接続完了。初期位置を設定します...')
         self.set_initial_pose()
 
-        self.get_logger().info(f'ゴールを送信します: x={goal_x}, y={goal_y}')
-        goal_msg = NavigateToPose.Goal()
-        goal_msg.pose.header.frame_id = 'map'
-        goal_msg.pose.header.stamp = self.get_clock().now().to_msg()
-        goal_msg.pose.pose.position.x = goal_x
-        goal_msg.pose.pose.position.y = goal_y
-        goal_msg.pose.pose.orientation.w = 1.0
+        # wait_for_server は Action Server の存在のみを確認するため、
+        # nav2 が fully active になるまでさらに待機する
+        self.get_logger().info('nav2 の完全な起動を待機中 (10s)...')
+        time.sleep(10.0)
 
-        send_future = self._client.send_goal_async(goal_msg)
-        rclpy.spin_until_future_complete(self, send_future, timeout_sec=10.0)
+        # ゴール送信（nav2 が拒否した場合はリトライ）
+        MAX_RETRIES = 5
+        RETRY_INTERVAL = 5.0
 
-        goal_handle = send_future.result()
-        if goal_handle is None or not goal_handle.accepted:
-            self.get_logger().error('ゴールが拒否されました。')
-            return False
+        for attempt in range(1, MAX_RETRIES + 1):
+            self.get_logger().info(
+                f'ゴールを送信します (試行 {attempt}/{MAX_RETRIES}): x={goal_x}, y={goal_y}'
+            )
+            goal_msg = NavigateToPose.Goal()
+            goal_msg.pose.header.frame_id = 'map'
+            goal_msg.pose.header.stamp = self.get_clock().now().to_msg()
+            goal_msg.pose.pose.position.x = goal_x
+            goal_msg.pose.pose.position.y = goal_y
+            goal_msg.pose.pose.orientation.w = 1.0
 
-        self.get_logger().info('ゴール受理。到達を待機中...')
-        result_future = goal_handle.get_result_async()
-        rclpy.spin_until_future_complete(self, result_future, timeout_sec=timeout)
+            send_future = self._client.send_goal_async(goal_msg)
+            if not self._spin_until_done(send_future, timeout_sec=15.0):
+                self.get_logger().warn(f'ゴール送信がタイムアウト (試行 {attempt})。リトライします...')
+                time.sleep(RETRY_INTERVAL)
+                continue
 
-        if not result_future.done():
-            self.get_logger().error(f'ナビゲーションが {timeout}s 以内に完了しませんでした。')
-            return False
+            goal_handle = send_future.result()
+            if goal_handle is None or not goal_handle.accepted:
+                self.get_logger().warn(f'ゴールが拒否されました (試行 {attempt})。リトライします...')
+                time.sleep(RETRY_INTERVAL)
+                continue
 
-        result = result_future.result()
-        if result.status == GoalStatus.STATUS_SUCCEEDED:
-            self.get_logger().info('ゴール到達成功！')
-            return True
-        else:
-            self.get_logger().error(f'ナビゲーション失敗。ステータス: {result.status}')
-            return False
+            # ゴール受理 → 結果待ち
+            self.get_logger().info('ゴール受理。到達を待機中...')
+            result_future = goal_handle.get_result_async()
+            if not self._spin_until_done(result_future, timeout_sec=timeout):
+                self.get_logger().error(f'ナビゲーションが {timeout}s 以内に完了しませんでした。')
+                return False
+
+            result = result_future.result()
+            if result.status == GoalStatus.STATUS_SUCCEEDED:
+                self.get_logger().info('ゴール到達成功！')
+                return True
+            else:
+                self.get_logger().error(f'ナビゲーション失敗。ステータス: {result.status}')
+                return False
+
+        self.get_logger().error(f'{MAX_RETRIES} 回試行しましたがゴールを送信できませんでした。')
+        return False
+
+    def _spin_until_done(self, future, timeout_sec: float) -> bool:
+        """future が完了するまで spin_once ループで待機する。
+
+        rclpy Humble には qos_event の InvalidHandle バグがあるため、
+        例外を無視しながら spin し続ける。
+
+        Returns:
+            True : future が完了した
+            False: timeout_sec 以内に完了しなかった
+        """
+        import time as _time
+        executor = rclpy.executors.SingleThreadedExecutor()
+        executor.add_node(self)
+        deadline = _time.monotonic() + timeout_sec
+        try:
+            while not future.done():
+                remaining = deadline - _time.monotonic()
+                if remaining <= 0:
+                    return False
+                try:
+                    executor.spin_once(timeout_sec=min(0.1, remaining))
+                except Exception:
+                    # rclpy Humble の QoS InvalidHandle バグを無視して継続
+                    pass
+        finally:
+            executor.remove_node(self)
+            executor.shutdown()
+        return True
 
 
 def parse_args():

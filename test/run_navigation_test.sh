@@ -1,65 +1,38 @@
 #!/bin/bash
 # Gazebo + Navigation2 E2E テスト実行スクリプト
-# 前提: Gazebo + Navigation2 が起動済みであること
-# rosbag2 記録 → ナビゲーション → 記録停止 → 解析の一連のパイプラインを実行
+# 前提: Gazebo + Navigation2 + rosbag-record サービスが起動済みであること
+#
+# ナビゲーション実行のみを担当する。rosbag2 の解析は rosbag-record 停止後に
+# rosbag-analysis サービスで別途実行すること。
 
 set -e
 
 RESULTS_DIR="/root/test/results"
-BAG_PATH="${RESULTS_DIR}/rosbag2"
-ANALYZE_SCRIPT="/root/test/analyze_rosbag.py"
 
 echo "=== Gazebo + Navigation2 E2E テスト ==="
-echo "前提: Gazebo と Navigation2 が起動済みであること"
+echo "前提: Gazebo / Navigation2 / rosbag-record サービスが起動済みであること"
 echo ""
 
 # --- 1. 結果ディレクトリ作成 ---
 mkdir -p "${RESULTS_DIR}"
 
-# --- 2. 古い rosbag データを削除 ---
-rm -rf "${BAG_PATH}"
-
-# --- 3. rosbag2 記録をバックグラウンドで開始 ---
-echo "rosbag2 記録を開始..."
-ros2 bag record -o "${BAG_PATH}" /odom /cmd_vel /scan /tf /tf_static /plan &
-RECORD_PID=$!
-
-# 記録プロセスを確実に停止するための trap 設定
-cleanup() {
-  echo ""
-  echo "rosbag2 記録を停止 (PID: ${RECORD_PID})..."
-  kill "${RECORD_PID}" 2>/dev/null || true
-  wait "${RECORD_PID}" 2>/dev/null || true
-}
-trap cleanup EXIT
-
-# --- 4. 記録開始を確実にするため少し待つ ---
-sleep 2
-
-# --- 5. ゴールポーズ送信（アクションサーバー接続確立まで待機） ---
+# --- 2. ゴールポーズ送信（アクションサーバー接続確立まで待機） ---
 echo "アクションサーバーを待機してゴールポーズを送信: x=2.0, y=0.5"
 NAV_RESULT=0
 python3 /root/test/run_navigation.py 2.0 0.5 --timeout 300 \
   && echo "ナビゲーション成功!" \
   || { echo "ナビゲーション失敗またはタイムアウト"; NAV_RESULT=1; }
 
-# --- 6. 記録プロセスを停止 (trap で自動実行されるが、解析前に明示的に停止) ---
-cleanup
-trap - EXIT
+# --- 3. rosbag-record のフラッシュ時間を確保してから終了 ---
+# nav-test 終了 → --abort-on-container-exit で rosbag-record に SIGTERM が届く
+# stop_grace_period=15s の間に rosbag-record が metadata.yaml を書き込む
+echo "rosbag-record のフラッシュ待機中 (10s)..."
+sleep 10
 
-# --- 7. 解析スクリプト実行 ---
-if [ -f "${ANALYZE_SCRIPT}" ]; then
-  echo ""
-  echo "=== rosbag 解析を実行 ==="
-  python3 "${ANALYZE_SCRIPT}" --bag-path "${BAG_PATH}" --output-dir "${RESULTS_DIR}" || echo "警告: 解析スクリプトの実行に失敗しました"
-else
-  echo "警告: 解析スクリプトが見つかりません: ${ANALYZE_SCRIPT}"
-fi
-
-# --- 8. 結果表示 ---
+# --- 4. 結果表示 ---
 echo ""
-echo "=== テスト結果 ==="
-echo "rosbag データ: ${BAG_PATH}"
-echo "結果: ${RESULTS_DIR}/navigation_result.png"
+echo "=== テスト完了 ==="
+echo "rosbag データ: ${RESULTS_DIR}/rosbag2 (rosbag-record 停止後に確定)"
+echo "解析は 'docker compose --profile analysis run --rm rosbag-analysis' で実行してください"
 
 exit ${NAV_RESULT}

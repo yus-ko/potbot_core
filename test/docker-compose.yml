@@ -61,8 +61,8 @@ services:
       - ./entrypoint.sh:/entrypoint.sh
       - ./:/root/test
     entrypoint: /entrypoint.sh
-    # アクションサーバー接続確立まで run_navigation.py 内で待機してからテスト実行
-    command: bash /root/test/run_navigation_test.sh
+    # 古い rosbag データを削除してからテスト実行（rosbag-record との競合防止）
+    command: bash -c "rm -rf /root/test/results/rosbag2 && bash /root/test/run_navigation_test.sh"
 
   rosbag-record:
     <<: *common_setting
@@ -77,14 +77,14 @@ services:
       - ./entrypoint.sh:/entrypoint.sh
       - ./:/root/test
     entrypoint: /entrypoint.sh
+    # SIGTERM を受信したときに ros2 bag record が正常終了してメタデータを書き込む猶予を与える
+    stop_grace_period: 15s
     command: ros2 bag record -o /root/test/results/rosbag2 /odom /cmd_vel /scan /tf /tf_static /plan
 
   rosbag-analysis:
     profiles: [analysis]
     <<: *common_setting
     container_name: rosbag-analysis
-    depends_on:
-      - nav-test
     volumes:
       - ./:/root/test
     entrypoint: /bin/bash
