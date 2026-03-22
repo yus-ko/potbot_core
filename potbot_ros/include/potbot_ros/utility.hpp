@@ -72,10 +72,10 @@ namespace potbot_lib
         double get_distance(const geometry_msgs::msg::PoseStamped &position1, const geometry_msgs::msg::PoseStamped &position2);
         double get_distance(const nav_msgs::msg::Odometry &position1, const nav_msgs::msg::Odometry &position2);
 
-        // void print_pose(const geometry_msgs::msg::Pose& pose);
-        // void print_pose(const geometry_msgs::msg::PoseStamped& pose);
-        // void print_pose(const nav_msgs::msg::Odometry& pose);
-        // void print_pose(const Pose& p);
+        void print_pose(const geometry_msgs::msg::Pose& pose);
+        void print_pose(const geometry_msgs::msg::PoseStamped& pose);
+        void print_pose(const nav_msgs::msg::Odometry& pose);
+        void print_pose(const Pose& p);
 
         void broadcast_frame(tf2_ros::TransformBroadcaster &bc, std::string child_frame_id, const geometry_msgs::msg::PoseStamped &pose_stamp);
         void broadcast_frame(tf2_ros::TransformBroadcaster &bc, std::string parent_frame_id, std::string child_frame_id, const geometry_msgs::msg::Pose &pose);
