@@ -36,19 +36,12 @@ trap cleanup EXIT
 # --- 4. 記録開始を確実にするため少し待つ ---
 sleep 2
 
-# --- 5. ゴールポーズ送信 ---
-echo "ゴールポーズを送信: x=2.0, y=0.5"
+# --- 5. ゴールポーズ送信（アクションサーバー接続確立まで待機） ---
+echo "アクションサーバーを待機してゴールポーズを送信: x=2.0, y=0.5"
 NAV_RESULT=0
-timeout 120 ros2 action send_goal /navigate_to_pose nav2_msgs/action/NavigateToPose "{
-  pose: {
-    header: {frame_id: 'map'},
-    pose: {
-      position: {x: 2.0, y: 0.5, z: 0.0},
-      orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}
-    }
-  },
-  behavior_tree: ''
-}" && echo "ナビゲーション成功!" || { echo "ナビゲーション失敗またはタイムアウト"; NAV_RESULT=1; }
+python3 /root/test/run_navigation.py 2.0 0.5 --timeout 300 \
+  && echo "ナビゲーション成功!" \
+  || { echo "ナビゲーション失敗またはタイムアウト"; NAV_RESULT=1; }
 
 # --- 6. 記録プロセスを停止 (trap で自動実行されるが、解析前に明示的に停止) ---
 cleanup

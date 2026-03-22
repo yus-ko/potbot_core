@@ -61,8 +61,8 @@ services:
       - ./entrypoint.sh:/entrypoint.sh
       - ./:/root/test
     entrypoint: /entrypoint.sh
-    # Nav2 の起動完了（約30秒）を待ってからテストを実行
-    command: bash -c "sleep 30 && bash /root/test/run_navigation_test.sh"
+    # アクションサーバー接続確立まで run_navigation.py 内で待機してからテスト実行
+    command: bash /root/test/run_navigation_test.sh
 
   rosbag-record:
     <<: *common_setting
