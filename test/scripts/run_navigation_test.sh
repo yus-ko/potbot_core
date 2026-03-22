@@ -14,7 +14,7 @@ set -e
 
 RESULTS_DIR="/root/test/results"
 RUN_DIR_FILE="${RESULTS_DIR}/.current_run_dir"
-ANALYZE_SCRIPT="/root/test/analyze_rosbag.py"
+ANALYZE_SCRIPT="/root/test/scripts/analyze_rosbag.py"
 SENTINEL="/root/test/results/.stop_rosbag"
 DONE_FLAG="/root/test/results/.rosbag_stopped"
 RESOURCE_DONE_FLAG="/root/test/results/.resource_monitor_stopped"
@@ -61,8 +61,8 @@ echo "実行フォルダ: ${RUN_DIR}"
 # 初期位置・ゴール・タイムアウトは waffle_pi.yaml の navigation_runner.ros__parameters で管理
 echo "ナビゲーションを開始します（設定: waffle_pi.yaml の navigation_runner パラメーター）"
 NAV_RESULT=0
-python3 /root/test/run_navigation.py \
-  --ros-args --params-file /root/test/waffle_pi.yaml \
+python3 /root/test/scripts/run_navigation.py \
+  --ros-args --params-file /root/test/config/waffle_pi.yaml \
   && echo "ナビゲーション成功!" \
   || { echo "ナビゲーション失敗またはタイムアウト"; NAV_RESULT=1; }
 

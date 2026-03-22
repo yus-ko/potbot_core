@@ -24,7 +24,7 @@ services:
       - /tmp/.X11-unix:/tmp/.X11-unix
       - ./.gazebo:/root/.gazebo
       - ../../../:/root/ros2_ws
-      - ./entrypoint.sh:/entrypoint.sh
+      - ./scripts/entrypoint.sh:/entrypoint.sh
     entrypoint: /entrypoint.sh
     command: ros2 launch potbot_example turtlebot3_with_garage.launch.py
 
@@ -33,7 +33,7 @@ services:
     <<: *common_setting
     container_name: domain_bridge
     volumes:
-     - ./bridge_config.yaml:/bridge_config.yaml
+     - ./config/bridge_config.yaml:/bridge_config.yaml
     command: ros2 run domain_bridge domain_bridge /bridge_config.yaml
 
   potbot:
@@ -46,10 +46,10 @@ services:
     volumes:
       - /tmp/.X11-unix:/tmp/.X11-unix
       - ../../../:/root/ros2_ws
-      - ./entrypoint.sh:/entrypoint.sh
+      - ./scripts/entrypoint.sh:/entrypoint.sh
       - ./:/root/test
     entrypoint: /entrypoint.sh
-    command: ros2 launch /root/test/turtlebot3_navigation.launch.py use_sim_time:=true
+    command: ros2 launch /root/test/launch/turtlebot3_navigation.launch.py use_sim_time:=true
 
   nav-test:
     profiles: [pipeline]
@@ -62,10 +62,10 @@ services:
       - potbot
     volumes:
       - ../../../:/root/ros2_ws
-      - ./entrypoint.sh:/entrypoint.sh
+      - ./scripts/entrypoint.sh:/entrypoint.sh
       - ./:/root/test
     entrypoint: /entrypoint.sh
-    command: bash /root/test/run_navigation_test.sh
+    command: bash /root/test/scripts/run_navigation_test.sh
 
   rosbag-record:
     profiles: [pipeline]
@@ -78,11 +78,11 @@ services:
       - potbot
     volumes:
       - ../../../:/root/ros2_ws
-      - ./entrypoint.sh:/entrypoint.sh
+      - ./scripts/entrypoint.sh:/entrypoint.sh
       - ./:/root/test
     entrypoint: /entrypoint.sh
     # センチネルファイル (.stop_rosbag) 検知で記録を停止するラッパースクリプトを使用
-    command: bash /root/test/rosbag_record_wrapper.sh
+    command: bash /root/test/scripts/rosbag_record_wrapper.sh
 
   resource-monitor:
     profiles: [pipeline]
@@ -94,10 +94,10 @@ services:
       - potbot
     volumes:
       - ../../../:/root/ros2_ws
-      - ./entrypoint.sh:/entrypoint.sh
+      - ./scripts/entrypoint.sh:/entrypoint.sh
       - ./:/root/test
     entrypoint: /entrypoint.sh
-    command: bash /root/test/resource_monitor_wrapper.sh
+    command: bash /root/test/scripts/resource_monitor_wrapper.sh
 
   rosbag-analysis:
     profiles: [analysis]
@@ -106,7 +106,7 @@ services:
     volumes:
       - ./:/root/test
     entrypoint: /bin/bash
-    command: -c "python3 /root/test/analyze_rosbag.py --bag-path /root/test/results/latest/rosbag2 --output-image /root/test/results/latest/navigation_result.png --resources-csv /root/test/results/latest/resources.csv"
+    command: -c "python3 /root/test/scripts/analyze_rosbag.py --bag-path /root/test/results/latest/rosbag2 --output-image /root/test/results/latest/navigation_result.png --resources-csv /root/test/results/latest/resources.csv"
 
   pytest:
     profiles: [test]
@@ -115,7 +115,7 @@ services:
     volumes:
       - ./:/root/test
     entrypoint: /bin/bash
-    command: -c "cd /root/test && python3 -m pytest test_analyze_rosbag.py -v"
+    command: -c "cd /root/test/tests && python3 -m pytest test_analyze_rosbag.py -v"
 
   colcon-test:
     profiles: [test]

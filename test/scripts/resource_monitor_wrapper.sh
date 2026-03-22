@@ -55,7 +55,7 @@ if [ -z "${TIMESTAMP}" ]; then
 fi
 
 echo "[resource-monitor] リソース監視を開始します: ${CSV_PATH}"
-python3 /root/test/resource_monitor.py \
+python3 /root/test/scripts/resource_monitor.py \
   --output "${CSV_PATH}" \
   --interval 1.0 &
 MONITOR_PID=$!

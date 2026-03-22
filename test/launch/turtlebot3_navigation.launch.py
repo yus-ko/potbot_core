@@ -10,7 +10,8 @@ from launch_ros.actions import Node
 
 
 def generate_launch_description():
-    test_dir = os.path.dirname(os.path.abspath(__file__))
+    launch_dir = os.path.dirname(os.path.abspath(__file__))
+    config_dir = os.path.join(launch_dir, '..', 'config')
     potbot_example_dir = get_package_share_directory('potbot_example')
 
     use_sim_time = LaunchConfiguration('use_sim_time', default='false')
@@ -23,13 +24,13 @@ def generate_launch_description():
     param_dir = LaunchConfiguration(
             'params_file',
             default=os.path.join(
-                test_dir,
+                config_dir,
                 'waffle_pi.yaml'))
 
     nav2_launch_file_dir = os.path.join(get_package_share_directory('nav2_bringup'), 'launch')
 
     rviz_config_dir = os.path.join(
-        test_dir,
+        config_dir,
         'navigation2.rviz')
 
     return LaunchDescription([
