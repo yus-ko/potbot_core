@@ -250,29 +250,31 @@ namespace potbot_lib
             return get_distance(position1.pose.pose.position, position2.pose.pose.position);
         }
 
-        //     void print_pose(const geometry_msgs::msg::Pose& pose)
-        //     {
-        //         double r,p,y;
-        //         get_rpy(pose.orientation,r,p,y);
-        //         ROS_INFO("\n\t(x,y,z) = (%.2f, %.2f, %.2f)\n\t(r,p,y) = (%.1f, %.1f, %.1f)",
-        //                     pose.position.x, pose.position.y, pose.position.z,
-        //                     r/M_PI*180, p/M_PI*180, y/M_PI*180);
-        //     }
+        void print_pose(const geometry_msgs::msg::Pose& pose)
+        {
+            double r, p, y;
+            get_rpy(pose.orientation, r, p, y);
+            std::printf("\n\t(x,y,z) = (%.2f, %.2f, %.2f)\n\t(r,p,y) = (%.1f, %.1f, %.1f)\n",
+                pose.position.x, pose.position.y, pose.position.z,
+                r * 180.0/M_PI, p * 180.0/M_PI, y * 180.0/M_PI);
+        }
 
-        //     void print_pose(const geometry_msgs::msg::PoseStamped& pose)
-        //     {
-        //         print_pose(pose.pose);
-        //     }
+        void print_pose(const geometry_msgs::msg::PoseStamped& pose)
+        {
+            print_pose(pose.pose);
+        }
 
-        //     void print_pose(const nav_msgs::msg::Odometry& pose)
-        //     {
-        //         print_pose(pose.pose.pose);
-        //     }
+        void print_pose(const nav_msgs::msg::Odometry& pose)
+        {
+            print_pose(pose.pose.pose);
+        }
 
-        //     void print_pose(const Pose& p)
-        //     {
-        //         print_pose(get_pose(p));
-        //     }
+        void print_pose(const Pose& p)
+        {
+            std::printf("\n\t(x,y,z) = (%.2f, %.2f, %.2f)\n\t(r,p,y) = (%.1f, %.1f, %.1f)\n",
+                p.position.x, p.position.y, p.position.z,
+                p.rotation.x * 180.0/M_PI, p.rotation.y * 180.0/M_PI, p.rotation.z * 180.0/M_PI);
+        }
 
         void broadcast_frame(tf2_ros::TransformBroadcaster &bc, std::string child_frame_id, const geometry_msgs::msg::PoseStamped &pose_stamp)
         {
