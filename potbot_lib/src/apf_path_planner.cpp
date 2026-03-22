@@ -1,4 +1,6 @@
 #include <potbot_lib/apf_path_planner.hpp>
+#include <queue>
+#include <climits>
 
 namespace potbot_lib{
 
@@ -19,6 +21,92 @@ namespace potbot_lib{
             path_search_range_ = sr;
             path_weight_potential_ = wpot;
             path_weight_pose_ = wpos;
+        }
+
+        /**
+         * @brief Dijkstra法による経路計画
+         *
+         * APFの勾配降下法では局所解に陥る問題をDijkstra法で解消する。
+         * 各グリッドの斥力コストをエッジコストに組み込み、障害物を避けながら
+         * グローバル最適経路を探索する。
+         *
+         * @param init_robot_pose ロボットの初期姿勢（現バージョンでは未使用）
+         * @return true  経路が見つかった場合
+         * @return false ロボット位置が見つからない、またはゴールに到達できない場合
+         */
+        bool APFPathPlanner::createPathDijkstra(double init_robot_pose)
+        {
+            path_.clear();
+            std::vector<potential::FieldGrid>* field_values = apf_->getValues();
+            const size_t N = field_values->size();
+
+            // ロボット開始インデックスを検索
+            size_t start_idx = SIZE_MAX;
+            for (const auto& v : *field_values) {
+                if (v.states[potential::GridInfo::IS_ROBOT]) {
+                    start_idx = v.index;
+                    break;
+                }
+            }
+            if (start_idx == SIZE_MAX) return false;
+
+            // Dijkstra法による最短経路探索
+            // エッジコスト = 物理距離 × (1 + 斥力コスト) とすることで障害物付近を回避する
+            std::vector<double> dist(N, std::numeric_limits<double>::infinity());
+            std::vector<size_t> prev(N, SIZE_MAX);
+            using P = std::pair<double, size_t>;
+            std::priority_queue<P, std::vector<P>, std::greater<P>> pq;
+
+            dist[start_idx] = 0.0;
+            pq.push({0.0, start_idx});
+            size_t goal_idx = SIZE_MAX;
+
+            while (!pq.empty()) {
+                auto [d, u] = pq.top();
+                pq.pop();
+                // 古いエントリはスキップ
+                if (d > dist[u]) continue;
+
+                // ゴール周辺グリッドに到達したら終了
+                if ((*field_values)[u].states[potential::GridInfo::IS_AROUND_GOAL]) {
+                    goal_idx = u;
+                    break;
+                }
+
+                // 隣接グリッドへの遷移コストを計算
+                std::vector<size_t> neighbors;
+                apf_->getSquareIndex(neighbors, (*field_values)[u].row, (*field_values)[u].col, 1);
+
+                for (size_t v : neighbors) {
+                    // 障害物グリッドはスキップ
+                    if ((*field_values)[v].states[potential::GridInfo::IS_OBSTACLE]) continue;
+
+                    double dx = (*field_values)[v].x - (*field_values)[u].x;
+                    double dy = (*field_values)[v].y - (*field_values)[u].y;
+                    double phys_dist = std::sqrt(dx * dx + dy * dy);
+                    // 斥力コストをペナルティとして加算することで障害物付近を回避
+                    double repulsion_cost = (*field_values)[v].repulsion;
+                    double edge_cost = phys_dist * (1.0 + repulsion_cost);
+                    double new_dist = d + edge_cost;
+
+                    if (new_dist < dist[v]) {
+                        dist[v] = new_dist;
+                        prev[v] = u;
+                        pq.push({new_dist, v});
+                    }
+                }
+            }
+
+            if (goal_idx == SIZE_MAX) return false;
+
+            // パスを復元（ゴール→スタートの逆順をreverse）
+            std::vector<Pose> rev_path;
+            for (size_t cur = goal_idx; cur != SIZE_MAX; cur = prev[cur]) {
+                rev_path.push_back(Pose{(*field_values)[cur].x, (*field_values)[cur].y});
+            }
+            std::reverse(rev_path.begin(), rev_path.end());
+            path_ = rev_path;
+            return !path_.empty();
         }
 
         bool APFPathPlanner::createPathWithWeight(double init_robot_pose)
@@ -176,6 +264,12 @@ namespace potbot_lib{
 
         bool APFPathPlanner::createPath(double init_robot_pose)
         {
+            // まずDijkstra法で経路を生成する。
+            // Dijkstraはグローバル最適解を見つけAPF局所解問題を回避する。
+            if (createPathDijkstra(init_robot_pose)) {
+                return true;
+            }
+            // Dijkstraが失敗した場合（ゴールへの経路なし等）は従来の勾配降下法にフォールバック
             path_.clear();
             size_t center_row   = 0;
             size_t center_col   = 0;
@@ -191,7 +285,7 @@ namespace potbot_lib{
             // バグ5: ゴール方向への進捗がない連続ステップ数を追跡してループを防ぐ
             double prev_dist_to_goal = std::numeric_limits<double>::infinity();
             int no_progress_count = 0;
-            const int no_progress_limit = 15;
+            const int no_progress_limit = 50;
 
             double distance_threshold_repulsion_field = apf_->getDistanceThresholdRepulsionField();
 
