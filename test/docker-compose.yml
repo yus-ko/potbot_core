@@ -106,7 +106,7 @@ services:
     volumes:
       - ./:/root/test
     entrypoint: /bin/bash
-    command: -c "python3 /root/test/analyze_rosbag.py --bag-path /root/test/results/rosbag2 --output-dir /root/test/results"
+    command: -c "python3 /root/test/analyze_rosbag.py --bag-path /root/test/results/latest/rosbag2 --output-image /root/test/results/latest/navigation_result.png --resources-csv /root/test/results/latest/resources.csv"
 
   pytest:
     profiles: [test]

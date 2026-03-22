@@ -8,26 +8,26 @@
 # ファイル:
 #   /root/test/results/.stop_rosbag       : nav-test が記録停止を要求するセンチネル
 #   /root/test/results/.rosbag_stopped    : rosbag-record が停止完了を通知するフラグ
-#   /root/test/results/.current_bag_name  : 今回記録したbag名（他サービスが参照）
+#   /root/test/results/.current_run_dir   : 今回の実行フォルダ名（他サービスが参照）
 
 set -e
 
 RESULTS_DIR="/root/test/results"
 SENTINEL="${RESULTS_DIR}/.stop_rosbag"
 DONE_FLAG="${RESULTS_DIR}/.rosbag_stopped"
-BAG_NAME_FILE="${RESULTS_DIR}/.current_bag_name"
+RUN_DIR_FILE="${RESULTS_DIR}/.current_run_dir"
 
-# タイムスタンプベースのbag名を生成（ros2 bag recordのデフォルト形式に準拠）
+# タイムスタンプベースの実行フォルダを生成
 TIMESTAMP=$(date +%Y_%m_%d-%H_%M_%S)
-BAG_NAME="rosbag2_${TIMESTAMP}"
-BAG_PATH="${RESULTS_DIR}/${BAG_NAME}"
+RUN_DIR="${RESULTS_DIR}/${TIMESTAMP}"
+BAG_PATH="${RUN_DIR}/rosbag2"
 
-# 前回の状態をクリーンアップ（古いbagファイルは削除しない）
+# 前回の状態をクリーンアップ（古い実行フォルダは削除しない）
 rm -f "${SENTINEL}" "${DONE_FLAG}"
-mkdir -p "${RESULTS_DIR}"
+mkdir -p "${RUN_DIR}"
 
-# bag名を共有ファイルに書き出す（resource-monitor・nav-test が参照）
-echo "${BAG_NAME}" > "${BAG_NAME_FILE}"
+# 実行フォルダ名を共有ファイルに書き出す（resource-monitor・nav-test が参照）
+echo "${TIMESTAMP}" > "${RUN_DIR_FILE}"
 
 echo "[rosbag-record] rosbag2 記録を開始します: ${BAG_PATH}"
 ros2 bag record -o "${BAG_PATH}" /odom /cmd_vel /scan /tf /tf_static /plan /test/goal_pose /map &
@@ -47,9 +47,9 @@ echo "[rosbag-record] センチネル検知。記録を停止します..."
 kill "${RECORD_PID}" 2>/dev/null || true
 wait "${RECORD_PID}" 2>/dev/null || true
 
-# 最新のbagディレクトリへのシンボリックリンクを更新
-ln -sfn "${BAG_NAME}" "${RESULTS_DIR}/latest"
-echo "[rosbag-record] シンボリックリンクを更新しました: ${RESULTS_DIR}/latest -> ${BAG_NAME}"
+# 最新の実行フォルダへのシンボリックリンクを更新
+ln -sfn "${TIMESTAMP}" "${RESULTS_DIR}/latest"
+echo "[rosbag-record] シンボリックリンクを更新しました: ${RESULTS_DIR}/latest -> ${TIMESTAMP}"
 
 # 停止完了フラグを作成して nav-test に通知
 touch "${DONE_FLAG}"

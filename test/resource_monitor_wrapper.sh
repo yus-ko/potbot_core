@@ -8,38 +8,40 @@
 # ファイル:
 #   /root/test/results/.stop_rosbag               : nav-test が停止を要求するセンチネル (rosbag と共用)
 #   /root/test/results/.resource_monitor_stopped  : resource-monitor が停止完了を通知するフラグ
-#   /root/test/results/.current_bag_name          : rosbag-record が書き出したbag名
+#   /root/test/results/.current_run_dir           : rosbag-record が書き出した実行フォルダ名
 
 set -e
 
 RESULTS_DIR="/root/test/results"
 SENTINEL="${RESULTS_DIR}/.stop_rosbag"
 DONE_FLAG="${RESULTS_DIR}/.resource_monitor_stopped"
-BAG_NAME_FILE="${RESULTS_DIR}/.current_bag_name"
+RUN_DIR_FILE="${RESULTS_DIR}/.current_run_dir"
 
-# 前回の状態をクリーンアップ（古いCSVは削除しない）
+# 前回の状態をクリーンアップ（古い実行フォルダは削除しない）
 rm -f "${DONE_FLAG}"
 mkdir -p "${RESULTS_DIR}"
 
-# rosbag-record が書き出したbag名を待機
-echo "[resource-monitor] bag名ファイルを待機中: ${BAG_NAME_FILE}"
+# rosbag-record が書き出した実行フォルダ名を待機
+echo "[resource-monitor] 実行フォルダファイルを待機中: ${RUN_DIR_FILE}"
 WAIT_COUNT=0
 MAX_WAIT=60
-while [ ! -f "${BAG_NAME_FILE}" ]; do
+while [ ! -f "${RUN_DIR_FILE}" ]; do
   WAIT_COUNT=$((WAIT_COUNT + 1))
   if [ "${WAIT_COUNT}" -gt "${MAX_WAIT}" ]; then
-    echo "[resource-monitor] 警告: bag名ファイルが見つかりません。タイムスタンプでフォールバック"
-    BAG_NAME="resources_$(date +%Y_%m_%d-%H_%M_%S)"
+    echo "[resource-monitor] 警告: 実行フォルダファイルが見つかりません。タイムスタンプでフォールバック"
+    TIMESTAMP="fallback_$(date +%Y_%m_%d-%H_%M_%S)"
+    mkdir -p "${RESULTS_DIR}/${TIMESTAMP}"
     break
   fi
   sleep 0.5
 done
 
-if [ -f "${BAG_NAME_FILE}" ]; then
-  BAG_NAME=$(cat "${BAG_NAME_FILE}")
+if [ -f "${RUN_DIR_FILE}" ]; then
+  TIMESTAMP=$(cat "${RUN_DIR_FILE}")
 fi
 
-CSV_PATH="${RESULTS_DIR}/${BAG_NAME}.csv"
+RUN_DIR="${RESULTS_DIR}/${TIMESTAMP}"
+CSV_PATH="${RUN_DIR}/resources.csv"
 
 echo "[resource-monitor] リソース監視を開始します: ${CSV_PATH}"
 python3 /root/test/resource_monitor.py \
@@ -59,10 +61,6 @@ done
 echo "[resource-monitor] センチネル検知。監視を停止します..."
 kill "${MONITOR_PID}" 2>/dev/null || true
 wait "${MONITOR_PID}" 2>/dev/null || true
-
-# 最新のCSVへのシンボリックリンクを更新
-ln -sfn "${BAG_NAME}.csv" "${RESULTS_DIR}/latest.csv"
-echo "[resource-monitor] シンボリックリンクを更新しました: ${RESULTS_DIR}/latest.csv -> ${BAG_NAME}.csv"
 
 touch "${DONE_FLAG}"
 echo "[resource-monitor] 監視を正常停止しました: ${CSV_PATH}"
