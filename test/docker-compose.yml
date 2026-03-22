@@ -84,6 +84,19 @@ services:
     # センチネルファイル (.stop_rosbag) 検知で記録を停止するラッパースクリプトを使用
     command: bash /root/test/rosbag_record_wrapper.sh
 
+  resource-monitor:
+    profiles: [pipeline]
+    <<: *common_setting
+    container_name: resource-monitor
+    # potbot の PID 名前空間を共有して nav2 プロセス (planner/controller) を監視可能にする
+    pid: "service:potbot"
+    depends_on:
+      - potbot
+    volumes:
+      - ./:/root/test
+    entrypoint: /bin/bash
+    command: bash /root/test/resource_monitor_wrapper.sh
+
   rosbag-analysis:
     profiles: [analysis]
     <<: *common_setting

@@ -13,9 +13,11 @@ set -e
 
 RESULTS_DIR="/root/test/results"
 BAG_PATH="${RESULTS_DIR}/rosbag2"
+RESOURCES_CSV="${RESULTS_DIR}/resources.csv"
 ANALYZE_SCRIPT="/root/test/analyze_rosbag.py"
 SENTINEL="/root/test/results/.stop_rosbag"
 DONE_FLAG="/root/test/results/.rosbag_stopped"
+RESOURCE_DONE_FLAG="/root/test/results/.resource_monitor_stopped"
 
 echo "=== Gazebo + Navigation2 E2E テスト ==="
 echo "前提: Gazebo / Navigation2 / rosbag-record サービスが起動済みであること"
@@ -37,7 +39,7 @@ python3 /root/test/run_navigation.py \
 echo "rosbag-record に停止を通知..."
 touch "${SENTINEL}"
 
-# --- 4. rosbag-record の停止完了を待機（metadata.yaml 書き込み完了まで） ---
+# --- 4. rosbag-record・resource-monitor の停止完了を待機 ---
 echo "rosbag-record の停止完了を待機中..."
 WAIT_COUNT=0
 MAX_WAIT=30  # 最大30秒待機
@@ -51,11 +53,28 @@ while [ ! -f "${DONE_FLAG}" ]; do
 done
 echo "rosbag-record 停止完了"
 
+echo "resource-monitor の停止完了を待機中..."
+WAIT_COUNT=0
+while [ ! -f "${RESOURCE_DONE_FLAG}" ]; do
+  WAIT_COUNT=$((WAIT_COUNT + 1))
+  if [ "${WAIT_COUNT}" -gt "${MAX_WAIT}" ]; then
+    echo "警告: resource-monitor の停止確認がタイムアウトしました"
+    break
+  fi
+  sleep 1
+done
+echo "resource-monitor 停止完了"
+
 # --- 5. rosbag2 解析 ---
 if [ -f "${ANALYZE_SCRIPT}" ] && [ -d "${BAG_PATH}" ]; then
   echo ""
   echo "=== rosbag 解析を実行 ==="
-  python3 "${ANALYZE_SCRIPT}" --bag-path "${BAG_PATH}" --output-dir "${RESULTS_DIR}" \
+  ANALYZE_ARGS="--bag-path ${BAG_PATH} --output-dir ${RESULTS_DIR}"
+  if [ -f "${RESOURCES_CSV}" ]; then
+    ANALYZE_ARGS="${ANALYZE_ARGS} --resources-csv ${RESOURCES_CSV}"
+    echo "リソースCSV検出: ${RESOURCES_CSV} -> CPU/メモリパネルを追加"
+  fi
+  python3 "${ANALYZE_SCRIPT}" ${ANALYZE_ARGS} \
     && echo "解析完了: ${RESULTS_DIR}/navigation_result.png" \
     || echo "警告: 解析スクリプトの実行に失敗しました"
 else
