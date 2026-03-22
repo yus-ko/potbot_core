@@ -32,7 +32,7 @@ mkdir -p "${RUN_DIR}"
 echo "${TIMESTAMP}" > "${RUN_DIR_FILE}"
 
 echo "[rosbag-record] rosbag2 記録を開始します: ${BAG_PATH}"
-ros2 bag record -o "${BAG_PATH}" /odom /cmd_vel /scan /tf /tf_static /plan /test/goal_pose /map &
+ros2 bag record -o "${BAG_PATH}" /odom /cmd_vel /scan /tf /tf_static /plan /test/goal_pose /map /amcl_pose &
 RECORD_PID=$!
 
 # センチネルファイルが作成されるまで待機

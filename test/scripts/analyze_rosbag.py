@@ -117,6 +117,8 @@ def read_rosbag(bag_path):
         map_data: OccupancyGrid の描画用データ dict。/map が未記録の場合は None。
             'image': RGBA numpy 配列 (height x width x 4)。
             'extent': [x_min, x_max, y_min, y_max] (world 座標 [m])。
+        amcl_data: (timestamps, xs, ys) のタプル。/amcl_pose が未記録の場合は空リスト。
+            AMCLはmap座標系で位置を推定するため、ゴールと同じ座標系で比較可能。
         bag_start_ns: bagの最初のメッセージのタイムスタンプ [ns] (wall-clock)。
     """
     odom_timestamps = []
@@ -124,6 +126,10 @@ def read_rosbag(bag_path):
     odom_ys = []
     odom_linear_xs = []
     odom_angular_zs = []
+
+    amcl_timestamps = []
+    amcl_xs = []
+    amcl_ys = []
 
     cmd_vel_timestamps = []
     cmd_vel_linear_xs = []
@@ -172,6 +178,12 @@ def read_rosbag(bag_path):
                 msg = typestore.deserialize_cdr(rawdata, connection.msgtype)
                 goal_pose = (msg.pose.position.x, msg.pose.position.y)
 
+            elif connection.topic == '/amcl_pose':
+                msg = typestore.deserialize_cdr(rawdata, connection.msgtype)
+                amcl_timestamps.append(time_sec)
+                amcl_xs.append(msg.pose.pose.position.x)
+                amcl_ys.append(msg.pose.pose.position.y)
+
             elif connection.topic == '/map':
                 # 最後のマップメッセージを使用（AMCLが収束後のものが最も正確）
                 msg = typestore.deserialize_cdr(rawdata, connection.msgtype)
@@ -207,8 +219,9 @@ def read_rosbag(bag_path):
     odom_data = (odom_timestamps, odom_xs, odom_ys, odom_linear_xs, odom_angular_zs)
     cmd_vel_data = (cmd_vel_timestamps, cmd_vel_linear_xs, cmd_vel_angular_zs)
     plan_data = (plan_timestamps, plan_paths)
+    amcl_data = (amcl_timestamps, amcl_xs, amcl_ys)
     bag_start_ns = start_time if start_time is not None else 0
-    return odom_data, cmd_vel_data, plan_data, goal_pose, map_data, bag_start_ns
+    return odom_data, cmd_vel_data, plan_data, goal_pose, map_data, amcl_data, bag_start_ns
 
 
 def _plot_resource_panels(axes, resources, panel_offset):
@@ -273,7 +286,7 @@ def _plot_resource_panels(axes, resources, panel_offset):
 
 
 def create_figure(odom_data, cmd_vel_data, plan_data, goal_x=None, goal_y=None,
-                  map_data=None, resources=None, auto_zoom=True):
+                  map_data=None, amcl_data=None, resources=None, auto_zoom=True):
     """4〜6パネルの図を生成する。
 
     Args:
@@ -283,6 +296,8 @@ def create_figure(odom_data, cmd_vel_data, plan_data, goal_x=None, goal_y=None,
         goal_x: ゴール地点のX座標 [m]。None の場合はゴールマーカーを描画しない。
         goal_y: ゴール地点のY座標 [m]。None の場合はゴールマーカーを描画しない。
         map_data: read_rosbag の戻り値 map_data dict。None の場合はマップ背景なし。
+        amcl_data: (timestamps, xs, ys) のタプル。None または空の場合は odom を使用。
+            /amcl_pose はmap座標系のためゴールと同じ座標系で正確に比較できる。
         resources: read_resources_csv の戻り値 dict。None の場合はリソースパネルなし。
         auto_zoom: True の場合、軌跡パネルの表示範囲をロボット軌跡に合わせて正方形に自動調整する。
 
@@ -323,9 +338,15 @@ def create_figure(odom_data, cmd_vel_data, plan_data, goal_x=None, goal_y=None,
     if len(plan_paths) > 1:
         ax_xy.plot([], [], color='gray', linewidth=0.8, alpha=0.5, label='Plan (old)')
 
-    ax_xy.plot(odom_xs, odom_ys, 'b-', label='Trajectory (odom)', zorder=4)
-    if odom_xs:
-        ax_xy.plot(odom_xs[0], odom_ys[0], 'go', markersize=10, label='Start', zorder=5)
+    # AMCLデータ（map座標系）があればそれを優先して軌跡描画、なければodomにフォールバック
+    amcl_timestamps_d, amcl_xs, amcl_ys = amcl_data if amcl_data else ([], [], [])
+    if amcl_xs:
+        ax_xy.plot(amcl_xs, amcl_ys, 'b-', label='Trajectory (AMCL/map)', zorder=4)
+        ax_xy.plot(amcl_xs[0], amcl_ys[0], 'go', markersize=10, label='Start', zorder=5)
+    else:
+        ax_xy.plot(odom_xs, odom_ys, 'b-', label='Trajectory (odom)', zorder=4)
+        if odom_xs:
+            ax_xy.plot(odom_xs[0], odom_ys[0], 'go', markersize=10, label='Start', zorder=5)
 
     if goal_x is not None and goal_y is not None:
         ax_xy.plot(goal_x, goal_y, 'r^', markersize=10, label='Goal', zorder=5)
@@ -336,10 +357,13 @@ def create_figure(odom_data, cmd_vel_data, plan_data, goal_x=None, goal_y=None,
     ax_xy.set_title('Robot Trajectory' + (' (with map)' if map_data else ''))
     ax_xy.legend()
 
-    if auto_zoom and odom_xs and odom_ys:
+    # auto_zoom: AMCLデータがあればそちらを基準に使用
+    traj_xs = amcl_xs if amcl_xs else odom_xs
+    traj_ys = amcl_ys if amcl_ys else odom_ys
+    if auto_zoom and traj_xs and traj_ys:
         # 軌跡・ゴール・開始点を包含する正方形領域に表示範囲を設定
-        ref_xs = list(odom_xs)
-        ref_ys = list(odom_ys)
+        ref_xs = list(traj_xs)
+        ref_ys = list(traj_ys)
         if goal_x is not None:
             ref_xs.append(goal_x)
         if goal_y is not None:
@@ -417,7 +441,7 @@ def main():
     output_dir = Path(args.output_dir) if args.output_dir else bag_path.parent
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    odom_data, cmd_vel_data, plan_data, goal_pose, map_data, bag_start_ns = read_rosbag(str(bag_path))
+    odom_data, cmd_vel_data, plan_data, goal_pose, map_data, amcl_data, bag_start_ns = read_rosbag(str(bag_path))
 
     if goal_pose is not None:
         goal_x, goal_y = goal_pose
@@ -433,6 +457,13 @@ def main():
         print('警告: /map がrosbagに含まれていません。マップ背景なしで描画します。',
               file=sys.stderr)
 
+    amcl_timestamps_r, amcl_xs_r, amcl_ys_r = amcl_data
+    if amcl_xs_r:
+        print(f'/amcl_pose をrosbagから取得しました（{len(amcl_xs_r)}点）。map座標系で軌跡を描画します。')
+    else:
+        print('警告: /amcl_pose がrosbagに含まれていません。odom座標系で軌跡を描画します。',
+              file=sys.stderr)
+
     resources = None
     if args.resources_csv:
         csv_path = Path(args.resources_csv)
@@ -444,6 +475,7 @@ def main():
     fig = create_figure(odom_data, cmd_vel_data, plan_data,
                         goal_x=goal_x, goal_y=goal_y,
                         map_data=map_data,
+                        amcl_data=amcl_data,
                         resources=resources,
                         auto_zoom=not args.no_auto_zoom)
 

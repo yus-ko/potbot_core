@@ -111,6 +111,12 @@ namespace potbot_lib{
 
         bool APFPathPlanner::createPathWithWeight(double init_robot_pose)
         {
+            // まずDijkstra法で経路を生成する（createPath()と同様のパターン）
+            // Dijkstraはグローバル最適解を見つけAPF局所解問題を回避する
+            if (createPathDijkstra(init_robot_pose)) {
+                return true;
+            }
+            // Dijkstraが失敗した場合（ゴールへの経路なし等）はweighted勾配降下法にフォールバック
             path_.clear();
             size_t center_row   = 0;
             size_t center_col   = 0;
@@ -153,7 +159,14 @@ namespace potbot_lib{
             bool solving_local_minimum = false;
             bool change_weight = false;
             // J_min_pre = 1e10;
-            while ((*field_values)[pf_idx_min].states[potential::GridInfo::IS_AROUND_GOAL] == false && 
+
+            // バグ5相当: ゴール方向への進捗がない連続ステップを追跡しループを防ぐ
+            Point goal = apf_->getGoal();
+            double prev_dist_to_goal = std::numeric_limits<double>::infinity();
+            int no_progress_count = 0;
+            const int no_progress_limit = 50;
+
+            while ((*field_values)[pf_idx_min].states[potential::GridInfo::IS_AROUND_GOAL] == false &&
                     path_length <= max_path_length_)
             {
                 //経路補間に時間がかかってしまうため制御点(path.size())の数に上限を設ける
@@ -196,6 +209,9 @@ namespace potbot_lib{
                 }
                 else
                 {
+                    // バグ修正: J_min_preはポテンシャル値（大きな数値）でJは正規化値（0〜1）
+                    // スケール不一致を解消するためinfで初期化し、最良Jセルを正しく選択する
+                    J_min = std::numeric_limits<double>::infinity();
                     bool break_flag = false;
                     double j1,j2;
                     int random_range = range;
@@ -254,6 +270,18 @@ namespace potbot_lib{
                 Pose p{px,py};
                 // バグ1: path_.size() < 2 のときpath_.end()[-2]は未定義動作になるためガードを追加
                 if (path_.size() >= 2 && p == path_.end()[-1] && p == path_.end()[-2]) break;
+
+                // バグ5相当: ゴール方向への進捗がない連続ステップを追跡
+                {
+                    double current_dist_to_goal = sqrt(pow(px - goal.x, 2) + pow(py - goal.y, 2));
+                    if (current_dist_to_goal >= prev_dist_to_goal) {
+                        no_progress_count++;
+                    } else {
+                        no_progress_count = 0;
+                    }
+                    prev_dist_to_goal = current_dist_to_goal;
+                    if (no_progress_count >= no_progress_limit) break;
+                }
 
                 path_.push_back(Pose{px, py});
                 (*field_values)[pf_idx_min].states[potential::GridInfo::IS_PLANNED_PATH] = true;
