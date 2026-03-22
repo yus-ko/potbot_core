@@ -12,8 +12,8 @@
 set -e
 
 BAG_PATH="/root/test/results/rosbag2"
-SENTINEL="/root/test/.stop_rosbag"
-DONE_FLAG="/root/test/.rosbag_stopped"
+SENTINEL="/root/test/results/.stop_rosbag"
+DONE_FLAG="/root/test/results/.rosbag_stopped"
 
 # 前回の状態をクリーンアップ
 rm -f "$SENTINEL" "$DONE_FLAG"

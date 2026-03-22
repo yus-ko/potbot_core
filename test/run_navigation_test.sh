@@ -14,8 +14,8 @@ set -e
 RESULTS_DIR="/root/test/results"
 BAG_PATH="${RESULTS_DIR}/rosbag2"
 ANALYZE_SCRIPT="/root/test/analyze_rosbag.py"
-SENTINEL="/root/test/.stop_rosbag"
-DONE_FLAG="/root/test/.rosbag_stopped"
+SENTINEL="/root/test/results/.stop_rosbag"
+DONE_FLAG="/root/test/results/.rosbag_stopped"
 
 echo "=== Gazebo + Navigation2 E2E テスト ==="
 echo "前提: Gazebo / Navigation2 / rosbag-record サービスが起動済みであること"
