@@ -330,6 +330,11 @@ planner_server:
 
     GridBased:
       plugin: "potbot_nav::planner::APF"
+      planning_method: "weighted"
+      max_path_length: 20.0
+      path_search_range: 1
+      weight_potential: 1.0
+      weight_pose: 0.0
 
     # GridBased:
     #   plugin: "nav2_navfn_planner/NavfnPlanner"
@@ -382,8 +387,8 @@ navigation_runner:
     initial_pose_x: -2.0
     initial_pose_y: -0.5
     # ナビゲーションのゴール位置
-    goal_x: 2.0
-    goal_y: 0.5
+    goal_x: -1.25
+    goal_y: 3.5
     # アクションサーバー待機・ナビゲーションのタイムアウト秒数
     timeout: 300.0
 

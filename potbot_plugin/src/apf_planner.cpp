@@ -39,6 +39,22 @@ void APF::configure(
   nav2_util::declare_parameter_if_not_declared(
     node_, name_ + ".interpolation_resolution", rclcpp::ParameterValue(0.1));
   node_->get_parameter(name_ + ".interpolation_resolution", interpolation_resolution_);
+
+  nav2_util::declare_parameter_if_not_declared(
+    node_, name_ + ".planning_method", rclcpp::ParameterValue(std::string("dijkstra")));
+  nav2_util::declare_parameter_if_not_declared(
+    node_, name_ + ".max_path_length", rclcpp::ParameterValue(10.0));
+  nav2_util::declare_parameter_if_not_declared(
+    node_, name_ + ".path_search_range", rclcpp::ParameterValue(1));
+  nav2_util::declare_parameter_if_not_declared(
+    node_, name_ + ".weight_potential", rclcpp::ParameterValue(1.0));
+  nav2_util::declare_parameter_if_not_declared(
+    node_, name_ + ".weight_pose", rclcpp::ParameterValue(0.0));
+  node_->get_parameter(name_ + ".planning_method", planning_method_);
+  node_->get_parameter(name_ + ".max_path_length", max_path_length_param_);
+  node_->get_parameter(name_ + ".path_search_range", path_search_range_param_);
+  node_->get_parameter(name_ + ".weight_potential", weight_potential_);
+  node_->get_parameter(name_ + ".weight_pose", weight_pose_);
 }
 
 void APF::cleanup()
@@ -114,7 +130,18 @@ nav_msgs::msg::Path APF::createPlan(
 
   std::shared_ptr<potbot_lib::path_planner::APFPathPlannerROS> planner =
     std::make_shared<potbot_lib::path_planner::APFPathPlannerROS>(apfros_);
-  planner->createPath();
+  planner->setParams(
+    max_path_length_param_,
+    static_cast<size_t>(path_search_range_param_),
+    weight_potential_,
+    weight_pose_);
+
+  if (planning_method_ == "weighted") {
+    planner->createPathWithWeight();
+  } else {
+    // Dijkstra法は局所解に陥らないため、デフォルトとして使用する
+    planner->createPath();
+  }
   // planner->publishPath();
   // planner->publishRawPath();
 

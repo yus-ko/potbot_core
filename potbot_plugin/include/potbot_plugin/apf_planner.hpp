@@ -65,6 +65,17 @@ private:
 
   double interpolation_resolution_;
 
+  // 経路計画メソッド ("dijkstra" または "weighted")
+  std::string planning_method_;
+  // 経路の最大長（メートル）
+  double max_path_length_param_;
+  // 探索範囲（グリッド数）
+  int path_search_range_param_;
+  // 局所解脱出時のポテンシャル値の重み
+  double weight_potential_;
+  // 局所解脱出時の姿勢角度変化の重み
+  double weight_pose_;
+
   std::shared_ptr<potbot_lib::ArtificialPotentialFieldROS> apfros_;
 };
 
