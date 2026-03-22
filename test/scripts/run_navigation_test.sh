@@ -18,7 +18,7 @@ set -e
 RESULTS_DIR="/root/test/results"
 RUN_DIR_FILE="${RESULTS_DIR}/.current_run_dir"
 ANALYZE_SCRIPT="/root/test/scripts/analyze_rosbag.py"
-PARAMS_FILE="/root/test/config/waffle_pi.yaml"
+PARAMS_FILE="${PARAMS_FILE:-/root/test/config/waffle_pi.yaml}"
 SENTINEL="/root/test/results/.stop_rosbag"
 DONE_FLAG="/root/test/results/.rosbag_stopped"
 RESOURCE_DONE_FLAG="/root/test/results/.resource_monitor_stopped"

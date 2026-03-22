@@ -43,13 +43,14 @@ services:
     environment:
       <<: *common_environment
       ROS_DOMAIN_ID: 1
+      PARAMS_FILE: /root/test/config/waffle_pi.yaml
     volumes:
       - /tmp/.X11-unix:/tmp/.X11-unix
       - ../../../:/root/ros2_ws
       - ./scripts/entrypoint.sh:/entrypoint.sh
       - ./:/root/test
     entrypoint: /entrypoint.sh
-    command: ros2 launch /root/test/launch/turtlebot3_navigation.launch.py use_sim_time:=true
+    command: bash -c "ros2 launch /root/test/launch/turtlebot3_navigation.launch.py use_sim_time:=true params_file:=$$PARAMS_FILE"
 
   nav-test:
     profiles: [pipeline]
@@ -58,6 +59,7 @@ services:
     environment:
       <<: *common_environment
       ROS_DOMAIN_ID: 1
+      PARAMS_FILE: /root/test/config/waffle_pi.yaml
     depends_on:
       - potbot
     volumes:
