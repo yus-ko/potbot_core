@@ -61,8 +61,7 @@ services:
       - ./entrypoint.sh:/entrypoint.sh
       - ./:/root/test
     entrypoint: /entrypoint.sh
-    # 古い rosbag データを削除してからテスト実行（rosbag-record との競合防止）
-    command: bash -c "rm -rf /root/test/results/rosbag2 && bash /root/test/run_navigation_test.sh"
+    command: bash /root/test/run_navigation_test.sh
 
   rosbag-record:
     <<: *common_setting
@@ -77,9 +76,8 @@ services:
       - ./entrypoint.sh:/entrypoint.sh
       - ./:/root/test
     entrypoint: /entrypoint.sh
-    # SIGTERM を受信したときに ros2 bag record が正常終了してメタデータを書き込む猶予を与える
-    stop_grace_period: 15s
-    command: ros2 bag record -o /root/test/results/rosbag2 /odom /cmd_vel /scan /tf /tf_static /plan
+    # センチネルファイル (.stop_rosbag) 検知で記録を停止するラッパースクリプトを使用
+    command: bash /root/test/rosbag_record_wrapper.sh
 
   rosbag-analysis:
     profiles: [analysis]

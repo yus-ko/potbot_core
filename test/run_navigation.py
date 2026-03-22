@@ -22,6 +22,7 @@ import time
 import rclpy
 from action_msgs.msg import GoalStatus
 from geometry_msgs.msg import PoseWithCovarianceStamped
+from lifecycle_msgs.srv import GetState
 from nav2_msgs.action import NavigateToPose
 from rclpy.action import ActionClient
 from rclpy.node import Node
@@ -80,9 +81,11 @@ class NavigationRunner(Node):
         self.set_initial_pose()
 
         # wait_for_server は Action Server の存在のみを確認するため、
-        # nav2 が fully active になるまでさらに待機する
-        self.get_logger().info('nav2 の完全な起動を待機中 (10s)...')
-        time.sleep(10.0)
+        # bt_navigator の lifecycle 状態が active になるまで待機する
+        self.get_logger().info('nav2 の完全な起動を待機中 (bt_navigator active 検知)...')
+        if not self._wait_for_nav2_active(timeout=timeout):
+            self.get_logger().error('nav2 が active になりませんでした。')
+            return False
 
         # ゴール送信（nav2 が拒否した場合はリトライ）
         MAX_RETRIES = 5
@@ -127,6 +130,40 @@ class NavigationRunner(Node):
                 return False
 
         self.get_logger().error(f'{MAX_RETRIES} 回試行しましたがゴールを送信できませんでした。')
+        return False
+
+    def _wait_for_nav2_active(self, timeout: float = 60.0) -> bool:
+        """bt_navigator の lifecycle 状態が active (id=3) になるまで待機する。
+
+        wait_for_server() は Action Server の存在のみを確認するため、
+        nav2 の全ノードが active になるまでの時間差を lifecycle サービスで検知する。
+
+        Returns:
+            True : active 状態を確認できた
+            False: timeout 以内に active にならなかった
+        """
+        # ACTIVE 状態の ID (lifecycle_msgs/msg/State)
+        ACTIVE_STATE_ID = 3
+
+        client = self.create_client(GetState, '/bt_navigator/get_state')
+        deadline = time.monotonic() + timeout
+        try:
+            while time.monotonic() < deadline:
+                if not client.service_is_ready():
+                    time.sleep(0.5)
+                    continue
+                future = client.call_async(GetState.Request())
+                if not self._spin_until_done(future, timeout_sec=5.0):
+                    time.sleep(1.0)
+                    continue
+                state_id = future.result().current_state.id
+                if state_id == ACTIVE_STATE_ID:
+                    self.get_logger().info('bt_navigator が active 状態になりました。')
+                    return True
+                self.get_logger().debug(f'bt_navigator 状態: {state_id} (active 待ち...)')
+                time.sleep(1.0)
+        finally:
+            client.destroy()
         return False
 
     def _spin_until_done(self, future, timeout_sec: float) -> bool:
