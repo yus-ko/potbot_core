@@ -29,6 +29,7 @@ add_library(potbot_lib_utility
   src/time_state.cpp
   src/kalman_filter.cpp
   src/unscented_kalman_filter.cpp
+  src/particle_swarm_optimization.cpp
 )
 
 ament_target_dependencies(potbot_lib_utility
