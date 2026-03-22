@@ -46,6 +46,12 @@ def parse_args():
         default=None,
         help='resource_monitor.py が出力したCSVファイルパス (指定時はCPU/メモリパネルを追加)',
     )
+    parser.add_argument(
+        '--no-auto-zoom',
+        action='store_true',
+        default=False,
+        help='軌跡パネルの表示範囲自動調整を無効化する (デフォルト: 自動調整ON)',
+    )
     return parser.parse_args()
 
 
@@ -257,7 +263,7 @@ def _plot_resource_panels(axes, resources, panel_offset):
 
 
 def create_figure(odom_data, cmd_vel_data, plan_data, goal_x=None, goal_y=None,
-                  map_data=None, resources=None):
+                  map_data=None, resources=None, auto_zoom=True):
     """4〜6パネルの図を生成する。
 
     Args:
@@ -268,6 +274,7 @@ def create_figure(odom_data, cmd_vel_data, plan_data, goal_x=None, goal_y=None,
         goal_y: ゴール地点のY座標 [m]。None の場合はゴールマーカーを描画しない。
         map_data: read_rosbag の戻り値 map_data dict。None の場合はマップ背景なし。
         resources: read_resources_csv の戻り値 dict。None の場合はリソースパネルなし。
+        auto_zoom: True の場合、軌跡パネルの表示範囲をロボット軌跡に合わせて正方形に自動調整する。
 
     Returns:
         matplotlib の Figure オブジェクト。
@@ -318,6 +325,24 @@ def create_figure(odom_data, cmd_vel_data, plan_data, goal_x=None, goal_y=None,
     ax_xy.grid(True, alpha=0.4, zorder=1)
     ax_xy.set_title('Robot Trajectory' + (' (with map)' if map_data else ''))
     ax_xy.legend()
+
+    if auto_zoom and odom_xs and odom_ys:
+        # 軌跡・ゴール・開始点を包含する正方形領域に表示範囲を設定
+        ref_xs = list(odom_xs)
+        ref_ys = list(odom_ys)
+        if goal_x is not None:
+            ref_xs.append(goal_x)
+        if goal_y is not None:
+            ref_ys.append(goal_y)
+        x_min, x_max = min(ref_xs), max(ref_xs)
+        y_min, y_max = min(ref_ys), max(ref_ys)
+        span = max(x_max - x_min, y_max - y_min)
+        margin = span * 0.1 + 0.5  # 10%余白 + 最低0.5m
+        cx = (x_min + x_max) / 2
+        cy = (y_min + y_max) / 2
+        half = span / 2 + margin
+        ax_xy.set_xlim(cx - half, cx + half)
+        ax_xy.set_ylim(cy - half, cy + half)
 
     ax_lin = axes[1]
     ax_lin.plot(cmd_vel_timestamps, cmd_vel_linear_xs, 'b-')
@@ -401,7 +426,8 @@ def main():
     fig = create_figure(odom_data, cmd_vel_data, plan_data,
                         goal_x=goal_x, goal_y=goal_y,
                         map_data=map_data,
-                        resources=resources)
+                        resources=resources,
+                        auto_zoom=not args.no_auto_zoom)
 
     output_path = output_dir / 'navigation_result.png'
     fig.savefig(str(output_path), dpi=150)
