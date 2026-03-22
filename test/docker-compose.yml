@@ -93,8 +93,10 @@ services:
     depends_on:
       - potbot
     volumes:
+      - ../../../:/root/ros2_ws
+      - ./entrypoint.sh:/entrypoint.sh
       - ./:/root/test
-    entrypoint: /bin/bash
+    entrypoint: /entrypoint.sh
     command: bash /root/test/resource_monitor_wrapper.sh
 
   rosbag-analysis:
