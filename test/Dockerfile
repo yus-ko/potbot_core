@@ -13,7 +13,7 @@ RUN apt update && apt install -y \
     python3-pip \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip3 install rosbags matplotlib numpy pytest psutil
+RUN pip3 install rosbags matplotlib numpy pytest psutil Pillow scipy pyyaml
 
 RUN echo "source /opt/ros/humble/setup.bash" >> /root/.bashrc && \
     echo "source /root/ros2_ws/install/setup.bash" >> /root/.bashrc && \
