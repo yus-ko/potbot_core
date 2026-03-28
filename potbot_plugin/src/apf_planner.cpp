@@ -119,9 +119,7 @@ nav_msgs::msg::Path APF::createPlan(
 
   // ロボット-ゴール間の距離に基づいてフィールドサイズを動的に計算し、
   // ゴールが必ずフィールド内に含まれるようにする。
-  // ゴールがフィールド外の場合、IS_AROUND_GOALが設定されず経路がループする原因となる。
   const double resolution = field_resolution_;
-  // field_resolutionに応じてmax_half_cellsを調整（最大フィールドサイズ10m×10mを維持）
   const int max_half_cells = static_cast<int>(5.0 / resolution);
   double dist_x = std::abs(goal.pose.position.x - robot.x);
   double dist_y = std::abs(goal.pose.position.y - robot.y);
@@ -129,19 +127,15 @@ nav_msgs::msg::Path APF::createPlan(
   int half_cells = std::min(static_cast<int>(max_dist / resolution) + 5, max_half_cells);
   int total_cells = 2 * half_cells;
 
-  apfros_->getApf()->initPotentialField(total_cells, total_cells, resolution, robot.x, robot.y);
-  apfros_->setRobot(robot_pose);
-  apfros_->setGoal(goal);
-
-  // costmap解像度とフィールド解像度の比率に基づいてサンプリングステップを計算
+  // costmapから障害物を先に抽出（差分比較用）
   const double costmap_resolution = costmap_->getResolution();
   const int sample_step = std::max(1, static_cast<int>(std::round(resolution / costmap_resolution)));
-  // costmap上での探索範囲をフィールド解像度に合わせて計算
   const int costmap_half_cells = static_cast<int>(half_cells * resolution / costmap_resolution);
 
   unsigned int rmx, rmy;
   costmap_->worldToMap(robot.x, robot.y, rmx, rmy);
 
+  std::vector<potbot_lib::Point> current_obstacles;
   for (int mx = rmx - costmap_half_cells; mx < rmx + costmap_half_cells; mx += sample_step) {
     for (int my = rmy - costmap_half_cells; my < rmy + costmap_half_cells; my += sample_step) {
       if (mx < 0 || my < 0) {
@@ -151,18 +145,29 @@ nav_msgs::msg::Path APF::createPlan(
       if (c == nav2_costmap_2d::LETHAL_OBSTACLE) {
         double x, y;
         costmap_->mapToWorld(mx, my, x, y);
-        apfros_->setObstacle(potbot_lib::utility::get_point(x, y));
+        current_obstacles.push_back(potbot_lib::Point{x, y});
       }
     }
   }
 
   auto t_obstacle = std::chrono::steady_clock::now();
 
+  // グリッドを初期化し、ロボット・ゴール・障害物を設定
+  apfros_->getApf()->initPotentialField(total_cells, total_cells, resolution, robot.x, robot.y);
+  apfros_->setRobot(robot_pose);
+  apfros_->setGoal(goal);
+  for (const auto& obs : current_obstacles) {
+    apfros_->getApf()->setObstacle(obs.x, obs.y);
+  }
+
   apfros_->getApf()->setVortexAngle(vortex_angle_);
-  apfros_->createPotentialField();
-  apfros_->publishPotentialField();
+
+  // 差分更新を試行（障害物変化なしなら引力場のみ再計算）
+  bool incremental = apfros_->getApf()->updatePotentialFieldIncremental(current_obstacles);
 
   auto t_field = std::chrono::steady_clock::now();
+
+  apfros_->publishPotentialField();
 
   std::shared_ptr<potbot_lib::path_planner::APFPathPlannerROS> planner =
     std::make_shared<potbot_lib::path_planner::APFPathPlannerROS>(apfros_);
@@ -195,9 +200,9 @@ nav_msgs::msg::Path APF::createPlan(
     return std::chrono::duration_cast<std::chrono::microseconds>(b - a).count() / 1000.0;
   };
   RCLCPP_INFO(node_->get_logger(),
-    "[APF Planner] total=%.1fms (obstacle=%.1f, field=%.1f, path=%.1f) grid=%dx%d res=%.3f",
+    "[APF Planner] total=%.1fms (obstacle=%.1f, field=%.1f, path=%.1f) grid=%dx%d res=%.3f %s",
     ms(t_start, t_end), ms(t_start, t_obstacle), ms(t_obstacle, t_field), ms(t_field, t_path),
-    total_cells, total_cells, resolution);
+    total_cells, total_cells, resolution, incremental ? "INCREMENTAL" : "FULL");
 
   return global_path;
 

@@ -402,4 +402,161 @@ namespace potbot_lib{
         }
     }
 
+    void ArtificialPotentialField::createPotentialFieldRepulsionOnly()
+    {
+        double dtr = distance_threshold_repulsion_field_;
+        double weight_repulsion_field = weight_repulsion_field_;
+        double inv_cell = 1.0 / spatial_cell_size_;
+        int search_range = static_cast<int>(std::ceil(dtr * inv_cell));
+
+        std::vector<potential::FieldGrid>* pv = getValues();
+        for (auto& value : *pv)
+        {
+            double x = value.x;
+            double y = value.y;
+            double repulsion_value = 0;
+
+            int cx = static_cast<int>(std::floor(x * inv_cell));
+            int cy = static_cast<int>(std::floor(y * inv_cell));
+            for (int dx = -search_range; dx <= search_range; dx++)
+            {
+                for (int dy = -search_range; dy <= search_range; dy++)
+                {
+                    auto it = obstacle_grid_.find({cx + dx, cy + dy});
+                    if (it == obstacle_grid_.end()) continue;
+                    for (size_t obs_idx : it->second)
+                    {
+                        double ox = obstacles_[obs_idx].x;
+                        double oy = obstacles_[obs_idx].y;
+                        double distance_to_obstacle = sqrt(pow(x-ox,2) + pow(y-oy,2));
+                        if (distance_to_obstacle <= dtr)
+                        {
+                            value.states[potential::GridInfo::IS_REPULSION_FIELD_INSIDE] = true;
+                            repulsion_value += 0.5 * weight_repulsion_field * pow(1.0/(distance_to_obstacle + 1e-100) - 1.0/(dtr + 1e-100), 2);
+                        }
+                    }
+                }
+            }
+            for (const auto& vobs : virtual_obstacles_)
+            {
+                double distance_to_obstacle = sqrt(pow(x-vobs.x,2) + pow(y-vobs.y,2));
+                if (distance_to_obstacle <= dtr)
+                {
+                    value.states[potential::GridInfo::IS_REPULSION_FIELD_INSIDE] = true;
+                    repulsion_value += 0.5 * weight_repulsion_field * pow(1.0/(distance_to_obstacle + 1e-100) - 1.0/(dtr + 1e-100), 2);
+                }
+            }
+            value.repulsion = repulsion_value;
+        }
+    }
+
+    void ArtificialPotentialField::updateAttractionField()
+    {
+        double wa = weight_attraction_field_;
+        std::vector<potential::FieldGrid>* pv = getValues();
+        for (auto& value : *pv)
+        {
+            double dist = sqrt(pow(value.x - goal_.x, 2) + pow(value.y - goal_.y, 2));
+            value.attraction = 0.5 * wa * pow(dist, 2);
+            value.potential = value.attraction + value.repulsion;
+            value.value = value.potential;
+        }
+    }
+
+    void ArtificialPotentialField::updateLocalMinima()
+    {
+        std::vector<potential::FieldGrid>* pv = getValues();
+        for (auto& value : *pv)
+        {
+            value.states[potential::GridInfo::IS_LOCAL_MINIMUM] = false;
+            value.states[potential::GridInfo::IS_REPULSION_FIELD_EDGE] = false;
+
+            if (value.states[potential::GridInfo::IS_REPULSION_FIELD_INSIDE])
+            {
+                bool local_minimum = true;
+                std::vector<size_t> search_indexes;
+                getSquareIndex(search_indexes, value.row, value.col, 1);
+                for (auto idx : search_indexes)
+                {
+                    try
+                    {
+                        if ((*pv)[idx].value < value.value)
+                        {
+                            local_minimum = false;
+                        }
+                        if (!(*pv)[idx].states[potential::GridInfo::IS_REPULSION_FIELD_INSIDE])
+                        {
+                            value.states[potential::GridInfo::IS_REPULSION_FIELD_EDGE] = true;
+                        }
+                    }
+                    catch (std::out_of_range&)
+                    {
+                        continue;
+                    }
+                }
+                if (local_minimum && !value.states[potential::GridInfo::IS_GOAL])
+                {
+                    value.states[potential::GridInfo::IS_LOCAL_MINIMUM] = true;
+                }
+            }
+        }
+    }
+
+    bool ArtificialPotentialField::updatePotentialFieldIncremental(
+        const std::vector<Point>& new_obstacles,
+        double robot_move_threshold,
+        double obstacle_change_threshold)
+    {
+        if (!has_cache_)
+        {
+            createPotentialField();
+            prev_robot_ = robot_;
+            prev_goal_ = goal_;
+            prev_obstacles_ = new_obstacles;
+            has_cache_ = true;
+            return false;
+        }
+
+        // 障害物数の変化チェック
+        bool obstacles_changed = (new_obstacles.size() != prev_obstacles_.size());
+
+        // 障害物位置の変化チェック（数が同じ場合）
+        if (!obstacles_changed)
+        {
+            for (size_t i = 0; i < new_obstacles.size(); i++)
+            {
+                double dx = new_obstacles[i].x - prev_obstacles_[i].x;
+                double dy = new_obstacles[i].y - prev_obstacles_[i].y;
+                if (dx * dx + dy * dy > obstacle_change_threshold * obstacle_change_threshold)
+                {
+                    obstacles_changed = true;
+                    break;
+                }
+            }
+        }
+
+        if (obstacles_changed)
+        {
+            // 障害物が変化 → 全再計算
+            createPotentialField();
+            prev_robot_ = robot_;
+            prev_goal_ = goal_;
+            prev_obstacles_ = new_obstacles;
+            return false;
+        }
+
+        // 障害物変化なし → 斥力場を再計算（グリッド座標が変わるため）し、引力場も再計算
+        // ただし空間インデックス構築をスキップ（障害物が同じため前回のものを再利用可能）
+        // 注: initPotentialFieldで空間インデックスもリセットされるため、
+        //     斥力場の再計算にはbuildObstacleSpatialIndexが必要
+        //     ただし引力場のみの再計算は高速（O(M²)の単純演算のみ）
+        buildObstacleSpatialIndex();
+        createPotentialFieldRepulsionOnly();
+        updateAttractionField();
+        updateLocalMinima();
+        prev_robot_ = robot_;
+        prev_goal_ = goal_;
+        return true;
+    }
+
 }

@@ -78,11 +78,35 @@ namespace potbot_lib{
             double getDistanceThresholdRepulsionField(){return distance_threshold_repulsion_field_;};
 
             void createPotentialField();
+            void createPotentialFieldRepulsionOnly();
 
             // グリッド非依存の解析的APF力ベクトル計算（リアルタイム制御用）
             void getForce(double rx, double ry,
                           double target_x, double target_y,
                           double& fx, double& fy) const;
+
+            // 差分更新: 障害物変化がなければ引力場のみ再計算（斥力場はキャッシュ）
+            // 戻り値: true=差分更新した, false=全再計算が必要で実行した
+            bool updatePotentialFieldIncremental(
+                const std::vector<Point>& new_obstacles,
+                double robot_move_threshold = 0.3,
+                double obstacle_change_threshold = 0.05);
+
+        private:
+            // 前回の計算状態キャッシュ
+            Point prev_robot_;
+            Point prev_goal_;
+            std::vector<Point> prev_obstacles_;
+            bool has_cache_ = false;
+            // 斥力場キャッシュ（グリッドセルごとの斥力値とIS_REPULSION_FIELD_INSIDEフラグ）
+            std::vector<double> cached_repulsion_;
+            std::vector<bool> cached_repulsion_inside_;
+            size_t cached_grid_size_ = 0;
+
+            // 引力場のみ再計算
+            void updateAttractionField();
+            // 局所解検出の再実行
+            void updateLocalMinima();
     };
 }
 
