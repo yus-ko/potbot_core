@@ -207,6 +207,7 @@ docker compose logs colcon-test
 | `/plan` | グローバル経路計画 |
 | `/test/goal_pose` | テスト用ゴール位置（rosbag に記録するためパブリッシュ） |
 | `/map` | 占有格子マップ |
+| `/amcl_pose` | AMCL による自己位置推定結果 |
 
 ---
 
