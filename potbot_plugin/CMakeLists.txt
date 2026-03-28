@@ -76,6 +76,7 @@ set(dependencies
 add_library(potbot_plugin SHARED
   src/optimal_path_follower.cpp
   src/apf_planner.cpp
+  src/hybrid_apf_controller.cpp
 )
 
 # prevent pluginlib from using boost
@@ -135,6 +136,13 @@ if(BUILD_TESTING)
   )
   ament_target_dependencies(test_optimal_path_follower_plugin ${PLUGIN_TEST_DEPS})
   target_link_libraries(test_optimal_path_follower_plugin potbot_plugin)
+
+  ament_add_gtest(test_hybrid_apf_controller test/test_hybrid_apf_controller.cpp)
+  target_include_directories(test_hybrid_apf_controller PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  )
+  ament_target_dependencies(test_hybrid_apf_controller ${PLUGIN_TEST_DEPS})
+  target_link_libraries(test_hybrid_apf_controller potbot_plugin)
 endif()
 
 ament_export_include_directories(include)

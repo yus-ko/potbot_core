@@ -10,6 +10,11 @@
                 Artificial Potential Field Planner
             </description>
         </class>
+        <class name="potbot_nav::controller::HybridApfController"
+               type="potbot_nav::controller::HybridApfController"
+               base_class_type="nav2_core::Controller">
+            <description>Hybrid A* + APF Waypoint Controller: local minima avoidance via waypoint switching</description>
+        </class>
     </library>
 </class_libraries>
 

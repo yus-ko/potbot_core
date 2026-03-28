@@ -30,6 +30,7 @@ add_library(potbot_lib_utility
   src/kalman_filter.cpp
   src/unscented_kalman_filter.cpp
   src/particle_swarm_optimization.cpp
+  src/apf_waypoint_controller.cpp
 )
 
 ament_target_dependencies(potbot_lib_utility
@@ -160,6 +161,12 @@ if(BUILD_TESTING)
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   )
   target_link_libraries(test_apf_param ${TEST_LIBS})
+
+  ament_add_gtest(test_apf_waypoint_controller test/test_apf_waypoint_controller.cpp)
+  target_include_directories(test_apf_waypoint_controller PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  )
+  target_link_libraries(test_apf_waypoint_controller ${TEST_LIBS})
 
   add_subdirectory(test/integration)
   add_subdirectory(test/regression)

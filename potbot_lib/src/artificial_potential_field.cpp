@@ -131,6 +131,36 @@ namespace potbot_lib{
         obs = obstacles_;
     }
 
+    void ArtificialPotentialField::getForce(double rx, double ry,
+                                              double target_x, double target_y,
+                                              double& fx, double& fy) const
+    {
+        // 引力
+        double f_att_x = weight_attraction_field_ * (target_x - rx);
+        double f_att_y = weight_attraction_field_ * (target_y - ry);
+
+        // 斥力（各障害物に対して）
+        double f_rep_x = 0.0;
+        double f_rep_y = 0.0;
+        for (const auto& obs : obstacles_)
+        {
+            double dx = rx - obs.x;
+            double dy = ry - obs.y;
+            double d  = std::sqrt(dx * dx + dy * dy);
+            if (d <= distance_threshold_repulsion_field_)
+            {
+                double coeff = weight_repulsion_field_
+                    * (1.0 / (d + 1e-100) - 1.0 / (distance_threshold_repulsion_field_ + 1e-100))
+                    / std::pow(d + 1e-100, 3);
+                f_rep_x += coeff * dx;
+                f_rep_y += coeff * dy;
+            }
+        }
+
+        fx = f_att_x + f_rep_x;
+        fy = f_att_y + f_rep_y;
+    }
+
     void ArtificialPotentialField::createPotentialField()
     {
         double weight_attraction_field = weight_attraction_field_;

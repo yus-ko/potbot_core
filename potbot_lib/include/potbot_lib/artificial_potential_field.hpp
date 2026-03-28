@@ -55,6 +55,11 @@ namespace potbot_lib{
             double getDistanceThresholdRepulsionField(){return distance_threshold_repulsion_field_;};
 
             void createPotentialField();
+
+            // グリッド非依存の解析的APF力ベクトル計算（リアルタイム制御用）
+            void getForce(double rx, double ry,
+                          double target_x, double target_y,
+                          double& fx, double& fy) const;
     };
 }
 
