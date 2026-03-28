@@ -77,6 +77,10 @@ void APF::configure(
   nav2_util::declare_parameter_if_not_declared(
     node_, name_ + ".field_resolution", rclcpp::ParameterValue(0.05));
   node_->get_parameter(name_ + ".field_resolution", field_resolution_);
+
+  nav2_util::declare_parameter_if_not_declared(
+    node_, name_ + ".max_field_half_size", rclcpp::ParameterValue(5.0));
+  node_->get_parameter(name_ + ".max_field_half_size", max_field_half_size_);
 }
 
 void APF::cleanup()
@@ -120,7 +124,7 @@ nav_msgs::msg::Path APF::createPlan(
   // ロボット-ゴール間の距離に基づいてフィールドサイズを動的に計算し、
   // ゴールが必ずフィールド内に含まれるようにする。
   const double resolution = field_resolution_;
-  const int max_half_cells = static_cast<int>(5.0 / resolution);
+  const int max_half_cells = static_cast<int>(max_field_half_size_ / resolution);
   double dist_x = std::abs(goal.pose.position.x - robot.x);
   double dist_y = std::abs(goal.pose.position.y - robot.y);
   double max_dist = std::max({dist_x, dist_y, 1.25});

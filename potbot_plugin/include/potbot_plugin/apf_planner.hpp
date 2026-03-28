@@ -86,6 +86,8 @@ private:
   int max_escape_attempts_;
   // APFフィールド解像度（costmap解像度とは独立）
   double field_resolution_;
+  // APFフィールド片側最大サイズ [m]（全体の物理サイズ = 2 * max_field_half_size_）
+  double max_field_half_size_;
 
   std::shared_ptr<potbot_lib::ArtificialPotentialFieldROS> apfros_;
 };
