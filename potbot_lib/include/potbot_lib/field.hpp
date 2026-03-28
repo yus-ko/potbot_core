@@ -18,7 +18,8 @@ namespace potbot_lib{
             IS_REPULSION_FIELD_EDGE,
             IS_PLANNED_PATH,
             IS_AROUND_GOAL,
-            IS_LOCAL_MINIMUM
+            IS_LOCAL_MINIMUM,
+            IS_VIRTUAL_OBSTACLE
         };
 
         typedef struct {
@@ -31,7 +32,7 @@ namespace potbot_lib{
                 double potential            = 0;
                 size_t row                  = 0;
                 size_t col                  = 0;
-                std::vector<bool> states    = {false, false, false, false, false, false, false, false};
+                std::vector<bool> states    = {false, false, false, false, false, false, false, false, false};
             } FieldGrid;
         
         typedef struct {

@@ -344,19 +344,23 @@ planner_server:
     use_sim_time: False
     planner_plugins: ["GridBased"]
 
-    # GridBased:
-    #   plugin: "potbot_nav::planner::APF"
-    #   planning_method: "dijkstra"
-    #   max_path_length: 20.0
-    #   path_search_range: 1
-    #   weight_potential: 1.0
-    #   weight_pose: 0.0
-
     GridBased:
-      plugin: "nav2_navfn_planner/NavfnPlanner"
-      tolerance: 0.5
-      use_astar: false
-      allow_unknown: true
+      plugin: "potbot_nav::planner::APF"
+      planning_method: "dijkstra"
+      max_path_length: 20.0
+      path_search_range: 1
+      weight_potential: 1.0
+      weight_pose: 0.0
+      escape_method: "virtual_obstacle_vortex"
+      vortex_angle: 0.785
+      virtual_obstacle_lifetime: 1
+      max_escape_attempts: 3
+
+    # GridBased:
+    #   plugin: "nav2_navfn_planner/NavfnPlanner"
+    #   tolerance: 0.5
+    #   use_astar: false
+    #   allow_unknown: true
 
 planner_server_rclcpp_node:
   ros__parameters:

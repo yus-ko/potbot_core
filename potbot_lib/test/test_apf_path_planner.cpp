@@ -449,9 +449,9 @@ TEST(APFPathPlannerTest, CreatePathDijkstraWithObstacle)
     });
 }
 
-// CreatePathUsesDijkstraFirst:
-//   createPath()がDijkstraを優先して使用し、障害物なし環境でパスが生成されることを確認
-TEST(APFPathPlannerTest, CreatePathUsesDijkstraFirst)
+// CreatePathProducesValidPath:
+//   createPath()が障害物なし環境でパスを生成できることを確認
+TEST(APFPathPlannerTest, CreatePathProducesValidPath)
 {
     // 41x41, res=0.05m, robot=(-0.9,0), goal=(0.9,0), 障害物なし
     ArtificialPotentialField apf(41, 41, 0.05, 1.0, 0.0, 10.0, 0.0, 0.0);
@@ -462,7 +462,7 @@ TEST(APFPathPlannerTest, CreatePathUsesDijkstraFirst)
     APFPathPlanner planner(&apf);
     planner.setParams(3.0, 1, 1.0, 0.0);
 
-    // createPath()はDijkstraを優先して使用するためパスが生成される
+    // createPath()は経路を生成する（内部で適切な手法にディスパッチ）
     bool result = planner.createPath(0.0);
     EXPECT_TRUE(result);
 

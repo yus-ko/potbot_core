@@ -61,6 +61,61 @@ namespace potbot_lib{
         distance_threshold_repulsion_field_ = dtr;
     }
 
+    void ArtificialPotentialField::setVortexAngle(double angle)
+    {
+        vortex_angle_ = angle;
+    }
+
+    void ArtificialPotentialField::addVirtualObstacle(double x, double y, int lifetime)
+    {
+        virtual_obstacles_.push_back({x, y, lifetime});
+        try
+        {
+            size_t idx = getFieldIndex(x, y);
+            setFieldInfo(idx, potential::GridInfo::IS_VIRTUAL_OBSTACLE, true);
+            setFieldInfo(idx, potential::GridInfo::IS_OBSTACLE, true);
+        }
+        catch(...){}
+    }
+
+    void ArtificialPotentialField::clearVirtualObstacles()
+    {
+        for (const auto& vo : virtual_obstacles_)
+        {
+            try
+            {
+                size_t idx = getFieldIndex(vo.x, vo.y);
+                setFieldInfo(idx, potential::GridInfo::IS_VIRTUAL_OBSTACLE, false);
+                setFieldInfo(idx, potential::GridInfo::IS_OBSTACLE, false);
+            }
+            catch(...){}
+        }
+        virtual_obstacles_.clear();
+    }
+
+    void ArtificialPotentialField::decrementVirtualObstacleLifetimes()
+    {
+        for (auto it = virtual_obstacles_.begin(); it != virtual_obstacles_.end(); )
+        {
+            it->lifetime--;
+            if (it->lifetime <= 0)
+            {
+                try
+                {
+                    size_t idx = getFieldIndex(it->x, it->y);
+                    setFieldInfo(idx, potential::GridInfo::IS_VIRTUAL_OBSTACLE, false);
+                    setFieldInfo(idx, potential::GridInfo::IS_OBSTACLE, false);
+                }
+                catch(...){}
+                it = virtual_obstacles_.erase(it);
+            }
+            else
+            {
+                ++it;
+            }
+        }
+    }
+
     void ArtificialPotentialField::setGoal(double x, double y)
     {
         goal_ = Point{x,y};
@@ -139,13 +194,63 @@ namespace potbot_lib{
         double f_att_x = weight_attraction_field_ * (target_x - rx);
         double f_att_y = weight_attraction_field_ * (target_y - ry);
 
-        // 斥力（各障害物に対して）
+        // 斥力（空間インデックスで近傍障害物のみ検索）
         double f_rep_x = 0.0;
         double f_rep_y = 0.0;
-        for (const auto& obs : obstacles_)
+        double dtr = distance_threshold_repulsion_field_;
+        if (spatial_cell_size_ > 1e-6 && !obstacle_grid_.empty())
         {
-            double dx = rx - obs.x;
-            double dy = ry - obs.y;
+            double inv_cell = 1.0 / spatial_cell_size_;
+            int cx = static_cast<int>(std::floor(rx * inv_cell));
+            int cy = static_cast<int>(std::floor(ry * inv_cell));
+            int sr = static_cast<int>(std::ceil(dtr * inv_cell));
+            for (int ddx = -sr; ddx <= sr; ddx++)
+            {
+                for (int ddy = -sr; ddy <= sr; ddy++)
+                {
+                    auto it = obstacle_grid_.find({cx + ddx, cy + ddy});
+                    if (it == obstacle_grid_.end()) continue;
+                    for (size_t obs_idx : it->second)
+                    {
+                        double dx = rx - obstacles_[obs_idx].x;
+                        double dy = ry - obstacles_[obs_idx].y;
+                        double d  = std::sqrt(dx * dx + dy * dy);
+                        if (d <= dtr)
+                        {
+                            double coeff = weight_repulsion_field_
+                                * (1.0 / (d + 1e-100) - 1.0 / (dtr + 1e-100))
+                                / std::pow(d + 1e-100, 3);
+                            f_rep_x += coeff * dx;
+                            f_rep_y += coeff * dy;
+                        }
+                    }
+                }
+            }
+        }
+        else
+        {
+            // フォールバック: 空間インデックス未構築時
+            for (const auto& obs : obstacles_)
+            {
+                double dx = rx - obs.x;
+                double dy = ry - obs.y;
+                double d  = std::sqrt(dx * dx + dy * dy);
+                if (d <= dtr)
+                {
+                    double coeff = weight_repulsion_field_
+                        * (1.0 / (d + 1e-100) - 1.0 / (dtr + 1e-100))
+                        / std::pow(d + 1e-100, 3);
+                    f_rep_x += coeff * dx;
+                    f_rep_y += coeff * dy;
+                }
+            }
+        }
+
+        // 仮想障害物からの斥力
+        for (const auto& vobs : virtual_obstacles_)
+        {
+            double dx = rx - vobs.x;
+            double dy = ry - vobs.y;
             double d  = std::sqrt(dx * dx + dy * dy);
             if (d <= distance_threshold_repulsion_field_)
             {
@@ -157,8 +262,43 @@ namespace potbot_lib{
             }
         }
 
+        // 渦巻き力: 斥力ベクトルをゴール方向に回転
+        if (std::abs(vortex_angle_) > 1e-9 && (f_rep_x != 0.0 || f_rep_y != 0.0))
+        {
+            double goal_angle = std::atan2(target_y - ry, target_x - rx);
+            double rep_angle = std::atan2(f_rep_y, f_rep_x);
+
+            double angle_diff = goal_angle - rep_angle;
+            while (angle_diff > M_PI) angle_diff -= 2.0 * M_PI;
+            while (angle_diff < -M_PI) angle_diff += 2.0 * M_PI;
+
+            double sign = (angle_diff >= 0.0) ? 1.0 : -1.0;
+            double theta = sign * vortex_angle_;
+
+            double cos_t = std::cos(theta);
+            double sin_t = std::sin(theta);
+            double new_rep_x = cos_t * f_rep_x - sin_t * f_rep_y;
+            double new_rep_y = sin_t * f_rep_x + cos_t * f_rep_y;
+            f_rep_x = new_rep_x;
+            f_rep_y = new_rep_y;
+        }
+
         fx = f_att_x + f_rep_x;
         fy = f_att_y + f_rep_y;
+    }
+
+    void ArtificialPotentialField::buildObstacleSpatialIndex()
+    {
+        obstacle_grid_.clear();
+        spatial_cell_size_ = distance_threshold_repulsion_field_;
+        if (spatial_cell_size_ < 1e-6) spatial_cell_size_ = 0.3;
+
+        for (size_t i = 0; i < obstacles_.size(); i++)
+        {
+            int cx = static_cast<int>(std::floor(obstacles_[i].x / spatial_cell_size_));
+            int cy = static_cast<int>(std::floor(obstacles_[i].y / spatial_cell_size_));
+            obstacle_grid_[{cx, cy}].push_back(i);
+        }
     }
 
     void ArtificialPotentialField::createPotentialField()
@@ -166,6 +306,13 @@ namespace potbot_lib{
         double weight_attraction_field = weight_attraction_field_;
         double distance_threshold_repulsion_field   = distance_threshold_repulsion_field_;
         double weight_repulsion_field               = weight_repulsion_field_;
+
+        // 空間インデックスを構築（障害物が多い場合にO(N*M)→O(N*k)に削減）
+        buildObstacleSpatialIndex();
+        double dtr = distance_threshold_repulsion_field;
+        double inv_cell = 1.0 / spatial_cell_size_;
+        // 検索に必要な近傍セル範囲
+        int search_range = static_cast<int>(std::ceil(dtr * inv_cell));
 
         std::vector<potential::FieldGrid>* potential_values;
         potential_values = getValues();
@@ -179,27 +326,44 @@ namespace potbot_lib{
             double attraction_value     = 0.5 * weight_attraction_field * pow(distance_to_goal, 2);
             value.attraction            = attraction_value;
 
-            // if (distance_to_goal < 0.3) value.states[potential::GridInfo::IS_AROUND_GOAL] = true;
-
-
-
             double repulsion_value              = 0;
-            for(auto& coord_obstacle : obstacles_)
+
+            // 空間インデックスを使って近傍障害物のみを検索
+            int cx = static_cast<int>(std::floor(x * inv_cell));
+            int cy = static_cast<int>(std::floor(y * inv_cell));
+            for (int dx = -search_range; dx <= search_range; dx++)
             {
-                double x_obstacle               = coord_obstacle.x;
-                double y_obstacle               = coord_obstacle.y;
-                double distance_to_obstacle     = sqrt(pow(x-x_obstacle,2) + pow(y-y_obstacle,2));
-                if (distance_to_obstacle        <= distance_threshold_repulsion_field)
+                for (int dy = -search_range; dy <= search_range; dy++)
+                {
+                    auto it = obstacle_grid_.find({cx + dx, cy + dy});
+                    if (it == obstacle_grid_.end()) continue;
+                    for (size_t obs_idx : it->second)
+                    {
+                        double ox = obstacles_[obs_idx].x;
+                        double oy = obstacles_[obs_idx].y;
+                        double distance_to_obstacle = sqrt(pow(x-ox,2) + pow(y-oy,2));
+                        if (distance_to_obstacle <= dtr)
+                        {
+                            value.states[potential::GridInfo::IS_REPULSION_FIELD_INSIDE] = true;
+                            repulsion_value += 0.5 * weight_repulsion_field * pow(1.0/(distance_to_obstacle + 1e-100) - 1.0/(dtr + 1e-100), 2);
+                        }
+                    }
+                }
+            }
+            for(const auto& vobs : virtual_obstacles_)
+            {
+                double distance_to_obstacle     = sqrt(pow(x-vobs.x,2) + pow(y-vobs.y,2));
+                if (distance_to_obstacle        <= dtr)
                 {
                     value.states[potential::GridInfo::IS_REPULSION_FIELD_INSIDE] = true;
-                    repulsion_value += 0.5 * weight_repulsion_field * pow(1.0/(distance_to_obstacle + 1e-100) - 1.0/(distance_threshold_repulsion_field + 1e-100), 2);
+                    repulsion_value += 0.5 * weight_repulsion_field * pow(1.0/(distance_to_obstacle + 1e-100) - 1.0/(dtr + 1e-100), 2);
                 }
             }
             value.repulsion                     = repulsion_value;
 
             value.potential                     = value.attraction + value.repulsion;
             value.value                         = value.potential;
-            
+
         }
 
         for(auto& value : (*potential_values))

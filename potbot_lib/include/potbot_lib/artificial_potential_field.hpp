@@ -4,6 +4,7 @@
 #include <potbot_lib/utility.hpp>
 #include <potbot_lib/field.hpp>
 #include <eigen3/Eigen/Dense>
+#include <unordered_map>
 
 namespace potbot_lib{
 
@@ -13,10 +14,27 @@ namespace potbot_lib{
             double weight_attraction_field_             = 0.1;
             double weight_repulsion_field_              = 0.1;
             double distance_threshold_repulsion_field_  = 0.3;  //単位:メートル
+            double vortex_angle_                        = 0.0;  //渦巻き力の回転角度（デフォルト0で既存動作を保持）
 
             Point robot_;
             Point goal_;
             std::vector<Point> obstacles_;
+
+            struct VirtualObstacle {
+                double x, y;
+                int lifetime;
+            };
+            std::vector<VirtualObstacle> virtual_obstacles_;
+
+            // 空間インデックス: 障害物を格子セルにハッシュして近傍検索を高速化
+            double spatial_cell_size_ = 0.0;
+            struct SpatialHash {
+                size_t operator()(const std::pair<int,int>& p) const {
+                    return std::hash<long long>()(((long long)p.first << 32) | (unsigned int)p.second);
+                }
+            };
+            std::unordered_map<std::pair<int,int>, std::vector<size_t>, SpatialHash> obstacle_grid_;
+            void buildObstacleSpatialIndex();
 
         public:
             
@@ -36,6 +54,11 @@ namespace potbot_lib{
             void clearObstacles();
 
             void setParams(double wa, double wr, double dtr);
+            void setVortexAngle(double angle);
+
+            void addVirtualObstacle(double x, double y, int lifetime = 1);
+            void clearVirtualObstacles();
+            void decrementVirtualObstacleLifetimes();
 
             void setGoal(double x = 0, double y = 0);
 

@@ -23,20 +23,29 @@ namespace potbot_lib{
                 double path_weight_potential_ = 0.0;
                 double path_weight_pose_ = 1.0;
 
+                std::string escape_method_ = "virtual_obstacle_vortex";
+                int max_escape_attempts_ = 3;
+                int virtual_obstacle_lifetime_ = 1;
+
             private:
                 double combination(double n, double r);
                 void sortRepulsionEdges();
                 void getRepulsionEdges(std::vector<potential::FieldGrid>& edges_clockwise, std::vector<potential::FieldGrid>& edges_counterclockwise, size_t row_centor, size_t col_centor);
                 size_t getSmallerPotentialIndex(size_t centor_index, double potential_value);
+                bool createPathWallFollowing(double init_robot_pose = 0.0);
 
             public:
                 APFPathPlanner(ArtificialPotentialField *apf);
                 ~APFPathPlanner(){};
 
                 void setParams(double maxp, size_t sr, double wpot, double wpos);
+                void setParams(double maxp, size_t sr, double wpot, double wpos,
+                               const std::string& escape_method, int max_escape_attempts,
+                               int virtual_obstacle_lifetime);
 
                 bool createPathDijkstra(double init_robot_pose = 0.0);
                 bool createPathWithWeight(double init_robot_pose = 0.0);
+                bool createPathWithVirtualObstacle(double init_robot_pose = 0.0);
                 bool createPath(double init_robot_pose = 0.0);
                 bool bezier();
                 
