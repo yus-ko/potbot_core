@@ -17,7 +17,7 @@ x-common-environment: &common_environment
 services:
 
   gazebo:
-    profiles: [pipeline]
+    profiles: [pipeline, dev]
     <<: *common_setting
     container_name: gazebo
     environment:
@@ -31,7 +31,7 @@ services:
     command: ros2 launch potbot_example turtlebot3_with_garage.launch.py
 
   domain_bridge:
-    profiles: [pipeline]
+    profiles: [pipeline, dev]
     <<: *common_setting
     container_name: domain_bridge
     volumes:
@@ -39,7 +39,7 @@ services:
     command: ros2 run domain_bridge domain_bridge /bridge_config.yaml
 
   potbot:
-    profiles: [pipeline]
+    profiles: [pipeline, dev]
     <<: *common_setting
     container_name: potbot
     environment:
@@ -103,46 +103,6 @@ services:
     entrypoint: /entrypoint.sh
     command: bash /root/test/scripts/resource_monitor_wrapper.sh
 
-  # === dev profile: Gazebo + potbot + rqt（開発・デバッグ用） ===
-
-  gazebo-dev:
-    profiles: [dev]
-    <<: *common_setting
-    container_name: gazebo
-    environment:
-      <<: *common_environment
-    volumes:
-      - /tmp/.X11-unix:/tmp/.X11-unix
-      - ./.gazebo:/root/.gazebo
-      - ../../../:/root/ros2_ws
-      - ./scripts/entrypoint.sh:/entrypoint.sh
-    entrypoint: /entrypoint.sh
-    command: ros2 launch potbot_example turtlebot3_with_garage.launch.py
-
-  domain-bridge-dev:
-    profiles: [dev]
-    <<: *common_setting
-    container_name: domain_bridge
-    volumes:
-     - ./config/bridge_config.yaml:/bridge_config.yaml
-    command: ros2 run domain_bridge domain_bridge /bridge_config.yaml
-
-  potbot-dev:
-    profiles: [dev]
-    <<: *common_setting
-    container_name: potbot
-    environment:
-      <<: *common_environment
-      ROS_DOMAIN_ID: 1
-      PARAMS_FILE: *params_file
-    volumes:
-      - /tmp/.X11-unix:/tmp/.X11-unix
-      - ../../../:/root/ros2_ws
-      - ./scripts/entrypoint.sh:/entrypoint.sh
-      - ./:/root/test
-    entrypoint: /entrypoint.sh
-    command: bash -c "ros2 launch /root/test/launch/turtlebot3_navigation.launch.py use_sim_time:=true params_file:=$$PARAMS_FILE"
-
   rqt:
     profiles: [dev]
     <<: *common_setting
@@ -151,7 +111,7 @@ services:
       <<: *common_environment
       ROS_DOMAIN_ID: 1
     depends_on:
-      - potbot-dev
+      - potbot
     volumes:
       - /tmp/.X11-unix:/tmp/.X11-unix
       - ../../../:/root/ros2_ws
