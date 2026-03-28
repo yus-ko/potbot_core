@@ -141,7 +141,22 @@ controller_server:
       yaw_goal_tolerance: 0.25
 
     FollowPath:
-      plugin: "potbot_nav::controller::OptimalPathFollower"
+      plugin: "potbot_nav::controller::HybridApfController"
+      k_att: 1.0
+      k_rep: 2.0
+      d_th: 0.5
+      k_v: 0.5
+      k_omega: 2.0
+      v_max: 0.22
+      omega_max: 1.5
+      waypoint_tolerance: 0.3
+      goal_tolerance: 0.25
+      obstacle_cost_threshold: 200.0
+      max_obstacle_distance: 2.0
+
+    # OptimalPathFollower
+    # FollowPath:
+    #   plugin: "potbot_nav::controller::OptimalPathFollower"
 
     # DWB parameters
     # FollowPath:
