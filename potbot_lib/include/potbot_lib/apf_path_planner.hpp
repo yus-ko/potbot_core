@@ -44,6 +44,7 @@ namespace potbot_lib{
                                int virtual_obstacle_lifetime);
 
                 bool createPathDijkstra(double init_robot_pose = 0.0);
+                bool createPathAStar(double init_robot_pose = 0.0);
                 bool createPathWithWeight(double init_robot_pose = 0.0);
                 bool createPathWithVirtualObstacle(double init_robot_pose = 0.0);
                 bool createPath(double init_robot_pose = 0.0);
