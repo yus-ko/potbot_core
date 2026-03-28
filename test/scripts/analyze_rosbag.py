@@ -2,11 +2,11 @@
 """rosbag2 データを解析し、ロボットの軌跡・速度指令・計画経路を可視化するスクリプト。
 
 rosbags ライブラリを使用して rosbag2 (sqlite3形式) を読み込み、
-/odom、/cmd_vel、/plan トピックからデータを抽出して matplotlib で4パネルの
-図を生成・保存する。
+/odom、/cmd_vel、/plan トピックからデータを抽出して matplotlib で
+16:9 (1920x1080相当) の2列グリッドレイアウトで図を生成・保存する。
 
 --resources-csv を指定すると resource_monitor.py が出力したCSVも読み込み、
-CPU・メモリ使用量のパネルを追加した6パネル図を生成する。
+CPU・メモリ使用量のパネルを追加した3行2列の図を生成する。
 """
 
 import argparse
@@ -224,20 +224,19 @@ def read_rosbag(bag_path):
     return odom_data, cmd_vel_data, plan_data, goal_pose, map_data, amcl_data, bag_start_ns
 
 
-def _plot_resource_panels(axes, resources, panel_offset):
+def _plot_resource_panels(ax_cpu, ax_mem, resources):
     """リソースデータをCPU・メモリの2パネルに描画する。
 
     Args:
-        axes: matplotlib の Axes 配列。
+        ax_cpu: CPU パネルの Axes。
+        ax_mem: メモリパネルの Axes。
         resources: read_resources_csv の戻り値 dict。
-        panel_offset: CPU パネルのインデックス (memory は +1)。
     """
     t = resources.get('time_sec', [])
     if not t:
         return
 
     # CPU パネル
-    ax_cpu = axes[panel_offset]
     sys_cpu = resources.get('system_cpu_percent', [])
     if sys_cpu:
         ax_cpu.plot(t, sys_cpu, color='steelblue', linewidth=1.2, label='System CPU')
@@ -262,7 +261,6 @@ def _plot_resource_panels(axes, resources, panel_offset):
     ax_cpu.legend(fontsize='small')
 
     # メモリパネル
-    ax_mem = axes[panel_offset + 1]
     sys_mem = resources.get('system_memory_used_mb', [])
     if sys_mem:
         ax_mem.plot(t, sys_mem, color='darkorange', linewidth=1.2, label='System Memory')
@@ -287,7 +285,7 @@ def _plot_resource_panels(axes, resources, panel_offset):
 
 def create_figure(odom_data, cmd_vel_data, plan_data, goal_x=None, goal_y=None,
                   map_data=None, amcl_data=None, resources=None, auto_zoom=True):
-    """4〜6パネルの図を生成する。
+    """16:9の2列グリッドレイアウトで図を生成する。
 
     Args:
         odom_data: (timestamps, xs, ys, linear_xs, angular_zs) のタプル。
@@ -308,11 +306,10 @@ def create_figure(odom_data, cmd_vel_data, plan_data, goal_x=None, goal_y=None,
     cmd_vel_timestamps, cmd_vel_linear_xs, cmd_vel_angular_zs = cmd_vel_data
     plan_timestamps, plan_paths = plan_data
 
-    n_panels = 6 if resources else 4
-    fig_height = 24 if resources else 16
-    fig, axes = plt.subplots(n_panels, 1, figsize=(10, fig_height), constrained_layout=True)
+    n_rows = 3 if resources else 2
+    fig, axes = plt.subplots(n_rows, 2, figsize=(19.2, 10.8), constrained_layout=True)
 
-    ax_xy = axes[0]
+    ax_xy = axes[0, 0]
 
     # マップを背景として描画（imshow は Y軸が上下逆なので origin='lower' を指定）
     if map_data is not None:
@@ -378,7 +375,7 @@ def create_figure(odom_data, cmd_vel_data, plan_data, goal_x=None, goal_y=None,
         ax_xy.set_xlim(cx - half, cx + half)
         ax_xy.set_ylim(cy - half, cy + half)
 
-    ax_lin = axes[1]
+    ax_lin = axes[1, 0]
     ax_lin.plot(cmd_vel_timestamps, cmd_vel_linear_xs, 'b-', label='cmd_vel')
     if odom_linear_xs:
         ax_lin.plot(odom_timestamps, odom_linear_xs, 'r-', linewidth=0.8,
@@ -389,7 +386,7 @@ def create_figure(odom_data, cmd_vel_data, plan_data, goal_x=None, goal_y=None,
     ax_lin.set_title('Linear Velocity')
     ax_lin.legend(fontsize='small')
 
-    ax_ang = axes[2]
+    ax_ang = axes[1, 1]
     ax_ang.plot(cmd_vel_timestamps, cmd_vel_angular_zs, 'b-', label='cmd_vel')
     if odom_angular_zs:
         ax_ang.plot(odom_timestamps, odom_angular_zs, 'r-', linewidth=0.8,
@@ -400,7 +397,7 @@ def create_figure(odom_data, cmd_vel_data, plan_data, goal_x=None, goal_y=None,
     ax_ang.set_title('Angular Velocity')
     ax_ang.legend(fontsize='small')
 
-    ax_plan = axes[3]
+    ax_plan = axes[0, 1]
     if plan_timestamps and plan_paths:
         points = [
             (x, y, t)
@@ -423,7 +420,7 @@ def create_figure(odom_data, cmd_vel_data, plan_data, goal_x=None, goal_y=None,
     ax_plan.set_title('Planned Path Points Over Time')
 
     if resources:
-        _plot_resource_panels(axes, resources, panel_offset=4)
+        _plot_resource_panels(axes[2, 0], axes[2, 1], resources)
 
     return fig
 
