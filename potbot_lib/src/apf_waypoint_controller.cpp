@@ -25,7 +25,8 @@ void ApfWaypointController::setObstacles(const std::vector<Point>& obstacles)
 void ApfWaypointController::setParams(double k_att, double k_rep, double d_th,
                                        double k_v, double k_omega,
                                        double v_max, double omega_max,
-                                       double waypoint_tolerance, double goal_tolerance)
+                                       double waypoint_tolerance, double goal_tolerance,
+                                       double lookahead_distance)
 {
     k_att_              = k_att;
     k_rep_              = k_rep;
@@ -36,6 +37,7 @@ void ApfWaypointController::setParams(double k_att, double k_rep, double d_th,
     omega_max_          = omega_max;
     waypoint_tolerance_ = waypoint_tolerance;
     goal_tolerance_     = goal_tolerance;
+    lookahead_distance_ = lookahead_distance;
 
     apf_.setParams(k_att_, k_rep_, d_th_);
 }
@@ -72,16 +74,17 @@ void ApfWaypointController::updateWaypoint()
         return;
     }
 
-    const Pose& wp = global_path_[waypoint_index_];
-    double dx   = wp.position.x - x;
-    double dy   = wp.position.y - y;
-    double dist = std::sqrt(dx * dx + dy * dy);
-
-    bool is_last = (waypoint_index_ >= global_path_.size() - 1);
-    double tolerance = is_last ? goal_tolerance_ : waypoint_tolerance_;
-
-    if (dist < tolerance && !is_last) {
-        waypoint_index_++;
+    // 近傍のwaypointをまとめてスキップ（1ステップずつだと引力が弱まり停止する）
+    while (waypoint_index_ < global_path_.size() - 1) {
+        const Pose& wp = global_path_[waypoint_index_];
+        double dx   = wp.position.x - x;
+        double dy   = wp.position.y - y;
+        double dist = std::sqrt(dx * dx + dy * dy);
+        if (dist < waypoint_tolerance_) {
+            waypoint_index_++;
+        } else {
+            break;
+        }
     }
 }
 
@@ -111,7 +114,20 @@ void ApfWaypointController::computeCommand()
 
     updateWaypoint();
 
-    const Pose& wp = global_path_[waypoint_index_];
+    // ルックアヘッド: 現在waypointが近すぎる場合は引力が弱くなるため、
+    // ルックアヘッド距離以上離れた前方のwaypointを引力ターゲットにする
+    size_t target_idx = waypoint_index_;
+    for (size_t i = waypoint_index_; i < global_path_.size(); i++) {
+        double dx = global_path_[i].position.x - x;
+        double dy = global_path_[i].position.y - y;
+        if (std::sqrt(dx * dx + dy * dy) >= lookahead_distance_) {
+            target_idx = i;
+            break;
+        }
+        target_idx = i;  // 全て近い場合は最遠のwaypointを使う
+    }
+
+    const Pose& wp = global_path_[target_idx];
     double fx = 0.0, fy = 0.0;
     computeForce(wp.position.x, wp.position.y, fx, fy);
 

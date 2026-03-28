@@ -18,7 +18,8 @@ public:
     void setParams(double k_att, double k_rep, double d_th,
                    double k_v, double k_omega,
                    double v_max, double omega_max,
-                   double waypoint_tolerance, double goal_tolerance);
+                   double waypoint_tolerance, double goal_tolerance,
+                   double lookahead_distance = 0.5);
     void computeCommand();
     bool reachedGoal() const;
     bool isPathEmpty() const;
@@ -39,6 +40,7 @@ private:
     double omega_max_          = 1.5;
     double waypoint_tolerance_ = 0.2;
     double goal_tolerance_     = 0.05;
+    double lookahead_distance_ = 0.5;
 
     std::vector<Pose>  global_path_;
     size_t             waypoint_index_ = 0;

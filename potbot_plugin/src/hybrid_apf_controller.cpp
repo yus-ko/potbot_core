@@ -50,6 +50,8 @@ void HybridApfController::configure(
         rclcpp::ParameterValue(obstacle_cost_threshold_));
     nav2_util::declare_parameter_if_not_declared(node, plugin_name_ + ".max_obstacle_distance",
         rclcpp::ParameterValue(max_obstacle_distance_));
+    nav2_util::declare_parameter_if_not_declared(node, plugin_name_ + ".lookahead_distance",
+        rclcpp::ParameterValue(lookahead_distance_));
 
     k_att_                   = node->get_parameter(plugin_name_ + ".k_att").as_double();
     k_rep_                   = node->get_parameter(plugin_name_ + ".k_rep").as_double();
@@ -62,9 +64,11 @@ void HybridApfController::configure(
     goal_tolerance_          = node->get_parameter(plugin_name_ + ".goal_tolerance").as_double();
     obstacle_cost_threshold_ = node->get_parameter(plugin_name_ + ".obstacle_cost_threshold").as_double();
     max_obstacle_distance_   = node->get_parameter(plugin_name_ + ".max_obstacle_distance").as_double();
+    lookahead_distance_      = node->get_parameter(plugin_name_ + ".lookahead_distance").as_double();
 
     controller_.setParams(k_att_, k_rep_, d_th_, k_v_, k_omega_,
-                          v_max_, omega_max_, waypoint_tolerance_, goal_tolerance_);
+                          v_max_, omega_max_, waypoint_tolerance_, goal_tolerance_,
+                          lookahead_distance_);
 
     RCLCPP_INFO(logger_, "HybridApfController configured: %s", plugin_name_.c_str());
 }

@@ -65,6 +65,7 @@ private:
     double goal_tolerance_          = 0.05;
     double obstacle_cost_threshold_ = 200.0;
     double max_obstacle_distance_   = 2.0;
+    double lookahead_distance_      = 0.5;
 };
 
 }  // namespace controller
