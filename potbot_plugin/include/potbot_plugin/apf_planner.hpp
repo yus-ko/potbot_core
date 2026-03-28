@@ -84,6 +84,8 @@ private:
   int virtual_obstacle_lifetime_;
   // 仮想障害物配置の最大再試行回数
   int max_escape_attempts_;
+  // APFフィールド解像度（costmap解像度とは独立）
+  double field_resolution_;
 
   std::shared_ptr<potbot_lib::ArtificialPotentialFieldROS> apfros_;
 };

@@ -119,6 +119,108 @@ namespace potbot_lib{
             return !path_.empty();
         }
 
+        /**
+         * @brief A*法による経路計画（Dijkstraの高速化版）
+         *
+         * ユークリッド距離ヒューリスティック + tiebreakで探索ノード数を削減。
+         * admissible保証を維持しつつ、同コストノードをゴール方向優先で展開する。
+         */
+        bool APFPathPlanner::createPathAStar(double init_robot_pose)
+        {
+            path_.clear();
+            std::vector<potential::FieldGrid>* field_values = apf_->getValues();
+            const size_t N = field_values->size();
+
+            // ロボット開始インデックスを検索
+            size_t start_idx = SIZE_MAX;
+            for (const auto& v : *field_values) {
+                if (v.states[potential::GridInfo::IS_ROBOT]) {
+                    start_idx = v.index;
+                    break;
+                }
+            }
+            if (start_idx == SIZE_MAX) return false;
+
+            // ゴール座標を取得（ヒューリスティック計算用）
+            double goal_x = 0, goal_y = 0;
+            for (const auto& v : *field_values) {
+                if (v.states[potential::GridInfo::IS_GOAL]) {
+                    goal_x = v.x;
+                    goal_y = v.y;
+                    break;
+                }
+            }
+
+            // ヒューリスティック関数: ユークリッド距離（admissible）
+            auto heuristic = [&](size_t idx) -> double {
+                double dx = (*field_values)[idx].x - goal_x;
+                double dy = (*field_values)[idx].y - goal_y;
+                return std::sqrt(dx * dx + dy * dy);
+            };
+
+            // tiebreak用の微小係数（同f値ノードでゴールに近い方を優先）
+            constexpr double tiebreak_factor = 1.0 + 1e-4;
+
+            std::vector<double> g_cost(N, std::numeric_limits<double>::infinity());
+            std::vector<size_t> prev(N, SIZE_MAX);
+            // {f_cost, g_cost, index} — f値が同じ場合にg値（実コスト）が大きい方を優先（ゴールに近い）
+            using Entry = std::tuple<double, double, size_t>;
+            std::priority_queue<Entry, std::vector<Entry>, std::greater<Entry>> open;
+
+            g_cost[start_idx] = 0.0;
+            double h_start = heuristic(start_idx) * tiebreak_factor;
+            open.push({h_start, 0.0, start_idx});
+            size_t goal_idx = SIZE_MAX;
+
+            while (!open.empty()) {
+                auto [f, g, u] = open.top();
+                open.pop();
+                // 古いエントリはスキップ
+                if (g > g_cost[u]) continue;
+
+                // ゴール周辺グリッドに到達したら終了
+                if ((*field_values)[u].states[potential::GridInfo::IS_AROUND_GOAL]) {
+                    goal_idx = u;
+                    break;
+                }
+
+                // 隣接グリッドへの遷移コストを計算
+                std::vector<size_t> neighbors;
+                apf_->getSquareIndex(neighbors, (*field_values)[u].row, (*field_values)[u].col, 1);
+
+                for (size_t v : neighbors) {
+                    // 障害物グリッドはスキップ
+                    if ((*field_values)[v].states[potential::GridInfo::IS_OBSTACLE]) continue;
+
+                    double dx = (*field_values)[v].x - (*field_values)[u].x;
+                    double dy = (*field_values)[v].y - (*field_values)[u].y;
+                    double phys_dist = std::sqrt(dx * dx + dy * dy);
+                    // 斥力コストをペナルティとして加算することで障害物付近を回避
+                    double repulsion_cost = (*field_values)[v].repulsion;
+                    double edge_cost = phys_dist * (1.0 + repulsion_cost);
+                    double new_g = g + edge_cost;
+
+                    if (new_g < g_cost[v]) {
+                        g_cost[v] = new_g;
+                        prev[v] = u;
+                        double new_f = new_g + heuristic(v) * tiebreak_factor;
+                        open.push({new_f, new_g, v});
+                    }
+                }
+            }
+
+            if (goal_idx == SIZE_MAX) return false;
+
+            // パスを復元（ゴール→スタートの逆順をreverse）
+            std::vector<Pose> rev_path;
+            for (size_t cur = goal_idx; cur != SIZE_MAX; cur = prev[cur]) {
+                rev_path.push_back(Pose{(*field_values)[cur].x, (*field_values)[cur].y});
+            }
+            std::reverse(rev_path.begin(), rev_path.end());
+            path_ = rev_path;
+            return !path_.empty();
+        }
+
         bool APFPathPlanner::createPathWithWeight(double init_robot_pose)
         {
             path_.clear();
@@ -467,8 +569,8 @@ namespace potbot_lib{
 
             if (!success)
             {
-                // 最終フォールバック: Dijkstra
-                success = createPathDijkstra(init_robot_pose);
+                // 最終フォールバック: A*（Dijkstraより高速）
+                success = createPathAStar(init_robot_pose);
             }
 
             return success;
