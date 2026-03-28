@@ -17,7 +17,7 @@ x-common-environment: &common_environment
 services:
 
   gazebo:
-    profiles: [pipeline, dev]
+    profiles: [pipeline, dev, random-test]
     <<: *common_setting
     container_name: gazebo
     environment:
@@ -31,7 +31,7 @@ services:
     command: ros2 launch potbot_example turtlebot3_with_garage.launch.py
 
   domain_bridge:
-    profiles: [pipeline, dev]
+    profiles: [pipeline, dev, random-test]
     <<: *common_setting
     container_name: domain_bridge
     volumes:
@@ -39,7 +39,7 @@ services:
     command: ros2 run domain_bridge domain_bridge /bridge_config.yaml
 
   potbot:
-    profiles: [pipeline, dev]
+    profiles: [pipeline, dev, random-test]
     <<: *common_setting
     container_name: potbot
     environment:
@@ -72,12 +72,16 @@ services:
     command: bash /root/test/scripts/run_navigation_test.sh
 
   rosbag-record:
-    profiles: [pipeline]
+    profiles: [pipeline, random-test]
     <<: *common_setting
     container_name: rosbag-record
     environment:
       <<: *common_environment
       ROS_DOMAIN_ID: 1
+      # rosbag 分割サイズ（バイト）。未設定時は分割なし。
+      # random-test profile 使用時は 1GB 分割を推奨:
+      #   MAX_BAG_SIZE=1073741824 docker compose --profile random-test up
+      MAX_BAG_SIZE: ${MAX_BAG_SIZE:-}
     depends_on:
       - potbot
     volumes:
@@ -89,7 +93,7 @@ services:
     command: bash /root/test/scripts/rosbag_record_wrapper.sh
 
   resource-monitor:
-    profiles: [pipeline]
+    profiles: [pipeline, random-test]
     <<: *common_setting
     container_name: resource-monitor
     # potbot の PID 名前空間を共有して nav2 プロセス (planner/controller) を監視可能にする
@@ -102,6 +106,23 @@ services:
       - ./:/root/test
     entrypoint: /entrypoint.sh
     command: bash /root/test/scripts/resource_monitor_wrapper.sh
+
+  nav-random-test:
+    profiles: [random-test]
+    <<: *common_setting
+    container_name: nav-random-test
+    environment:
+      <<: *common_environment
+      ROS_DOMAIN_ID: 1
+      PARAMS_FILE: *params_file
+    depends_on:
+      - potbot
+    volumes:
+      - ../../../:/root/ros2_ws
+      - ./scripts/entrypoint.sh:/entrypoint.sh
+      - ./:/root/test
+    entrypoint: /entrypoint.sh
+    command: bash /root/test/scripts/run_random_navigation_test.sh
 
   rqt:
     profiles: [dev]
