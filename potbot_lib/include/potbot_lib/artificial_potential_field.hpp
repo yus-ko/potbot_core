@@ -4,6 +4,7 @@
 #include <potbot_lib/utility.hpp>
 #include <potbot_lib/field.hpp>
 #include <eigen3/Eigen/Dense>
+#include <unordered_map>
 
 namespace potbot_lib{
 
@@ -24,6 +25,16 @@ namespace potbot_lib{
                 int lifetime;
             };
             std::vector<VirtualObstacle> virtual_obstacles_;
+
+            // 空間インデックス: 障害物を格子セルにハッシュして近傍検索を高速化
+            double spatial_cell_size_ = 0.0;
+            struct SpatialHash {
+                size_t operator()(const std::pair<int,int>& p) const {
+                    return std::hash<long long>()(((long long)p.first << 32) | (unsigned int)p.second);
+                }
+            };
+            std::unordered_map<std::pair<int,int>, std::vector<size_t>, SpatialHash> obstacle_grid_;
+            void buildObstacleSpatialIndex();
 
         public:
             
