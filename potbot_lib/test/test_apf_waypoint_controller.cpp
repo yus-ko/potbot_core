@@ -207,6 +207,74 @@ TEST(ApfWaypointControllerTest, ConvergenceSimulation)
     EXPECT_TRUE(reached);
 }
 
+// ============================================================
+// 10. ObstacleProximityReducesSpeed — 障害物がd_th以内にある場合に速度が低下すること
+// ============================================================
+TEST(ApfWaypointControllerTest, ObstacleProximityReducesSpeed)
+{
+    // 障害物なしで速度を記録
+    ApfWaypointController ctrl_no_obs;
+    ctrl_no_obs.setParams(1.0, 2.0, 0.5, 0.5, 2.0, 0.3, 1.5, 0.2, 0.05);
+    std::vector<Pose> path;
+    path.push_back(Pose(2.0, 0.0, 0.0));
+    ctrl_no_obs.setGlobalPath(path);
+    ctrl_no_obs.x   = 0.0;
+    ctrl_no_obs.y   = 0.0;
+    ctrl_no_obs.yaw = 0.0;
+    ctrl_no_obs.computeCommand();
+    double v_no_obs = ctrl_no_obs.v;
+
+    // 障害物ありで速度を記録（d_th=0.5以内に配置）
+    ApfWaypointController ctrl_with_obs;
+    ctrl_with_obs.setParams(1.0, 2.0, 0.5, 0.5, 2.0, 0.3, 1.5, 0.2, 0.05);
+    ctrl_with_obs.setGlobalPath(path);
+    ctrl_with_obs.x   = 0.0;
+    ctrl_with_obs.y   = 0.0;
+    ctrl_with_obs.yaw = 0.0;
+    std::vector<Point> obs;
+    obs.push_back(Point{0.3, 0.1, 0.0});
+    ctrl_with_obs.setObstacles(obs);
+    ctrl_with_obs.computeCommand();
+    double v_with_obs = ctrl_with_obs.v;
+
+    EXPECT_LT(v_with_obs, v_no_obs);
+}
+
+// ============================================================
+// 11. ObstacleOutsideThresholdNoDeceleration — d_th外の障害物では速度低減しないこと
+// ============================================================
+TEST(ApfWaypointControllerTest, ObstacleOutsideThresholdNoDeceleration)
+{
+    // 障害物なし
+    ApfWaypointController ctrl_no_obs;
+    ctrl_no_obs.setParams(1.0, 2.0, 0.5, 0.5, 2.0, 0.3, 1.5, 0.2, 0.05);
+    std::vector<Pose> path;
+    path.push_back(Pose(2.0, 0.0, 0.0));
+    ctrl_no_obs.setGlobalPath(path);
+    ctrl_no_obs.x   = 0.0;
+    ctrl_no_obs.y   = 0.0;
+    ctrl_no_obs.yaw = 0.0;
+    ctrl_no_obs.computeCommand();
+    double v_no_obs = ctrl_no_obs.v;
+
+    // 障害物がd_th=0.5より遠い位置
+    ApfWaypointController ctrl_far_obs;
+    ctrl_far_obs.setParams(1.0, 2.0, 0.5, 0.5, 2.0, 0.3, 1.5, 0.2, 0.05);
+    ctrl_far_obs.setGlobalPath(path);
+    ctrl_far_obs.x   = 0.0;
+    ctrl_far_obs.y   = 0.0;
+    ctrl_far_obs.yaw = 0.0;
+    std::vector<Point> obs;
+    obs.push_back(Point{2.0, 0.0, 0.0});
+    ctrl_far_obs.setObstacles(obs);
+    ctrl_far_obs.computeCommand();
+    double v_far_obs = ctrl_far_obs.v;
+
+    // 速度低減ロジックは発動しないが、APF斥力によるomega変化でvが微妙に変わる可能性がある
+    // ここでは速度低減ファクターが適用されていないことを確認（vはほぼ同じ）
+    EXPECT_DOUBLE_EQ(v_no_obs, v_far_obs);
+}
+
 int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);
