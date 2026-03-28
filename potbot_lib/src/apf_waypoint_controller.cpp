@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <algorithm>
+#include <limits>
 
 namespace potbot_lib {
 namespace controller {
@@ -143,6 +144,21 @@ void ApfWaypointController::computeCommand()
                          ? std::cos(heading_error)
                          : 0.1;
     double cmd_v = std::min(k_v_ * dist_to_wp * speed_scale, v_max_);
+
+    // 障害物接近時の速度低減（k_rep>0の場合のみ）
+    if (k_rep_ > 0.0 && !obstacles_.empty()) {
+        double min_dist = std::numeric_limits<double>::max();
+        for (const auto& obs : obstacles_) {
+            double odx = obs.x - x;
+            double ody = obs.y - y;
+            double d = std::sqrt(odx * odx + ody * ody);
+            if (d < min_dist) min_dist = d;
+        }
+        if (min_dist < d_th_) {
+            double decel_factor = std::max(0.1, min_dist / d_th_);
+            cmd_v *= decel_factor;
+        }
+    }
 
     // APF斥力によるomega補正（k_rep>0の場合のみ）
     double cmd_omega = k_omega_ * heading_error;
