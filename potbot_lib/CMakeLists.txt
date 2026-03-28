@@ -174,6 +174,12 @@ if(BUILD_TESTING)
   )
   target_link_libraries(test_interpolate_param ${TEST_LIBS})
 
+  ament_add_gtest(test_apf_local_minima test/test_apf_local_minima.cpp)
+  target_include_directories(test_apf_local_minima PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  )
+  target_link_libraries(test_apf_local_minima ${TEST_LIBS})
+
   ament_add_gtest(test_apf_waypoint_controller test/test_apf_waypoint_controller.cpp)
   target_include_directories(test_apf_waypoint_controller PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>

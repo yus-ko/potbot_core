@@ -55,6 +55,23 @@ void APF::configure(
   node_->get_parameter(name_ + ".path_search_range", path_search_range_param_);
   node_->get_parameter(name_ + ".weight_potential", weight_potential_);
   node_->get_parameter(name_ + ".weight_pose", weight_pose_);
+
+  nav2_util::declare_parameter_if_not_declared(
+    node_, name_ + ".escape_method",
+    rclcpp::ParameterValue(std::string("virtual_obstacle_vortex")));
+  nav2_util::declare_parameter_if_not_declared(
+    node_, name_ + ".vortex_angle",
+    rclcpp::ParameterValue(0.785));
+  nav2_util::declare_parameter_if_not_declared(
+    node_, name_ + ".virtual_obstacle_lifetime",
+    rclcpp::ParameterValue(1));
+  nav2_util::declare_parameter_if_not_declared(
+    node_, name_ + ".max_escape_attempts",
+    rclcpp::ParameterValue(3));
+  node_->get_parameter(name_ + ".escape_method", escape_method_);
+  node_->get_parameter(name_ + ".vortex_angle", vortex_angle_);
+  node_->get_parameter(name_ + ".virtual_obstacle_lifetime", virtual_obstacle_lifetime_);
+  node_->get_parameter(name_ + ".max_escape_attempts", max_escape_attempts_);
 }
 
 void APF::cleanup()
@@ -125,6 +142,7 @@ nav_msgs::msg::Path APF::createPlan(
     }
   }
 
+  apfros_->getApf()->setVortexAngle(vortex_angle_);
   apfros_->createPotentialField();
   apfros_->publishPotentialField();
 
@@ -134,14 +152,12 @@ nav_msgs::msg::Path APF::createPlan(
     max_path_length_param_,
     static_cast<size_t>(path_search_range_param_),
     weight_potential_,
-    weight_pose_);
+    weight_pose_,
+    escape_method_,
+    max_escape_attempts_,
+    virtual_obstacle_lifetime_);
 
-  if (planning_method_ == "weighted") {
-    planner->createPathWithWeight();
-  } else {
-    // Dijkstra法は局所解に陥らないため、デフォルトとして使用する
-    planner->createPath();
-  }
+  planner->createPath();
   // planner->publishPath();
   // planner->publishRawPath();
 

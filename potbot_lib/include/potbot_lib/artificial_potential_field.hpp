@@ -13,10 +13,17 @@ namespace potbot_lib{
             double weight_attraction_field_             = 0.1;
             double weight_repulsion_field_              = 0.1;
             double distance_threshold_repulsion_field_  = 0.3;  //単位:メートル
+            double vortex_angle_                        = 0.0;  //渦巻き力の回転角度（デフォルト0で既存動作を保持）
 
             Point robot_;
             Point goal_;
             std::vector<Point> obstacles_;
+
+            struct VirtualObstacle {
+                double x, y;
+                int lifetime;
+            };
+            std::vector<VirtualObstacle> virtual_obstacles_;
 
         public:
             
@@ -36,6 +43,11 @@ namespace potbot_lib{
             void clearObstacles();
 
             void setParams(double wa, double wr, double dtr);
+            void setVortexAngle(double angle);
+
+            void addVirtualObstacle(double x, double y, int lifetime = 1);
+            void clearVirtualObstacles();
+            void decrementVirtualObstacleLifetimes();
 
             void setGoal(double x = 0, double y = 0);
 

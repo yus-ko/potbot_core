@@ -76,6 +76,15 @@ private:
   // 局所解脱出時の姿勢角度変化の重み
   double weight_pose_;
 
+  // 局所解脱出戦略
+  std::string escape_method_;
+  // 渦巻き力の回転角度（ラジアン）
+  double vortex_angle_;
+  // 仮想障害物の生存ステップ数
+  int virtual_obstacle_lifetime_;
+  // 仮想障害物配置の最大再試行回数
+  int max_escape_attempts_;
+
   std::shared_ptr<potbot_lib::ArtificialPotentialFieldROS> apfros_;
 };
 

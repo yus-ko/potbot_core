@@ -61,6 +61,61 @@ namespace potbot_lib{
         distance_threshold_repulsion_field_ = dtr;
     }
 
+    void ArtificialPotentialField::setVortexAngle(double angle)
+    {
+        vortex_angle_ = angle;
+    }
+
+    void ArtificialPotentialField::addVirtualObstacle(double x, double y, int lifetime)
+    {
+        virtual_obstacles_.push_back({x, y, lifetime});
+        try
+        {
+            size_t idx = getFieldIndex(x, y);
+            setFieldInfo(idx, potential::GridInfo::IS_VIRTUAL_OBSTACLE, true);
+            setFieldInfo(idx, potential::GridInfo::IS_OBSTACLE, true);
+        }
+        catch(...){}
+    }
+
+    void ArtificialPotentialField::clearVirtualObstacles()
+    {
+        for (const auto& vo : virtual_obstacles_)
+        {
+            try
+            {
+                size_t idx = getFieldIndex(vo.x, vo.y);
+                setFieldInfo(idx, potential::GridInfo::IS_VIRTUAL_OBSTACLE, false);
+                setFieldInfo(idx, potential::GridInfo::IS_OBSTACLE, false);
+            }
+            catch(...){}
+        }
+        virtual_obstacles_.clear();
+    }
+
+    void ArtificialPotentialField::decrementVirtualObstacleLifetimes()
+    {
+        for (auto it = virtual_obstacles_.begin(); it != virtual_obstacles_.end(); )
+        {
+            it->lifetime--;
+            if (it->lifetime <= 0)
+            {
+                try
+                {
+                    size_t idx = getFieldIndex(it->x, it->y);
+                    setFieldInfo(idx, potential::GridInfo::IS_VIRTUAL_OBSTACLE, false);
+                    setFieldInfo(idx, potential::GridInfo::IS_OBSTACLE, false);
+                }
+                catch(...){}
+                it = virtual_obstacles_.erase(it);
+            }
+            else
+            {
+                ++it;
+            }
+        }
+    }
+
     void ArtificialPotentialField::setGoal(double x, double y)
     {
         goal_ = Point{x,y};
@@ -157,6 +212,43 @@ namespace potbot_lib{
             }
         }
 
+        // 仮想障害物からの斥力
+        for (const auto& vobs : virtual_obstacles_)
+        {
+            double dx = rx - vobs.x;
+            double dy = ry - vobs.y;
+            double d  = std::sqrt(dx * dx + dy * dy);
+            if (d <= distance_threshold_repulsion_field_)
+            {
+                double coeff = weight_repulsion_field_
+                    * (1.0 / (d + 1e-100) - 1.0 / (distance_threshold_repulsion_field_ + 1e-100))
+                    / std::pow(d + 1e-100, 3);
+                f_rep_x += coeff * dx;
+                f_rep_y += coeff * dy;
+            }
+        }
+
+        // 渦巻き力: 斥力ベクトルをゴール方向に回転
+        if (std::abs(vortex_angle_) > 1e-9 && (f_rep_x != 0.0 || f_rep_y != 0.0))
+        {
+            double goal_angle = std::atan2(target_y - ry, target_x - rx);
+            double rep_angle = std::atan2(f_rep_y, f_rep_x);
+
+            double angle_diff = goal_angle - rep_angle;
+            while (angle_diff > M_PI) angle_diff -= 2.0 * M_PI;
+            while (angle_diff < -M_PI) angle_diff += 2.0 * M_PI;
+
+            double sign = (angle_diff >= 0.0) ? 1.0 : -1.0;
+            double theta = sign * vortex_angle_;
+
+            double cos_t = std::cos(theta);
+            double sin_t = std::sin(theta);
+            double new_rep_x = cos_t * f_rep_x - sin_t * f_rep_y;
+            double new_rep_y = sin_t * f_rep_x + cos_t * f_rep_y;
+            f_rep_x = new_rep_x;
+            f_rep_y = new_rep_y;
+        }
+
         fx = f_att_x + f_rep_x;
         fy = f_att_y + f_rep_y;
     }
@@ -189,6 +281,15 @@ namespace potbot_lib{
                 double x_obstacle               = coord_obstacle.x;
                 double y_obstacle               = coord_obstacle.y;
                 double distance_to_obstacle     = sqrt(pow(x-x_obstacle,2) + pow(y-y_obstacle,2));
+                if (distance_to_obstacle        <= distance_threshold_repulsion_field)
+                {
+                    value.states[potential::GridInfo::IS_REPULSION_FIELD_INSIDE] = true;
+                    repulsion_value += 0.5 * weight_repulsion_field * pow(1.0/(distance_to_obstacle + 1e-100) - 1.0/(distance_threshold_repulsion_field + 1e-100), 2);
+                }
+            }
+            for(const auto& vobs : virtual_obstacles_)
+            {
+                double distance_to_obstacle     = sqrt(pow(x-vobs.x,2) + pow(y-vobs.y,2));
                 if (distance_to_obstacle        <= distance_threshold_repulsion_field)
                 {
                     value.states[potential::GridInfo::IS_REPULSION_FIELD_INSIDE] = true;

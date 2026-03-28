@@ -23,6 +23,16 @@ namespace potbot_lib{
             path_weight_pose_ = wpos;
         }
 
+        void APFPathPlanner::setParams(double maxp, size_t sr, double wpot, double wpos,
+                                       const std::string& escape_method, int max_escape_attempts,
+                                       int virtual_obstacle_lifetime)
+        {
+            setParams(maxp, sr, wpot, wpos);
+            escape_method_ = escape_method;
+            max_escape_attempts_ = max_escape_attempts;
+            virtual_obstacle_lifetime_ = virtual_obstacle_lifetime;
+        }
+
         /**
          * @brief Dijkstra法による経路計画
          *
@@ -315,14 +325,157 @@ namespace potbot_lib{
             return true;
         }
 
-        bool APFPathPlanner::createPath(double init_robot_pose)
+        bool APFPathPlanner::createPathWithVirtualObstacle(double init_robot_pose)
         {
-            // まずDijkstra法で経路を生成する。
-            // Dijkstraはグローバル最適解を見つけAPF局所解問題を回避する。
-            if (createPathDijkstra(init_robot_pose)) {
+            path_.clear();
+            apf_->clearVirtualObstacles();
+
+            std::vector<potential::FieldGrid>* field_values = apf_->getValues();
+
+            // ロボット開始位置を取得
+            size_t pf_idx_min = 0;
+            size_t center_row = 0, center_col = 0;
+            double center_x = 0, center_y = 0;
+            double P_min = 0;
+            bool found_robot = false;
+            for (const auto& value : *field_values)
+            {
+                if (value.states[potential::GridInfo::IS_ROBOT])
+                {
+                    pf_idx_min = value.index;
+                    center_x = value.x;
+                    center_y = value.y;
+                    center_row = value.row;
+                    center_col = value.col;
+                    P_min = value.value;
+                    found_robot = true;
+                    break;
+                }
+            }
+            if (!found_robot) return false;
+
+            path_.push_back(Pose{center_x, center_y});
+            (*field_values)[pf_idx_min].states[potential::GridInfo::IS_PLANNED_PATH] = true;
+
+            double path_length = 0;
+            int escape_count = 0;
+            size_t range = path_search_range_;
+
+            while ((*field_values)[pf_idx_min].states[potential::GridInfo::IS_AROUND_GOAL] == false &&
+                    path_length <= max_path_length_)
+            {
+                if (path_.size() > 300) break;
+
+                // 近傍探索で最小ポテンシャルセルを検索
+                std::vector<size_t> search_indexes;
+                apf_->getSquareIndex(search_indexes, center_row, center_col, range);
+                if (search_indexes.empty()) break;
+
+                bool found_lower = false;
+                double best_potential = P_min;
+                size_t best_idx = pf_idx_min;
+
+                for (auto idx : search_indexes)
+                {
+                    if ((*field_values)[idx].states[potential::GridInfo::IS_PLANNED_PATH]) continue;
+                    if ((*field_values)[idx].states[potential::GridInfo::IS_OBSTACLE]) continue;
+
+                    double potential_val = (*field_values)[idx].value;
+                    if (potential_val < best_potential)
+                    {
+                        found_lower = true;
+                        best_potential = potential_val;
+                        best_idx = idx;
+                    }
+                }
+
+                if (found_lower)
+                {
+                    // 勾配降下: より低いポテンシャルへ移動
+                    pf_idx_min = best_idx;
+                    double px = (*field_values)[pf_idx_min].x;
+                    double py = (*field_values)[pf_idx_min].y;
+                    path_length += sqrt(pow(px - path_.back().position.x, 2) + pow(py - path_.back().position.y, 2));
+                    center_row = (*field_values)[pf_idx_min].row;
+                    center_col = (*field_values)[pf_idx_min].col;
+                    P_min = (*field_values)[pf_idx_min].value;
+
+                    Pose p{px, py};
+                    if (path_.size() >= 2 && p == path_.end()[-1] && p == path_.end()[-2]) break;
+                    path_.push_back(p);
+                    (*field_values)[pf_idx_min].states[potential::GridInfo::IS_PLANNED_PATH] = true;
+                }
+                else
+                {
+                    // 局所解検出: 仮想障害物を配置して再計算
+                    if (escape_count >= max_escape_attempts_) break;
+
+                    apf_->addVirtualObstacle(
+                        (*field_values)[pf_idx_min].x,
+                        (*field_values)[pf_idx_min].y,
+                        virtual_obstacle_lifetime_);
+
+                    // ポテンシャル場全体を再計算
+                    apf_->createPotentialField();
+                    field_values = apf_->getValues();
+
+                    // 既存パスのIS_PLANNED_PATHフラグを再設定
+                    for (const auto& pose : path_)
+                    {
+                        try
+                        {
+                            size_t idx = apf_->getFieldIndex(pose.position.x, pose.position.y);
+                            (*field_values)[idx].states[potential::GridInfo::IS_PLANNED_PATH] = true;
+                        }
+                        catch(...){}
+                    }
+
+                    // 現在セルのポテンシャル値を更新
+                    P_min = (*field_values)[pf_idx_min].value;
+
+                    escape_count++;
+                    apf_->decrementVirtualObstacleLifetimes();
+                }
+            }
+
+            apf_->clearVirtualObstacles();
+
+            // ゴール到達判定
+            if (!path_.empty() && (*field_values)[pf_idx_min].states[potential::GridInfo::IS_AROUND_GOAL])
+            {
                 return true;
             }
-            // Dijkstraが失敗した場合（ゴールへの経路なし等）は従来の勾配降下法にフォールバック
+            return false;
+        }
+
+        bool APFPathPlanner::createPath(double init_robot_pose)
+        {
+            bool success = false;
+
+            if (escape_method_ == "virtual_obstacle_vortex")
+            {
+                success = createPathWithVirtualObstacle(init_robot_pose);
+            }
+            else if (escape_method_ == "random_weighted")
+            {
+                success = createPathWithWeight(init_robot_pose);
+            }
+            else if (escape_method_ == "wall_following")
+            {
+                success = createPathWallFollowing(init_robot_pose);
+            }
+
+            if (!success)
+            {
+                // 最終フォールバック: Dijkstra
+                success = createPathDijkstra(init_robot_pose);
+            }
+
+            return success;
+        }
+
+        bool APFPathPlanner::createPathWallFollowing(double init_robot_pose)
+        {
             path_.clear();
             size_t center_row   = 0;
             size_t center_col   = 0;
