@@ -128,16 +128,32 @@ void ApfWaypointController::computeCommand()
     }
 
     const Pose& wp = global_path_[target_idx];
-    double fx = 0.0, fy = 0.0;
-    computeForce(wp.position.x, wp.position.y, fx, fy);
 
-    double desired_heading = std::atan2(fy, fx);
+    // waypointへの直接方向でheadingを計算する（APF合力方向ではなく）
+    // これにより廊下内でAPF斥力が横を向いても前進できる
+    double dx_wp = wp.position.x - x;
+    double dy_wp = wp.position.y - y;
+    double dist_to_wp   = std::sqrt(dx_wp * dx_wp + dy_wp * dy_wp);
+    double desired_heading = std::atan2(dy_wp, dx_wp);
     double heading_error   = normalizeAngle(desired_heading - yaw);
-    double force_magnitude = std::sqrt(fx * fx + fy * fy);
 
-    double cmd_v = std::min(k_v_ * force_magnitude, v_max_);
+    // waypoint方向への速度：旋回中も一定の前進を確保する
+    // heading_errorが大きい場合は大幅減速するが停止はしない
+    double speed_scale = (std::abs(heading_error) < M_PI / 2.0)
+                         ? std::cos(heading_error)
+                         : 0.1;
+    double cmd_v = std::min(k_v_ * dist_to_wp * speed_scale, v_max_);
 
+    // APF斥力によるomega補正（k_rep>0の場合のみ）
     double cmd_omega = k_omega_ * heading_error;
+    if (k_rep_ > 0.0) {
+        double fx = 0.0, fy = 0.0;
+        computeForce(wp.position.x, wp.position.y, fx, fy);
+        double apf_heading = std::atan2(fy, fx);
+        double apf_heading_error = normalizeAngle(apf_heading - yaw);
+        // waypoint方向7割 + APF方向3割で障害物を避けつつwaypoint追従
+        cmd_omega = k_omega_ * (0.7 * heading_error + 0.3 * apf_heading_error);
+    }
     cmd_omega = std::max(-omega_max_, std::min(omega_max_, cmd_omega));
 
     v     = cmd_v;

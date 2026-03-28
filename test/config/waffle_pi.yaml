@@ -138,13 +138,13 @@ controller_server:
       stateful: True
       plugin: "nav2_controller::SimpleGoalChecker"
       xy_goal_tolerance: 0.25
-      yaw_goal_tolerance: 0.25
+      yaw_goal_tolerance: 6.28
 
     FollowPath:
       plugin: "potbot_nav::controller::HybridApfController"
       k_att: 1.0
-      k_rep: 2.0
-      d_th: 0.5
+      k_rep: 0.0
+      d_th: 0.3
       k_v: 0.5
       k_omega: 2.0
       v_max: 0.22
