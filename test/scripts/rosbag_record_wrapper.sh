@@ -32,7 +32,12 @@ mkdir -p "${RUN_DIR}"
 echo "${TIMESTAMP}" > "${RUN_DIR_FILE}"
 
 echo "[rosbag-record] rosbag2 記録を開始します: ${BAG_PATH}"
-ros2 bag record -o "${BAG_PATH}" /odom /cmd_vel /scan /tf /tf_static /plan /test/goal_pose /map /amcl_pose &
+BAG_RECORD_ARGS="-o ${BAG_PATH} /odom /cmd_vel /scan /tf /tf_static /plan /test/goal_pose /map /amcl_pose"
+if [ -n "${MAX_BAG_SIZE}" ]; then
+  BAG_RECORD_ARGS="--max-bag-size ${MAX_BAG_SIZE} ${BAG_RECORD_ARGS}"
+  echo "[rosbag-record] 最大バッグサイズ: ${MAX_BAG_SIZE} bytes"
+fi
+ros2 bag record ${BAG_RECORD_ARGS} &
 RECORD_PID=$!
 
 # センチネルファイルが作成されるまで待機
