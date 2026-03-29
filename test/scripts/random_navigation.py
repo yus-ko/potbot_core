@@ -44,6 +44,7 @@ from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped
 from lifecycle_msgs.srv import GetState
 from nav2_msgs.action import NavigateToPose
 from nav_msgs.msg import Odometry
+from nav_msgs.msg import Path as NavPath
 from PIL import Image
 from rclpy.action import ActionClient
 from rclpy.node import Node
@@ -75,6 +76,8 @@ class MapAnalyzer:
 
         # free cell: 値が (1 - free_thresh) より大きい（PGMでは白=free）
         self.free_mask = grid > (1.0 - self.free_thresh)
+        # occupied cell: 値が (1 - occupied_thresh) より小さい（PGMでは黒=occupied）
+        self.occupied_mask = grid < (1.0 - self.occupied_thresh)
         self.height, self.width = self.free_mask.shape
 
     def get_reachable_cells(self, robot_x: float, robot_y: float):
@@ -147,6 +150,47 @@ class MapAnalyzer:
             goals.append(random.choice(world_coords))
         return goals
 
+    def is_occupied(self, wx: float, wy: float) -> bool:
+        """ワールド座標がoccupiedセルかどうかを判定する。"""
+        px = int((wx - self.origin_x) / self.resolution)
+        py = self.height - 1 - int((wy - self.origin_y) / self.resolution)
+        if px < 0 or px >= self.width or py < 0 or py >= self.height:
+            return False
+        return bool(self.occupied_mask[py, px])
+
+    def check_path_wall_penetration(self, path_points, interpolation_step=0.05):
+        """経路点と内挿点が壁を貫通していないかチェックする。
+
+        Args:
+            path_points: [(x, y), ...] の経路点リスト
+            interpolation_step: 内挿間隔 [m]
+
+        Returns:
+            list of (x, y): 壁貫通が検出された座標のリスト（空なら貫通なし）
+        """
+        violations = []
+        for i in range(len(path_points)):
+            x, y = path_points[i]
+            if self.is_occupied(x, y):
+                violations.append((x, y))
+
+            # 次の点との間を内挿
+            if i + 1 < len(path_points):
+                nx, ny = path_points[i + 1]
+                dx = nx - x
+                dy = ny - y
+                dist = math.sqrt(dx * dx + dy * dy)
+                if dist < 1e-6:
+                    continue
+                n_steps = max(1, int(dist / interpolation_step))
+                for s in range(1, n_steps):
+                    t = s / n_steps
+                    ix = x + dx * t
+                    iy = y + dy * t
+                    if self.is_occupied(ix, iy):
+                        violations.append((ix, iy))
+        return violations
+
 
 class RandomNavigationRunner(Node):
     """ランダムゴールを逐次送信し、停留検出・結果記録を行うノード。"""
@@ -187,6 +231,13 @@ class RandomNavigationRunner(Node):
         self._odom_sub = self.create_subscription(
             Odometry, '/odom', self._odom_callback, 10)
 
+        # /plan購読（壁貫通検出用）
+        self._latest_plan = []
+        self._plan_wall_violations = 0
+        self._plan_sub = self.create_subscription(
+            NavPath, '/plan', self._plan_callback, 10)
+        self._map_analyzer = None  # run()で設定
+
         # シャットダウンフラグ
         self._shutdown = False
         signal.signal(signal.SIGINT, self._signal_handler)
@@ -203,6 +254,19 @@ class RandomNavigationRunner(Node):
         self._current_x = msg.pose.pose.position.x
         self._current_y = msg.pose.pose.position.y
         self._odom_received = True
+
+    def _plan_callback(self, msg):
+        """グローバルパスを受信し、壁貫通チェックを行う。"""
+        path_points = [
+            (pose.pose.position.x, pose.pose.position.y) for pose in msg.poses]
+        self._latest_plan = path_points
+        if self._map_analyzer and path_points:
+            violations = self._map_analyzer.check_path_wall_penetration(path_points)
+            if violations:
+                self._plan_wall_violations += len(violations)
+                self.get_logger().error(
+                    f'壁貫通検出！ {len(violations)}点が障害物セル上: '
+                    f'例=({violations[0][0]:.2f}, {violations[0][1]:.2f})')
 
     def set_initial_pose(self, x: float, y: float):
         """AMCLの初期位置を設定する。"""
@@ -431,7 +495,7 @@ class RandomNavigationRunner(Node):
             writer = csv.DictWriter(f, fieldnames=[
                 'goal_id', 'goal_x', 'goal_y', 'start_x', 'start_y',
                 'distance', 'result', 'duration_sec', 'stuck_count',
-                'path_length', 'timeout_sec',
+                'path_length', 'timeout_sec', 'wall_violations',
             ])
             if not file_exists:
                 writer.writeheader()
@@ -515,6 +579,7 @@ class RandomNavigationRunner(Node):
         # マップ解析
         self.get_logger().info(f'マップを解析中: {map_yaml}')
         analyzer = MapAnalyzer(map_yaml)
+        self._map_analyzer = analyzer  # 壁貫通チェック用
 
         # ゴール生成設定
         seed = seed_val if seed_val >= 0 else None
@@ -608,6 +673,7 @@ class RandomNavigationRunner(Node):
                 f'  距離: {distance:.2f}m\n'
                 f'  タイムアウト: {goal_timeout:.0f}s')
 
+            self._plan_wall_violations = 0  # ゴールごとにリセット
             nav_result = self._navigate_to_goal(gx, gy, goal_timeout)
 
             row = {
@@ -622,6 +688,7 @@ class RandomNavigationRunner(Node):
                 'stuck_count': nav_result['stuck_count'],
                 'path_length': round(nav_result['path_length'], 3),
                 'timeout_sec': round(goal_timeout, 1),
+                'wall_violations': self._plan_wall_violations,
             }
             self._results.append(row)
             self._write_csv_row(csv_path, row)
@@ -630,11 +697,12 @@ class RandomNavigationRunner(Node):
                 'success': 'OK', 'stuck': 'STUCK',
                 'timeout': 'TIMEOUT', 'rejected': 'REJECTED',
             }.get(nav_result['result'], 'FAIL')
+            wall_str = f', 壁貫通={self._plan_wall_violations}' if self._plan_wall_violations > 0 else ''
             self.get_logger().info(
                 f'  結果: [{status_emoji}] {nav_result["result"]} '
                 f'({nav_result["duration"]:.1f}s, '
                 f'停留={nav_result["stuck_count"]}, '
-                f'走行={nav_result["path_length"]:.1f}m)')
+                f'走行={nav_result["path_length"]:.1f}m{wall_str})')
 
             # 定期サマリ
             if goal_id % summary_interval == 0:
