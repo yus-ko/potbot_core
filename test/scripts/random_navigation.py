@@ -103,7 +103,8 @@ class MapAnalyzer:
         return np.where(component_mask)
 
     def generate_random_goals(self, robot_x: float, robot_y: float, n: int,
-                              goal_region=None, seed=None):
+                              goal_region=None, seed=None,
+                              min_distance: float = 2.0):
         """到達可能領域からランダムにn個のワールド座標ゴールを生成する。
 
         Args:
@@ -111,6 +112,7 @@ class MapAnalyzer:
             n: 生成するゴール数
             goal_region: {'x_min','x_max','y_min','y_max'} の辞書（オプション）
             seed: 乱数シード（再現性のため）
+            min_distance: ロボットからの最小距離 [m]（近すぎるゴールを除外）
 
         Returns:
             list of (x, y) タプル
@@ -131,6 +133,10 @@ class MapAnalyzer:
                 if not (goal_region['x_min'] <= wx <= goal_region['x_max'] and
                         goal_region['y_min'] <= wy <= goal_region['y_max']):
                     continue
+            # 最小距離フィルタ
+            dist = math.sqrt((wx - robot_x) ** 2 + (wy - robot_y) ** 2)
+            if dist < min_distance:
+                continue
             world_coords.append((wx, wy))
 
         if not world_coords:
@@ -507,25 +513,21 @@ class RandomNavigationRunner(Node):
         self.get_logger().info(f'マップを解析中: {map_yaml}')
         analyzer = MapAnalyzer(map_yaml)
 
-        # ゴール生成（無限ループ時はバッチで生成）
-        BATCH_SIZE = 100
+        # ゴール生成設定
         seed = seed_val if seed_val >= 0 else None
+        if seed is not None:
+            random.seed(seed)
         infinite_mode = (num_goals == 0)
         if infinite_mode:
             self.get_logger().info('無限ループモードで実行します。Ctrl+C で停止。')
-            goals = analyzer.generate_random_goals(
-                initial_x, initial_y, BATCH_SIZE,
-                goal_region=goal_region, seed=seed)
-        else:
-            goals = analyzer.generate_random_goals(
-                initial_x, initial_y, num_goals,
-                goal_region=goal_region, seed=seed)
 
-        if not goals:
+        # 初期位置から到達可能か事前チェック
+        test_goals = analyzer.generate_random_goals(
+            initial_x, initial_y, 1, goal_region=goal_region)
+        if not test_goals:
             self.get_logger().error('到達可能なゴールを生成できませんでした。')
             return False
-
-        self.get_logger().info(f'ゴール生成完了: {len(goals)} 個')
+        self.get_logger().info('マップ解析完了。ゴールは各ナビゲーション直前に現在位置基準で生成します。')
 
         # Nav2 起動待ち
         self.get_logger().info('/navigate_to_pose アクションサーバーを待機中...')
@@ -554,7 +556,6 @@ class RandomNavigationRunner(Node):
 
         # ナビゲーションループ
         goal_id = 0
-        goal_index = 0
         while True:
             if self._shutdown:
                 self.get_logger().info('シャットダウン要求を受けました。終了します。')
@@ -563,18 +564,22 @@ class RandomNavigationRunner(Node):
             if not infinite_mode and goal_id >= num_goals:
                 break
 
-            # 無限ループ時のゴール補充
-            if goal_index >= len(goals):
-                if infinite_mode:
-                    goals = analyzer.generate_random_goals(
-                        initial_x, initial_y, BATCH_SIZE,
-                        goal_region=goal_region)
-                    goal_index = 0
-                else:
+            # 現在位置基準でゴールを1つ生成
+            current_goals = analyzer.generate_random_goals(
+                self._current_x, self._current_y, 1,
+                goal_region=goal_region)
+            if not current_goals:
+                # 現在位置から到達可能なゴールがない場合、初期位置基準にフォールバック
+                self.get_logger().warn(
+                    f'現在位置({self._current_x:.1f}, {self._current_y:.1f})から'
+                    f'到達可能なゴールなし。初期位置基準にフォールバック。')
+                current_goals = analyzer.generate_random_goals(
+                    initial_x, initial_y, 1, goal_region=goal_region)
+                if not current_goals:
+                    self.get_logger().error('ゴールを生成できません。終了します。')
                     break
 
-            gx, gy = goals[goal_index]
-            goal_index += 1
+            gx, gy = current_goals[0]
             goal_id += 1
 
             start_x = self._current_x
