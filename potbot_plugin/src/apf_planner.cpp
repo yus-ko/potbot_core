@@ -132,8 +132,9 @@ nav_msgs::msg::Path APF::createPlan(
   int total_cells = 2 * half_cells;
 
   // costmapから障害物を先に抽出（差分比較用）
+  // 全costmapセルを走査して壁の取りこぼしを防ぐ（sample_step=1固定）
   const double costmap_resolution = costmap_->getResolution();
-  const int sample_step = std::max(1, static_cast<int>(std::round(resolution / costmap_resolution)));
+  const int sample_step = 1;
   const int costmap_half_cells = static_cast<int>(half_cells * resolution / costmap_resolution);
 
   unsigned int rmx, rmy;

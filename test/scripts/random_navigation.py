@@ -173,6 +173,9 @@ class RandomNavigationRunner(Node):
         self.declare_parameter('goal_region_y_max', float('nan'))
         self.declare_parameter('timeout', 300.0)
         self.declare_parameter('seed', -1)
+        # 固定ゴール指定（NaN以外の場合はランダム生成を無視してこのゴールを使用）
+        self.declare_parameter('fixed_goal_x', float('nan'))
+        self.declare_parameter('fixed_goal_y', float('nan'))
 
         self._client = ActionClient(self, NavigateToPose, 'navigate_to_pose')
         self._goal_pub = self.create_publisher(PoseStamped, '/test/goal_pose', 10)
@@ -554,6 +557,14 @@ class RandomNavigationRunner(Node):
         # CSV パス
         csv_path = os.path.join(results_dir, 'navigation_results.csv')
 
+        # 固定ゴール指定チェック
+        fixed_gx = self.get_parameter('fixed_goal_x').value
+        fixed_gy = self.get_parameter('fixed_goal_y').value
+        use_fixed_goal = not (math.isnan(fixed_gx) or math.isnan(fixed_gy))
+        if use_fixed_goal:
+            self.get_logger().info(
+                f'固定ゴールモード: ({fixed_gx:.2f}, {fixed_gy:.2f})')
+
         # ナビゲーションループ
         goal_id = 0
         while True:
@@ -564,22 +575,24 @@ class RandomNavigationRunner(Node):
             if not infinite_mode and goal_id >= num_goals:
                 break
 
-            # 現在位置基準でゴールを1つ生成
-            current_goals = analyzer.generate_random_goals(
-                self._current_x, self._current_y, 1,
-                goal_region=goal_region)
-            if not current_goals:
-                # 現在位置から到達可能なゴールがない場合、初期位置基準にフォールバック
-                self.get_logger().warn(
-                    f'現在位置({self._current_x:.1f}, {self._current_y:.1f})から'
-                    f'到達可能なゴールなし。初期位置基準にフォールバック。')
+            if use_fixed_goal:
+                gx, gy = fixed_gx, fixed_gy
+            else:
+                # 現在位置基準でゴールを1つ生成
                 current_goals = analyzer.generate_random_goals(
-                    initial_x, initial_y, 1, goal_region=goal_region)
+                    self._current_x, self._current_y, 1,
+                    goal_region=goal_region)
                 if not current_goals:
-                    self.get_logger().error('ゴールを生成できません。終了します。')
-                    break
+                    self.get_logger().warn(
+                        f'現在位置({self._current_x:.1f}, {self._current_y:.1f})から'
+                        f'到達可能なゴールなし。初期位置基準にフォールバック。')
+                    current_goals = analyzer.generate_random_goals(
+                        initial_x, initial_y, 1, goal_region=goal_region)
+                    if not current_goals:
+                        self.get_logger().error('ゴールを生成できません。終了します。')
+                        break
+                gx, gy = current_goals[0]
 
-            gx, gy = current_goals[0]
             goal_id += 1
 
             start_x = self._current_x

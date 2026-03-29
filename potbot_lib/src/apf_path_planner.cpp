@@ -88,15 +88,17 @@ namespace potbot_lib{
                 apf_->getSquareIndex(neighbors, (*field_values)[u].row, (*field_values)[u].col, 1);
 
                 for (size_t v : neighbors) {
-                    // 障害物グリッドはスキップ
-                    if ((*field_values)[v].states[potential::GridInfo::IS_OBSTACLE]) continue;
-
                     double dx = (*field_values)[v].x - (*field_values)[u].x;
                     double dy = (*field_values)[v].y - (*field_values)[u].y;
                     double phys_dist = std::sqrt(dx * dx + dy * dy);
+                    // 障害物グリッドは非常に高いコストを付与（壁を飛び越える経路を防止）
+                    double obstacle_penalty = 0.0;
+                    if ((*field_values)[v].states[potential::GridInfo::IS_OBSTACLE]) {
+                        obstacle_penalty = 1000.0;
+                    }
                     // 斥力コストをペナルティとして加算することで障害物付近を回避
                     double repulsion_cost = (*field_values)[v].repulsion;
-                    double edge_cost = phys_dist * (1.0 + repulsion_cost);
+                    double edge_cost = phys_dist * (1.0 + repulsion_cost) + obstacle_penalty;
                     double new_dist = d + edge_cost;
 
                     if (new_dist < dist[v]) {
@@ -188,9 +190,37 @@ namespace potbot_lib{
                 std::vector<size_t> neighbors;
                 apf_->getSquareIndex(neighbors, (*field_values)[u].row, (*field_values)[u].col, 1);
 
+                const int u_row = (*field_values)[u].row;
+                const int u_col = (*field_values)[u].col;
+
                 for (size_t v : neighbors) {
                     // 障害物グリッドはスキップ
                     if ((*field_values)[v].states[potential::GridInfo::IS_OBSTACLE]) continue;
+
+                    const int v_row = (*field_values)[v].row;
+                    const int v_col = (*field_values)[v].col;
+                    const int dr = v_row - u_row;
+                    const int dc = v_col - u_col;
+
+                    // 斜め移動時、隣接する直交セルが障害物なら遷移を禁止
+                    // （壁の角を斜めにすり抜ける経路を防止）
+                    if (dr != 0 && dc != 0) {
+                        const int adj_r = u_row + dr;
+                        const int adj_c = u_col + dc;
+                        const auto& hdr = apf_->getHeader();
+                        const int rows = static_cast<int>(hdr.rows);
+                        const int cols = static_cast<int>(hdr.cols);
+                        // 行方向の隣接セル (u_row+dr, u_col) が障害物か
+                        if (adj_r >= 0 && adj_r < rows && u_col >= 0 && u_col < cols) {
+                            size_t idx_r = static_cast<size_t>(adj_r) * hdr.cols + static_cast<size_t>(u_col);
+                            if ((*field_values)[idx_r].states[potential::GridInfo::IS_OBSTACLE]) continue;
+                        }
+                        // 列方向の隣接セル (u_row, u_col+dc) が障害物か
+                        if (u_row >= 0 && u_row < rows && adj_c >= 0 && adj_c < cols) {
+                            size_t idx_c = static_cast<size_t>(u_row) * hdr.cols + static_cast<size_t>(adj_c);
+                            if ((*field_values)[idx_c].states[potential::GridInfo::IS_OBSTACLE]) continue;
+                        }
+                    }
 
                     double dx = (*field_values)[v].x - (*field_values)[u].x;
                     double dy = (*field_values)[v].y - (*field_values)[u].y;
