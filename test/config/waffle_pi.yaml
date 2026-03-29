@@ -348,7 +348,7 @@ planner_server:
     GridBased:
       plugin: "potbot_nav::planner::APF"
       planning_method: "astar"
-      field_resolution: 0.1
+      field_resolution: 0.05
       max_path_length: 40.0
       max_field_half_size: 20.0
       path_search_range: 1
