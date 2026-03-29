@@ -146,7 +146,7 @@ nav_msgs::msg::Path APF::createPlan(
     unsigned int cmx, cmy;
     if (costmap_->worldToMap(cell.x, cell.y, cmx, cmy)) {
       const auto c = costmap_->getCost(cmx, cmy);
-      if (c >= nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE) {
+      if (c == nav2_costmap_2d::LETHAL_OBSTACLE) {
         apfros_->getApf()->setObstacle(cell.x, cell.y);
         current_obstacles.push_back(potbot_lib::Point{cell.x, cell.y});
       }
