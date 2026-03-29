@@ -773,9 +773,10 @@ class RandomNavigationRunner(Node):
             self._plan_wall_violations = 0  # ゴールごとにリセット
             nav_result = self._navigate_to_goal(gx, gy, goal_timeout)
 
-            # 自己位置乖離時はGazeboでロボットを初期位置にリセット
-            if nav_result['result'] == 'localization_diverged':
-                self.get_logger().warn('Gazeboでロボットを初期位置にリセットします...')
+            # 自己位置乖離 or スタック時はGazeboでロボットを初期位置にリセット
+            if nav_result['result'] in ('localization_diverged', 'stuck'):
+                self.get_logger().warn(
+                    f'{nav_result["result"]}検出。Gazeboでロボットを初期位置にリセットします...')
                 self.reset_robot_in_gazebo(initial_x, initial_y)
                 time.sleep(2.0)  # リセット後の安定待ち
 
