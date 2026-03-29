@@ -16,4 +16,7 @@ topics:
     type: nav_msgs/msg/Odometry
   scan:
     type: sensor_msgs/msg/LaserScan
-  
+services:
+  set_entity_state:
+    type: gazebo_msgs/srv/SetEntityState
+    reversed: True

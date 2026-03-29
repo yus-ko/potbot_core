@@ -231,6 +231,15 @@ class RandomNavigationRunner(Node):
         self._odom_sub = self.create_subscription(
             Odometry, '/odom', self._odom_callback, 10)
 
+        # amcl_pose購読（自己位置乖離検出用）
+        self._amcl_x = 0.0
+        self._amcl_y = 0.0
+        self._amcl_received = False
+        self._amcl_sub = self.create_subscription(
+            PoseWithCovarianceStamped, '/amcl_pose', self._amcl_callback, 10)
+        self._localization_diverged = False
+        self._divergence_threshold = 2.0  # odomとamclの乖離閾値 [m]
+
         # /plan購読（壁貫通検出用）
         self._latest_plan = []
         self._plan_wall_violations = 0
@@ -254,6 +263,25 @@ class RandomNavigationRunner(Node):
         self._current_x = msg.pose.pose.position.x
         self._current_y = msg.pose.pose.position.y
         self._odom_received = True
+        # odomとamclの乖離チェック（map≈odomが成り立つ環境前提）
+        if self._amcl_received:
+            dx = self._current_x - self._amcl_x
+            dy = self._current_y - self._amcl_y
+            divergence = math.sqrt(dx * dx + dy * dy)
+            if divergence > self._divergence_threshold:
+                if not self._localization_diverged:
+                    self.get_logger().error(
+                        f'自己位置乖離検出！ odom=({self._current_x:.2f}, {self._current_y:.2f}) '
+                        f'amcl=({self._amcl_x:.2f}, {self._amcl_y:.2f}) '
+                        f'距離={divergence:.2f}m > 閾値{self._divergence_threshold}m')
+                    self._localization_diverged = True
+            else:
+                self._localization_diverged = False
+
+    def _amcl_callback(self, msg):
+        self._amcl_x = msg.pose.pose.position.x
+        self._amcl_y = msg.pose.pose.position.y
+        self._amcl_received = True
 
     def _plan_callback(self, msg):
         """グローバルパスを受信し、壁貫通チェックを行う。"""
@@ -267,6 +295,50 @@ class RandomNavigationRunner(Node):
                 self.get_logger().error(
                     f'壁貫通検出！ {len(violations)}点が障害物セル上: '
                     f'例=({violations[0][0]:.2f}, {violations[0][1]:.2f})')
+
+    def reset_robot_in_gazebo(self, x: float, y: float):
+        """Gazeboでロボットを指定位置にテレポートし、AMCLを再初期化する。
+
+        domain_bridge経由でDomain 0のGazeboサービスを呼び出す。
+
+        Returns:
+            True: リセット成功
+            False: リセット失敗
+        """
+        from gazebo_msgs.srv import SetEntityState
+        from gazebo_msgs.msg import EntityState
+
+        if not hasattr(self, '_gazebo_client') or self._gazebo_client is None:
+            self._gazebo_client = self.create_client(
+                SetEntityState, '/set_entity_state')
+
+        if not self._gazebo_client.wait_for_service(timeout_sec=5.0):
+            self.get_logger().error('Gazebo set_entity_state サービスが利用不可')
+            return False
+
+        req = SetEntityState.Request()
+        req.state = EntityState()
+        req.state.name = 'waffle_pi'
+        req.state.pose.position.x = x
+        req.state.pose.position.y = y
+        req.state.pose.position.z = 0.0
+        req.state.pose.orientation.w = 1.0
+        req.state.twist.linear.x = 0.0
+        req.state.twist.linear.y = 0.0
+        req.state.twist.angular.z = 0.0
+
+        future = self._gazebo_client.call_async(req)
+        if self._spin_until_done(future, timeout_sec=5.0) and future.result() is not None:
+            self.get_logger().info(
+                f'Gazeboでロボットを ({x:.2f}, {y:.2f}) にリセットしました')
+            # AMCLも再初期化
+            time.sleep(0.5)
+            self.set_initial_pose(x, y)
+            self._localization_diverged = False
+            return True
+        else:
+            self.get_logger().error('Gazebo リセット失敗')
+            return False
 
     def set_initial_pose(self, x: float, y: float):
         """AMCLの初期位置を設定する。"""
@@ -423,6 +495,18 @@ class RandomNavigationRunner(Node):
                     executor.spin_once(timeout_sec=0.1)
                 except Exception:
                     pass
+
+                # 自己位置乖離チェック（衝突でロボットが飛んだ場合）
+                if self._localization_diverged:
+                    self.get_logger().error('自己位置乖離によりゴールをキャンセルします。')
+                    goal_handle.cancel_goal_async()
+                    self._spin_brief(executor, 2.0)
+                    return {
+                        'result': 'localization_diverged',
+                        'duration': time.monotonic() - start_time,
+                        'stuck_count': stuck_count,
+                        'path_length': path_length,
+                    }
 
                 # 経路長の累積
                 dx = self._current_x - prev_x
@@ -675,6 +759,12 @@ class RandomNavigationRunner(Node):
 
             self._plan_wall_violations = 0  # ゴールごとにリセット
             nav_result = self._navigate_to_goal(gx, gy, goal_timeout)
+
+            # 自己位置乖離時はGazeboでロボットを初期位置にリセット
+            if nav_result['result'] == 'localization_diverged':
+                self.get_logger().warn('Gazeboでロボットを初期位置にリセットします...')
+                self.reset_robot_in_gazebo(initial_x, initial_y)
+                time.sleep(2.0)  # リセット後の安定待ち
 
             row = {
                 'goal_id': goal_id,
