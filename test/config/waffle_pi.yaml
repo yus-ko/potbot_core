@@ -423,7 +423,7 @@ random_navigation_runner:
     # マップYAMLファイルパス（map_server と同じマップを指定）
     map_yaml: "/root/ros2_ws/src/potbot_example/maps/willowgarage.yaml"
     # ゴール数（0=無限ループ）
-    num_goals: 3
+    num_goals: 10
     # タイムアウト計算パラメータ
     expected_speed: 0.2
     safety_margin: 3.0
