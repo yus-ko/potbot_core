@@ -299,7 +299,8 @@ class RandomNavigationRunner(Node):
     def reset_robot_in_gazebo(self, x: float, y: float):
         """Gazeboでロボットを指定位置にテレポートし、AMCLを再初期化する。
 
-        domain_bridge経由でDomain 0のGazeboサービスを呼び出す。
+        Domain 0のGazebo set_entity_stateサービスを直接呼び出す。
+        gazebo_ros_stateプラグインがワールドファイルにロードされている必要がある。
 
         Returns:
             True: リセット成功
@@ -308,11 +309,19 @@ class RandomNavigationRunner(Node):
         from gazebo_msgs.srv import SetEntityState
         from gazebo_msgs.msg import EntityState
 
-        if not hasattr(self, '_gazebo_client') or self._gazebo_client is None:
-            self._gazebo_client = self.create_client(
+        # Domain 0 用の別コンテキスト・ノード・エグゼキューターを遅延初期化
+        if not hasattr(self, '_gazebo_context') or self._gazebo_context is None:
+            self._gazebo_context = rclpy.Context()
+            self._gazebo_context.init(domain_id=0)
+            self._gazebo_node = rclpy.create_node(
+                'gazebo_reset_client', context=self._gazebo_context)
+            self._gazebo_executor = rclpy.executors.SingleThreadedExecutor(
+                context=self._gazebo_context)
+            self._gazebo_executor.add_node(self._gazebo_node)
+            self._set_entity_client = self._gazebo_node.create_client(
                 SetEntityState, '/set_entity_state')
 
-        if not self._gazebo_client.wait_for_service(timeout_sec=5.0):
+        if not self._set_entity_client.wait_for_service(timeout_sec=5.0):
             self.get_logger().error('Gazebo set_entity_state サービスが利用不可')
             return False
 
@@ -327,11 +336,15 @@ class RandomNavigationRunner(Node):
         req.state.twist.linear.y = 0.0
         req.state.twist.angular.z = 0.0
 
-        future = self._gazebo_client.call_async(req)
-        if self._spin_until_done(future, timeout_sec=5.0) and future.result() is not None:
+        future = self._set_entity_client.call_async(req)
+        # Domain 0 のエグゼキューターでspin
+        deadline = time.monotonic() + 5.0
+        while not future.done() and time.monotonic() < deadline:
+            self._gazebo_executor.spin_once(timeout_sec=0.1)
+
+        if future.done() and future.result() is not None:
             self.get_logger().info(
                 f'Gazeboでロボットを ({x:.2f}, {y:.2f}) にリセットしました')
-            # AMCLも再初期化
             time.sleep(0.5)
             self.set_initial_pose(x, y)
             self._localization_diverged = False
