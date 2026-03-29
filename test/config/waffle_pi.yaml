@@ -447,8 +447,8 @@ random_navigation_runner:
     goal_region_y_min: -3.5
     goal_region_y_max: 12.0
     # 固定ゴール指定（失敗ケース再現用: Goal 1 stuck）
-    # fixed_goal_x: 9.241
-    # fixed_goal_y: 6.056
+    # fixed_goal_x: 13.491
+    # fixed_goal_y: 6.456
 
 # behavior_server:
 #   ros__parameters:
