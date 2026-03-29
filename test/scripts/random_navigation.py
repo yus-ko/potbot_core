@@ -778,7 +778,11 @@ class RandomNavigationRunner(Node):
                 self.get_logger().warn(
                     f'{nav_result["result"]}検出。Gazeboでロボットを初期位置にリセットします...')
                 self.reset_robot_in_gazebo(initial_x, initial_y)
-                time.sleep(2.0)  # リセット後の安定待ち
+                # リセット後にAMCLが収束するまで待機（短すぎるとodom/amcl乖離で誤検出）
+                self.get_logger().info('AMCL収束待ち (5秒)...')
+                wait_deadline = time.monotonic() + 5.0
+                while time.monotonic() < wait_deadline:
+                    rclpy.spin_once(self, timeout_sec=0.1)
 
             row = {
                 'goal_id': goal_id,
